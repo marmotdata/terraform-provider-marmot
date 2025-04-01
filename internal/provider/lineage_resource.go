@@ -20,7 +20,7 @@ import (
 	"github.com/marmotdata/terraform-provider-marmot/internal/client/models"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces
+// Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &LineageResource{}
 var _ resource.ResourceWithImportState = &LineageResource{}
 
@@ -33,7 +33,7 @@ type LineageResource struct {
 	client *client.Marmot
 }
 
-// LineageResourceModel describes the lineage resource data model
+// LineageResourceModel describes the lineage resource data model.
 type LineageResourceModel struct {
 	Source     types.String `tfsdk:"source"`
 	Target     types.String `tfsdk:"target"`

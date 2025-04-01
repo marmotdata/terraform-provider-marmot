@@ -363,9 +363,9 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
 
-	sources := r.convertSources(ctx, data.Sources, &diags)
+	sources := r.convertSources(data.Sources, &diags)
 
-	environments := r.convertEnvironments(ctx, data.Environments, &diags)
+	environments := r.convertEnvironments(data.Environments, &diags)
 
 	name := data.Name.ValueString()
 	assetType := data.Type.ValueString()
@@ -404,9 +404,9 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
 
-	sources := r.convertSources(ctx, data.Sources, &diags)
+	sources := r.convertSources(data.Sources, &diags)
 
-	environments := r.convertEnvironments(ctx, data.Environments, &diags)
+	environments := r.convertEnvironments(data.Environments, &diags)
 
 	return &models.AssetsUpdateRequest{
 		Name:          data.Name.ValueString(),
@@ -443,7 +443,7 @@ func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*model
 	return result
 }
 
-func (r *AssetResource) convertSources(ctx context.Context, sources []AssetSourceModel, diags *diag.Diagnostics) []*models.AssetAssetSource {
+func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.Diagnostics) []*models.AssetAssetSource {
 	if len(sources) == 0 {
 		return nil
 	}
@@ -467,7 +467,7 @@ func (r *AssetResource) convertSources(ctx context.Context, sources []AssetSourc
 	return result
 }
 
-func (r *AssetResource) convertEnvironments(ctx context.Context, environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]models.AssetEnvironment {
+func (r *AssetResource) convertEnvironments(environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]models.AssetEnvironment {
 	if len(environments) == 0 {
 		return nil
 	}
