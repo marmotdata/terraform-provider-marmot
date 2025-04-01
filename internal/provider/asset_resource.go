@@ -21,7 +21,7 @@ import (
 	"github.com/marmotdata/terraform-provider-marmot/internal/client/models"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces
+// Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &AssetResource{}
 var _ resource.ResourceWithImportState = &AssetResource{}
 
@@ -34,28 +34,28 @@ type AssetResource struct {
 	client *client.Marmot
 }
 
-// ExternalLink represents a link to an external resource
+// ExternalLink represents a link to an external resource.
 type ExternalLinkModel struct {
 	Icon types.String `tfsdk:"icon"`
 	Name types.String `tfsdk:"name"`
 	URL  types.String `tfsdk:"url"`
 }
 
-// AssetSource represents a source for an asset
+// AssetSource represents a source for an asset.
 type AssetSourceModel struct {
 	Name       types.String `tfsdk:"name"`
 	Priority   types.Int64  `tfsdk:"priority"`
 	Properties types.Map    `tfsdk:"properties"`
 }
 
-// AssetEnvironment represents an environment for an asset
+// AssetEnvironment represents an environment for an asset.
 type AssetEnvironmentModel struct {
 	Name     types.String `tfsdk:"name"`
 	Path     types.String `tfsdk:"path"`
 	Metadata types.Map    `tfsdk:"metadata"`
 }
 
-// AssetResourceModel describes the asset resource data model
+// AssetResourceModel describes the asset resource data model.
 type AssetResourceModel struct {
 	Name          types.String                     `tfsdk:"name"`
 	Type          types.String                     `tfsdk:"type"`
@@ -355,10 +355,10 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 		diags.Append(data.Tags.ElementsAs(ctx, &tags, false)...)
 	}
 
-	metadata, metadataDiags := r.mapToDictionary(ctx, data.Metadata)
+	metadata, metadataDiags := r.mapToDictionary(data.Metadata)
 	diags.Append(metadataDiags...)
 
-	schema, schemaDiags := r.mapToDictionary(ctx, data.Schema)
+	schema, schemaDiags := r.mapToDictionary(data.Schema)
 	diags.Append(schemaDiags...)
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
@@ -396,10 +396,10 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 		diags.Append(data.Tags.ElementsAs(ctx, &tags, false)...)
 	}
 
-	metadata, metadataDiags := r.mapToDictionary(ctx, data.Metadata)
+	metadata, metadataDiags := r.mapToDictionary(data.Metadata)
 	diags.Append(metadataDiags...)
 
-	schema, schemaDiags := r.mapToDictionary(ctx, data.Schema)
+	schema, schemaDiags := r.mapToDictionary(data.Schema)
 	diags.Append(schemaDiags...)
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
@@ -450,7 +450,7 @@ func (r *AssetResource) convertSources(ctx context.Context, sources []AssetSourc
 
 	result := make([]*models.AssetAssetSource, len(sources))
 	for i, source := range sources {
-		props, propDiags := r.mapToDictionary(ctx, source.Properties)
+		props, propDiags := r.mapToDictionary(source.Properties)
 		diags.Append(propDiags...)
 
 		priority := int64(0)
@@ -474,7 +474,7 @@ func (r *AssetResource) convertEnvironments(ctx context.Context, environments ma
 
 	result := make(map[string]models.AssetEnvironment)
 	for k, env := range environments {
-		metadata, mdDiags := r.mapToDictionary(ctx, env.Metadata)
+		metadata, mdDiags := r.mapToDictionary(env.Metadata)
 		diags.Append(mdDiags...)
 
 		result[k] = models.AssetEnvironment{
@@ -486,7 +486,7 @@ func (r *AssetResource) convertEnvironments(ctx context.Context, environments ma
 	return result
 }
 
-func (r *AssetResource) mapToDictionary(ctx context.Context, tfMap types.Map) (map[string]interface{}, diag.Diagnostics) {
+func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}, diag.Diagnostics) {
 	if tfMap.IsNull() || tfMap.IsUnknown() {
 		return nil, nil
 	}
@@ -556,7 +556,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		model.Schema = types.MapNull(types.StringType)
 	}
 
-	if asset.ExternalLinks != nil && len(asset.ExternalLinks) > 0 {
+	if len(asset.ExternalLinks) > 0 {
 		model.ExternalLinks = r.convertModelExternalLinks(asset.ExternalLinks)
 	} else {
 		if len(model.ExternalLinks) == 0 {
@@ -564,7 +564,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		}
 	}
 
-	if asset.Sources != nil && len(asset.Sources) > 0 {
+	if len(asset.Sources) > 0 {
 		model.Sources = r.convertModelSources(ctx, asset.Sources, &diags)
 	} else {
 		if len(model.Sources) == 0 {
@@ -572,7 +572,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		}
 	}
 
-	if asset.Environments != nil && len(asset.Environments) > 0 {
+	if len(asset.Environments) > 0 {
 		model.Environments = r.convertModelEnvironments(ctx, asset.Environments, &diags)
 	} else {
 		model.Environments = make(map[string]AssetEnvironmentModel)
