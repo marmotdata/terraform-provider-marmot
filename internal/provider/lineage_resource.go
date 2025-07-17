@@ -132,7 +132,7 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	data.Source = types.StringValue(result.Payload.Source)
-	data.Target = types.StringValue(result.Payload.Target) 
+	data.Target = types.StringValue(result.Payload.Target)
 	data.Type = types.StringValue(result.Payload.Type)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
