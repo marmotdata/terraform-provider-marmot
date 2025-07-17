@@ -124,7 +124,7 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	params := lineage.NewGetLineageDirectIDParams().WithID(data.ResourceID.ValueString())
+	params := lineage.NewGetLineageDirectIDParams().WithID(strfmt.UUID(data.ResourceID.ValueString()))
 	result, err := r.client.Lineage.GetLineageDirectID(params)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read lineage: %s", err))
