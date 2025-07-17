@@ -68,6 +68,7 @@ func (r *LineageResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"type": schema.StringAttribute{
 				MarkdownDescription: "Lineage type",
 				Computed:            true,
+				Optional:            true,
 			},
 		},
 	}
@@ -123,13 +124,17 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	tflog.Info(ctx, "Read lineage", map[string]interface{}{
-		"id":     data.ResourceID.ValueString(),
-		"source": data.Source.ValueString(),
-		"target": data.Target.ValueString(),
-	})
+	params := lineage.NewGetLineageDirectIDParams().WithID(data.ResourceID.ValueString())
+	result, err := r.client.Lineage.GetLineageDirectID(params)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read lineage: %s", err))
+		return
+	}
 
-	// Set state
+	data.Source = types.StringValue(result.Payload.Source)
+	data.Target = types.StringValue(result.Payload.Target) 
+	data.Type = types.StringValue(result.Payload.Type)
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
