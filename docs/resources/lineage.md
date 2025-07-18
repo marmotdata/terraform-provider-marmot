@@ -39,10 +39,6 @@ resource "marmot_asset" "target" {
 - `source` (String) Source asset
 - `target` (String) Target asset
 
-### Optional
-
-- `type` (String) Lineage type
-
 ### Read-Only
 
 - `resource_id` (String) Resource ID

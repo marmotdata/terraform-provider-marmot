@@ -38,7 +38,6 @@ type LineageResourceModel struct {
 	Source     types.String `tfsdk:"source"`
 	Target     types.String `tfsdk:"target"`
 	ResourceID types.String `tfsdk:"resource_id"`
-	Type       types.String `tfsdk:"type"`
 }
 
 func (r *LineageResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -64,11 +63,6 @@ func (r *LineageResource) Schema(ctx context.Context, req resource.SchemaRequest
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
-			},
-			"type": schema.StringAttribute{
-				MarkdownDescription: "Lineage type",
-				Computed:            true,
-				Optional:            true,
 			},
 		},
 	}
@@ -111,7 +105,6 @@ func (r *LineageResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	data.ResourceID = types.StringValue(result.Payload.ID)
-	data.Type = types.StringValue(result.Payload.Type)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -133,7 +126,6 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 	data.Source = types.StringValue(result.Payload.Source)
 	data.Target = types.StringValue(result.Payload.Target)
-	data.Type = types.StringValue(result.Payload.Type)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
