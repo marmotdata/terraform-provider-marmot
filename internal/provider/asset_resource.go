@@ -590,7 +590,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		model.LastSyncAt = types.StringNull()
 	}
 
-	if asset.Providers != nil && len(asset.Providers) > 0 {
+	if len(asset.Providers) > 0 {
 		services, diag := types.SetValueFrom(ctx, types.StringType, asset.Providers)
 		diags.Append(diag...)
 		model.Services = services
@@ -600,7 +600,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		model.Services = services
 	}
 
-	if asset.Tags != nil && len(asset.Tags) > 0 {
+	if len(asset.Tags) > 0 {
 		tags, diag := types.SetValueFrom(ctx, types.StringType, asset.Tags)
 		diags.Append(diag...)
 		model.Tags = tags
