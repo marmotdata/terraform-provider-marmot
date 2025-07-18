@@ -8,12 +8,15 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -89,24 +92,40 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Asset name",
 				Required:            true,
+				Validators: []validator.String{
+					stringvalidator.LengthBetween(1, 255),
+				},
 			},
 			"type": schema.StringAttribute{
 				MarkdownDescription: "Asset type",
 				Required:            true,
+				Validators: []validator.String{
+					stringvalidator.LengthBetween(1, 100),
+				},
 			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "Asset description",
 				Optional:            true,
+				Validators: []validator.String{
+					stringvalidator.LengthAtMost(1000),
+				},
 			},
 			"services": schema.SetAttribute{
 				MarkdownDescription: "Services associated with the asset",
 				Required:            true,
 				ElementType:         types.StringType,
+				Validators: []validator.Set{
+					setvalidator.SizeAtLeast(1),
+					setvalidator.ValueStringsAre(stringvalidator.LengthBetween(1, 100)),
+				},
 			},
 			"tags": schema.SetAttribute{
 				MarkdownDescription: "Tags associated with the asset",
 				Optional:            true,
 				ElementType:         types.StringType,
+				Validators: []validator.Set{
+					setvalidator.ValueStringsAre(stringvalidator.LengthBetween(1, 100)),
+				},
 			},
 			"metadata": schema.MapAttribute{
 				MarkdownDescription: "Metadata associated with the asset",
@@ -130,10 +149,16 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"name": schema.StringAttribute{
 							MarkdownDescription: "Name of the external link",
 							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.LengthBetween(1, 255),
+							},
 						},
 						"url": schema.StringAttribute{
 							MarkdownDescription: "URL of the external link",
 							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.LengthBetween(1, 2048),
+							},
 						},
 					},
 				},
@@ -146,6 +171,9 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"name": schema.StringAttribute{
 							MarkdownDescription: "Name of the source",
 							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.LengthBetween(1, 255),
+							},
 						},
 						"priority": schema.Int64Attribute{
 							MarkdownDescription: "Priority of the source",
@@ -167,10 +195,16 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"name": schema.StringAttribute{
 							MarkdownDescription: "Name of the environment",
 							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.LengthBetween(1, 255),
+							},
 						},
 						"path": schema.StringAttribute{
 							MarkdownDescription: "Path of the environment",
 							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.LengthBetween(1, 500),
+							},
 						},
 						"metadata": schema.MapAttribute{
 							MarkdownDescription: "Metadata of the environment",
@@ -264,6 +298,11 @@ func (r *AssetResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	tflog.Info(ctx, "Asset created", map[string]interface{}{
+		"id":   data.ResourceID.ValueString(),
+		"name": data.Name.ValueString(),
+	})
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -327,6 +366,11 @@ func (r *AssetResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
+	tflog.Info(ctx, "Asset updated", map[string]interface{}{
+		"id":   data.ResourceID.ValueString(),
+		"name": data.Name.ValueString(),
+	})
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -362,7 +406,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	sort.Strings(services)
 
 	var tags []string
-	if !data.Tags.IsNull() {
+	if !data.Tags.IsNull() && !data.Tags.IsUnknown() {
 		diags.Append(data.Tags.ElementsAs(ctx, &tags, false)...)
 		sort.Strings(tags)
 	}
@@ -374,9 +418,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	diags.Append(schemaDiags...)
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
-
 	sources := r.convertSources(data.Sources, &diags)
-
 	environments := r.convertEnvironments(data.Environments, &diags)
 
 	name := data.Name.ValueString()
@@ -405,7 +447,7 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 	sort.Strings(services)
 
 	var tags []string
-	if !data.Tags.IsNull() {
+	if !data.Tags.IsNull() && !data.Tags.IsUnknown() {
 		diags.Append(data.Tags.ElementsAs(ctx, &tags, false)...)
 		sort.Strings(tags)
 	}
@@ -417,9 +459,7 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 	diags.Append(schemaDiags...)
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
-
 	sources := r.convertSources(data.Sources, &diags)
-
 	environments := r.convertEnvironments(data.Environments, &diags)
 
 	return &models.AssetsUpdateRequest{
@@ -444,7 +484,7 @@ func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*model
 	result := make([]*models.AssetExternalLink, len(links))
 	for i, link := range links {
 		icon := ""
-		if !link.Icon.IsNull() {
+		if !link.Icon.IsNull() && !link.Icon.IsUnknown() {
 			icon = link.Icon.ValueString()
 		}
 
@@ -468,7 +508,7 @@ func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.D
 		diags.Append(propDiags...)
 
 		priority := int64(0)
-		if !source.Priority.IsNull() {
+		if !source.Priority.IsNull() && !source.Priority.IsUnknown() {
 			priority = source.Priority.ValueInt64()
 		}
 
@@ -502,12 +542,15 @@ func (r *AssetResource) convertEnvironments(environments map[string]AssetEnviron
 
 func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}, diag.Diagnostics) {
 	if tfMap.IsNull() || tfMap.IsUnknown() {
-		return make(map[string]interface{}), nil
+		return nil, nil
 	}
 
 	elements := tfMap.Elements()
-	result := make(map[string]interface{}, len(elements))
+	if len(elements) == 0 {
+		return nil, nil
+	}
 
+	result := make(map[string]interface{}, len(elements))
 	for k, v := range elements {
 		strVal, ok := v.(basetypes.StringValue)
 		if !ok {
@@ -518,9 +561,14 @@ func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}
 				),
 			}
 		}
-		result[k] = strVal.ValueString()
+		if !strVal.IsNull() && !strVal.IsUnknown() {
+			result[k] = strVal.ValueString()
+		}
 	}
 
+	if len(result) == 0 {
+		return nil, nil
+	}
 	return result, nil
 }
 
@@ -542,31 +590,25 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		model.LastSyncAt = types.StringNull()
 	}
 
-	if asset.Providers != nil {
-		sortedServices := make([]string, len(asset.Providers))
-		copy(sortedServices, asset.Providers)
-		sort.Strings(sortedServices)
-
-		services, diag := types.SetValueFrom(ctx, types.StringType, sortedServices)
+	if asset.Providers != nil && len(asset.Providers) > 0 {
+		services, diag := types.SetValueFrom(ctx, types.StringType, asset.Providers)
 		diags.Append(diag...)
 		model.Services = services
 	} else {
-		model.Services = types.SetNull(types.StringType)
+		services, diag := types.SetValueFrom(ctx, types.StringType, []string{})
+		diags.Append(diag...)
+		model.Services = services
 	}
 
-	if asset.Tags != nil {
-		sortedTags := make([]string, len(asset.Tags))
-		copy(sortedTags, asset.Tags)
-		sort.Strings(sortedTags)
-
-		tags, diag := types.SetValueFrom(ctx, types.StringType, sortedTags)
+	if asset.Tags != nil && len(asset.Tags) > 0 {
+		tags, diag := types.SetValueFrom(ctx, types.StringType, asset.Tags)
 		diags.Append(diag...)
 		model.Tags = tags
 	} else {
 		model.Tags = types.SetNull(types.StringType)
 	}
 
-	if metaMap, ok := asset.Metadata.(map[string]interface{}); ok && metaMap != nil {
+	if metaMap, ok := asset.Metadata.(map[string]interface{}); ok && metaMap != nil && len(metaMap) > 0 {
 		metadata, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(metaMap))
 		diags.Append(diag...)
 		model.Metadata = metadata
@@ -574,7 +616,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		model.Metadata = types.MapNull(types.StringType)
 	}
 
-	if schemaMap, ok := asset.Schema.(map[string]interface{}); ok && schemaMap != nil {
+	if schemaMap, ok := asset.Schema.(map[string]interface{}); ok && schemaMap != nil && len(schemaMap) > 0 {
 		schema, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(schemaMap))
 		diags.Append(diag...)
 		model.Schema = schema
@@ -585,17 +627,13 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	if len(asset.ExternalLinks) > 0 {
 		model.ExternalLinks = r.convertModelExternalLinks(asset.ExternalLinks)
 	} else {
-		if len(model.ExternalLinks) == 0 {
-			model.ExternalLinks = nil
-		}
+		model.ExternalLinks = nil
 	}
 
 	if len(asset.Sources) > 0 {
 		model.Sources = r.convertModelSources(ctx, asset.Sources, &diags)
 	} else {
-		if len(model.Sources) == 0 {
-			model.Sources = nil
-		}
+		model.Sources = nil
 	}
 
 	if len(asset.Environments) > 0 {
@@ -615,7 +653,23 @@ func (r *AssetResource) convertMapToStringMap(m map[string]interface{}) map[stri
 	result := make(map[string]string)
 	for k, v := range m {
 		if v != nil {
-			result[k] = fmt.Sprintf("%v", v)
+			switch val := v.(type) {
+			case string:
+				if val != "" {
+					result[k] = val
+				}
+			case int, int32, int64:
+				result[k] = fmt.Sprintf("%d", val)
+			case float32, float64:
+				result[k] = fmt.Sprintf("%.6f", val)
+			case bool:
+				result[k] = fmt.Sprintf("%t", val)
+			default:
+				strVal := fmt.Sprintf("%v", val)
+				if strVal != "" {
+					result[k] = strVal
+				}
+			}
 		}
 	}
 	return result
@@ -651,7 +705,7 @@ func (r *AssetResource) convertModelSources(ctx context.Context, sources []*mode
 	for i, source := range sources {
 		var properties types.Map
 
-		if props, ok := source.Properties.(map[string]interface{}); ok && props != nil {
+		if props, ok := source.Properties.(map[string]interface{}); ok && props != nil && len(props) > 0 {
 			propsMap, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(props))
 			diags.Append(diag...)
 			properties = propsMap
@@ -677,7 +731,7 @@ func (r *AssetResource) convertModelEnvironments(ctx context.Context, environmen
 	for k, env := range environments {
 		var metadata types.Map
 
-		if meta, ok := env.Metadata.(map[string]interface{}); ok && meta != nil {
+		if meta, ok := env.Metadata.(map[string]interface{}); ok && meta != nil && len(meta) > 0 {
 			metaMap, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(meta))
 			diags.Append(diag...)
 			metadata = metaMap
