@@ -52,10 +52,16 @@ func (r *LineageResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"source": schema.StringAttribute{
 				MarkdownDescription: "Source asset",
 				Required:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"target": schema.StringAttribute{
 				MarkdownDescription: "Target asset",
 				Required:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"resource_id": schema.StringAttribute{
 				MarkdownDescription: "Resource ID",
@@ -131,14 +137,10 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 }
 
 func (r *LineageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data LineageResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	resp.Diagnostics.AddError(
+		"Update Not Supported",
+		"Lineage resources cannot be updated. Changes to source or target require replacement.",
+	)
 }
 
 func (r *LineageResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

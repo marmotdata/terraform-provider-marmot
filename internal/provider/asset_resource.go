@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -60,8 +61,8 @@ type AssetResourceModel struct {
 	Name          types.String                     `tfsdk:"name"`
 	Type          types.String                     `tfsdk:"type"`
 	Description   types.String                     `tfsdk:"description"`
-	Providers     types.List                       `tfsdk:"services"`
-	Tags          types.List                       `tfsdk:"tags"`
+	Services      types.Set                        `tfsdk:"services"`
+	Tags          types.Set                        `tfsdk:"tags"`
 	Metadata      types.Map                        `tfsdk:"metadata"`
 	Schema        types.Map                        `tfsdk:"schema"`
 	ExternalLinks []ExternalLinkModel              `tfsdk:"external_links"`
@@ -97,12 +98,12 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "Asset description",
 				Optional:            true,
 			},
-			"services": schema.ListAttribute{
-				MarkdownDescription: "Providers associated with the asset",
+			"services": schema.SetAttribute{
+				MarkdownDescription: "Services associated with the asset",
 				Required:            true,
 				ElementType:         types.StringType,
 			},
-			"tags": schema.ListAttribute{
+			"tags": schema.SetAttribute{
 				MarkdownDescription: "Tags associated with the asset",
 				Optional:            true,
 				ElementType:         types.StringType,
@@ -189,10 +190,16 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"created_at": schema.StringAttribute{
 				MarkdownDescription: "Creation timestamp",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"created_by": schema.StringAttribute{
 				MarkdownDescription: "Creator",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"updated_at": schema.StringAttribute{
 				MarkdownDescription: "Last update timestamp",
@@ -205,6 +212,9 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"mrn": schema.StringAttribute{
 				MarkdownDescription: "Marmot Resource Name",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -347,12 +357,14 @@ func (r *AssetResource) ImportState(ctx context.Context, req resource.ImportStat
 func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (*models.AssetsCreateRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	var providers []string
-	diags.Append(data.Providers.ElementsAs(ctx, &providers, false)...)
+	var services []string
+	diags.Append(data.Services.ElementsAs(ctx, &services, false)...)
+	sort.Strings(services)
 
 	var tags []string
 	if !data.Tags.IsNull() {
 		diags.Append(data.Tags.ElementsAs(ctx, &tags, false)...)
+		sort.Strings(tags)
 	}
 
 	metadata, metadataDiags := r.mapToDictionary(data.Metadata)
@@ -375,7 +387,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 		Name:          &name,
 		Type:          &assetType,
 		Description:   description,
-		Providers:     providers,
+		Providers:     services,
 		Tags:          tags,
 		Metadata:      metadata,
 		Schema:        schema,
@@ -388,12 +400,14 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceModel) (*models.AssetsUpdateRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	var providers []string
-	diags.Append(data.Providers.ElementsAs(ctx, &providers, false)...)
+	var services []string
+	diags.Append(data.Services.ElementsAs(ctx, &services, false)...)
+	sort.Strings(services)
 
 	var tags []string
 	if !data.Tags.IsNull() {
 		diags.Append(data.Tags.ElementsAs(ctx, &tags, false)...)
+		sort.Strings(tags)
 	}
 
 	metadata, metadataDiags := r.mapToDictionary(data.Metadata)
@@ -412,7 +426,7 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 		Name:          data.Name.ValueString(),
 		Type:          data.Type.ValueString(),
 		Description:   data.Description.ValueString(),
-		Providers:     providers,
+		Providers:     services,
 		Tags:          tags,
 		Metadata:      metadata,
 		Schema:        schema,
@@ -488,7 +502,7 @@ func (r *AssetResource) convertEnvironments(environments map[string]AssetEnviron
 
 func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}, diag.Diagnostics) {
 	if tfMap.IsNull() || tfMap.IsUnknown() {
-		return nil, nil
+		return make(map[string]interface{}), nil
 	}
 
 	elements := tfMap.Elements()
@@ -528,16 +542,28 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		model.LastSyncAt = types.StringNull()
 	}
 
-	providers, diag := types.ListValueFrom(ctx, types.StringType, asset.Providers)
-	diags.Append(diag...)
-	model.Providers = providers
+	if asset.Providers != nil {
+		sortedServices := make([]string, len(asset.Providers))
+		copy(sortedServices, asset.Providers)
+		sort.Strings(sortedServices)
+
+		services, diag := types.SetValueFrom(ctx, types.StringType, sortedServices)
+		diags.Append(diag...)
+		model.Services = services
+	} else {
+		model.Services = types.SetNull(types.StringType)
+	}
 
 	if asset.Tags != nil {
-		tags, diag := types.ListValueFrom(ctx, types.StringType, asset.Tags)
+		sortedTags := make([]string, len(asset.Tags))
+		copy(sortedTags, asset.Tags)
+		sort.Strings(sortedTags)
+
+		tags, diag := types.SetValueFrom(ctx, types.StringType, sortedTags)
 		diags.Append(diag...)
 		model.Tags = tags
 	} else {
-		model.Tags = types.ListNull(types.StringType)
+		model.Tags = types.SetNull(types.StringType)
 	}
 
 	if metaMap, ok := asset.Metadata.(map[string]interface{}); ok && metaMap != nil {
@@ -583,12 +609,14 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 
 func (r *AssetResource) convertMapToStringMap(m map[string]interface{}) map[string]string {
 	if m == nil {
-		return nil
+		return make(map[string]string)
 	}
 
 	result := make(map[string]string)
 	for k, v := range m {
-		result[k] = fmt.Sprintf("%v", v)
+		if v != nil {
+			result[k] = fmt.Sprintf("%v", v)
+		}
 	}
 	return result
 }

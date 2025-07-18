@@ -62,7 +62,7 @@ resource "marmot_asset" "example" {
 ### Required
 
 - `name` (String) Asset name
-- `services` (List of String) Providers associated with the asset
+- `services` (Set of String) Services associated with the asset
 - `type` (String) Asset type
 
 ### Optional
@@ -73,7 +73,7 @@ resource "marmot_asset" "example" {
 - `metadata` (Map of String) Metadata associated with the asset
 - `schema` (Map of String) Schema associated with the asset
 - `sources` (Attributes List) Sources associated with the asset (see [below for nested schema](#nestedatt--sources))
-- `tags` (List of String) Tags associated with the asset
+- `tags` (Set of String) Tags associated with the asset
 
 ### Read-Only
 
