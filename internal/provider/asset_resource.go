@@ -679,13 +679,13 @@ func (r *AssetResource) convertMapToStringMapSorted(m map[string]interface{}) ma
 	}
 
 	result := make(map[string]string)
-	
+
 	var keys []string
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	
+
 	for _, k := range keys {
 		v := m[k]
 		if v != nil {
