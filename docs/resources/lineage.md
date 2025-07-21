@@ -41,4 +41,4 @@ resource "marmot_asset" "target" {
 
 ### Read-Only
 
-- `resource_id` (String) Resource ID
+- `id` (String) Lineage ID

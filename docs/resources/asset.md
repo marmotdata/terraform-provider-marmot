@@ -79,9 +79,9 @@ resource "marmot_asset" "example" {
 
 - `created_at` (String) Creation timestamp
 - `created_by` (String) Creator
+- `id` (String) Asset ID
 - `last_sync_at` (String) Last sync timestamp
 - `mrn` (String) Marmot Resource Name
-- `resource_id` (String) Resource ID
 - `updated_at` (String) Last update timestamp
 
 <a id="nestedatt--environments"></a>

@@ -35,9 +35,9 @@ type LineageResource struct {
 
 // LineageResourceModel describes the lineage resource data model.
 type LineageResourceModel struct {
-	Source     types.String `tfsdk:"source"`
-	Target     types.String `tfsdk:"target"`
-	ResourceID types.String `tfsdk:"resource_id"`
+	Source types.String `tfsdk:"source"`
+	Target types.String `tfsdk:"target"`
+	ID     types.String `tfsdk:"id"`
 }
 
 func (r *LineageResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -63,8 +63,8 @@ func (r *LineageResource) Schema(ctx context.Context, req resource.SchemaRequest
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"resource_id": schema.StringAttribute{
-				MarkdownDescription: "Resource ID",
+			"id": schema.StringAttribute{
+				MarkdownDescription: "Lineage ID",
 				Computed:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -110,7 +110,7 @@ func (r *LineageResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	data.ResourceID = types.StringValue(result.Payload.ID)
+	data.ID = types.StringValue(result.Payload.ID)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -123,7 +123,7 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	params := lineage.NewGetLineageDirectIDParams().WithID(strfmt.UUID(data.ResourceID.ValueString()))
+	params := lineage.NewGetLineageDirectIDParams().WithID(strfmt.UUID(data.ID.ValueString()))
 	result, err := r.client.Lineage.GetLineageDirectID(params)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read lineage: %s", err))
@@ -151,7 +151,7 @@ func (r *LineageResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	params := lineage.NewDeleteLineageDirectIDParams().WithID(strfmt.UUID(data.ResourceID.ValueString()))
+	params := lineage.NewDeleteLineageDirectIDParams().WithID(strfmt.UUID(data.ID.ValueString()))
 	_, err := r.client.Lineage.DeleteLineageDirectID(params)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete lineage: %s", err))
@@ -159,10 +159,10 @@ func (r *LineageResource) Delete(ctx context.Context, req resource.DeleteRequest
 	}
 
 	tflog.Info(ctx, "Lineage deleted", map[string]interface{}{
-		"id": data.ResourceID.ValueString(),
+		"id": data.ID.ValueString(),
 	})
 }
 
 func (r *LineageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("resource_id"), req, resp)
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

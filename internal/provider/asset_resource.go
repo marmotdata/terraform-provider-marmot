@@ -72,7 +72,7 @@ type AssetResourceModel struct {
 	Sources       []AssetSourceModel               `tfsdk:"sources"`
 	Environments  map[string]AssetEnvironmentModel `tfsdk:"environments"`
 
-	ResourceID types.String `tfsdk:"resource_id"`
+	ID         types.String `tfsdk:"id"`
 	CreatedAt  types.String `tfsdk:"created_at"`
 	CreatedBy  types.String `tfsdk:"created_by"`
 	UpdatedAt  types.String `tfsdk:"updated_at"`
@@ -214,8 +214,8 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 					},
 				},
 			},
-			"resource_id": schema.StringAttribute{
-				MarkdownDescription: "Resource ID",
+			"id": schema.StringAttribute{
+				MarkdownDescription: "Asset ID",
 				Computed:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -292,6 +292,11 @@ func (r *AssetResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	if result.Payload.ID == "" {
+		resp.Diagnostics.AddError("API Error", "Asset created but no ID returned")
+		return
+	}
+
 	diags = r.updateModelFromResponse(ctx, &data, result.Payload)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -299,7 +304,7 @@ func (r *AssetResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	tflog.Info(ctx, "Asset created", map[string]interface{}{
-		"id":   data.ResourceID.ValueString(),
+		"id":   data.ID.ValueString(),
 		"name": data.Name.ValueString(),
 	})
 
@@ -314,7 +319,12 @@ func (r *AssetResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	params := assets.NewGetAssetsIDParams().WithID(data.ResourceID.ValueString())
+	if data.ID.ValueString() == "" {
+		resp.Diagnostics.AddError("Configuration Error", "id is required for read operation")
+		return
+	}
+
+	params := assets.NewGetAssetsIDParams().WithID(data.ID.ValueString())
 	result, err := r.client.Assets.GetAssetsID(params)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read asset: %s", err))
@@ -351,7 +361,7 @@ func (r *AssetResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	params := assets.NewPutAssetsIDParams().
-		WithID(state.ResourceID.ValueString()).
+		WithID(state.ID.ValueString()).
 		WithAsset(asset)
 
 	result, err := r.client.Assets.PutAssetsID(params)
@@ -367,7 +377,7 @@ func (r *AssetResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	tflog.Info(ctx, "Asset updated", map[string]interface{}{
-		"id":   data.ResourceID.ValueString(),
+		"id":   data.ID.ValueString(),
 		"name": data.Name.ValueString(),
 	})
 
@@ -382,7 +392,7 @@ func (r *AssetResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	params := assets.NewDeleteAssetsIDParams().WithID(data.ResourceID.ValueString())
+	params := assets.NewDeleteAssetsIDParams().WithID(data.ID.ValueString())
 	_, err := r.client.Assets.DeleteAssetsID(params)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete asset: %s", err))
@@ -390,12 +400,12 @@ func (r *AssetResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	}
 
 	tflog.Info(ctx, "Asset deleted", map[string]interface{}{
-		"id": data.ResourceID.ValueString(),
+		"id": data.ID.ValueString(),
 	})
 }
 
 func (r *AssetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("resource_id"), req, resp)
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
 func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (*models.AssetsCreateRequest, diag.Diagnostics) {
@@ -550,8 +560,16 @@ func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}
 		return nil, nil
 	}
 
+	// Sort keys for consistent ordering
+	var keys []string
+	for k := range elements {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	result := make(map[string]interface{}, len(elements))
-	for k, v := range elements {
+	for _, k := range keys {
+		v := elements[k]
 		strVal, ok := v.(basetypes.StringValue)
 		if !ok {
 			return nil, diag.Diagnostics{
@@ -575,7 +593,7 @@ func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}
 func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.AssetAsset) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	model.ResourceID = types.StringValue(asset.ID)
+	model.ID = types.StringValue(asset.ID)
 	model.Name = types.StringValue(asset.Name)
 	model.Type = types.StringValue(asset.Type)
 	model.Description = types.StringValue(asset.Description)
@@ -591,7 +609,11 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	}
 
 	if len(asset.Providers) > 0 {
-		services, diag := types.SetValueFrom(ctx, types.StringType, asset.Providers)
+		sortedServices := make([]string, len(asset.Providers))
+		copy(sortedServices, asset.Providers)
+		sort.Strings(sortedServices)
+
+		services, diag := types.SetValueFrom(ctx, types.StringType, sortedServices)
 		diags.Append(diag...)
 		model.Services = services
 	} else {
@@ -601,7 +623,11 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	}
 
 	if len(asset.Tags) > 0 {
-		tags, diag := types.SetValueFrom(ctx, types.StringType, asset.Tags)
+		sortedTags := make([]string, len(asset.Tags))
+		copy(sortedTags, asset.Tags)
+		sort.Strings(sortedTags)
+
+		tags, diag := types.SetValueFrom(ctx, types.StringType, sortedTags)
 		diags.Append(diag...)
 		model.Tags = tags
 	} else {
@@ -609,7 +635,8 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	}
 
 	if metaMap, ok := asset.Metadata.(map[string]interface{}); ok && metaMap != nil && len(metaMap) > 0 {
-		metadata, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(metaMap))
+		sortedMeta := r.convertMapToStringMapSorted(metaMap)
+		metadata, diag := types.MapValueFrom(ctx, types.StringType, sortedMeta)
 		diags.Append(diag...)
 		model.Metadata = metadata
 	} else {
@@ -617,7 +644,8 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	}
 
 	if schemaMap, ok := asset.Schema.(map[string]interface{}); ok && schemaMap != nil && len(schemaMap) > 0 {
-		schema, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(schemaMap))
+		sortedSchema := r.convertMapToStringMapSorted(schemaMap)
+		schema, diag := types.MapValueFrom(ctx, types.StringType, sortedSchema)
 		diags.Append(diag...)
 		model.Schema = schema
 	} else {
@@ -645,13 +673,21 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	return diags
 }
 
-func (r *AssetResource) convertMapToStringMap(m map[string]interface{}) map[string]string {
+func (r *AssetResource) convertMapToStringMapSorted(m map[string]interface{}) map[string]string {
 	if m == nil {
 		return make(map[string]string)
 	}
 
 	result := make(map[string]string)
-	for k, v := range m {
+	
+	var keys []string
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	
+	for _, k := range keys {
+		v := m[k]
 		if v != nil {
 			switch val := v.(type) {
 			case string:
@@ -706,7 +742,7 @@ func (r *AssetResource) convertModelSources(ctx context.Context, sources []*mode
 		var properties types.Map
 
 		if props, ok := source.Properties.(map[string]interface{}); ok && props != nil && len(props) > 0 {
-			propsMap, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(props))
+			propsMap, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMapSorted(props))
 			diags.Append(diag...)
 			properties = propsMap
 		} else {
@@ -732,7 +768,7 @@ func (r *AssetResource) convertModelEnvironments(ctx context.Context, environmen
 		var metadata types.Map
 
 		if meta, ok := env.Metadata.(map[string]interface{}); ok && meta != nil && len(meta) > 0 {
-			metaMap, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMap(meta))
+			metaMap, diag := types.MapValueFrom(ctx, types.StringType, r.convertMapToStringMapSorted(meta))
 			diags.Append(diag...)
 			metadata = metaMap
 		} else {
