@@ -598,14 +598,14 @@ func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}
 }
 
 func normalizeTimestamp(timestamp string) string {
-    if timestamp == "" {
-        return ""
-    }
-    t, err := time.Parse(time.RFC3339Nano, timestamp)
-    if err != nil {
-        return timestamp
-    }
-    return t.Format("2006-01-02T15:04:05.000000Z07:00")
+	if timestamp == "" {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		return timestamp
+	}
+	return t.Format("2006-01-02T15:04:05.000000Z07:00")
 }
 
 func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.AssetAsset) diag.Diagnostics {
