@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -238,10 +239,16 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"updated_at": schema.StringAttribute{
 				MarkdownDescription: "Last update timestamp",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"last_sync_at": schema.StringAttribute{
 				MarkdownDescription: "Last sync timestamp",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"mrn": schema.StringAttribute{
 				MarkdownDescription: "Marmot Resource Name",
@@ -590,6 +597,17 @@ func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}
 	return result, nil
 }
 
+func normalizeTimestamp(timestamp string) string {
+    if timestamp == "" {
+        return ""
+    }
+    t, err := time.Parse(time.RFC3339Nano, timestamp)
+    if err != nil {
+        return timestamp
+    }
+    return t.Format("2006-01-02T15:04:05.000000Z07:00")
+}
+
 func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.AssetAsset) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -597,13 +615,13 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	model.Name = types.StringValue(asset.Name)
 	model.Type = types.StringValue(asset.Type)
 	model.Description = types.StringValue(asset.Description)
-	model.CreatedAt = types.StringValue(asset.CreatedAt)
+	model.CreatedAt = types.StringValue(normalizeTimestamp(asset.CreatedAt))
 	model.CreatedBy = types.StringValue(asset.CreatedBy)
-	model.UpdatedAt = types.StringValue(asset.UpdatedAt)
+	model.UpdatedAt = types.StringValue(normalizeTimestamp(asset.UpdatedAt))
 	model.MRN = types.StringValue(asset.Mrn)
 
 	if asset.LastSyncAt != "" {
-		model.LastSyncAt = types.StringValue(asset.LastSyncAt)
+		model.LastSyncAt = types.StringValue(normalizeTimestamp(asset.LastSyncAt))
 	} else {
 		model.LastSyncAt = types.StringNull()
 	}
@@ -631,7 +649,9 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		diags.Append(diag...)
 		model.Tags = tags
 	} else {
-		model.Tags = types.SetNull(types.StringType)
+		tags, diag := types.SetValueFrom(ctx, types.StringType, []string{})
+		diags.Append(diag...)
+		model.Tags = tags
 	}
 
 	if metaMap, ok := asset.Metadata.(map[string]interface{}); ok && metaMap != nil && len(metaMap) > 0 {
@@ -640,7 +660,9 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		diags.Append(diag...)
 		model.Metadata = metadata
 	} else {
-		model.Metadata = types.MapNull(types.StringType)
+		metadata, diag := types.MapValueFrom(ctx, types.StringType, map[string]string{})
+		diags.Append(diag...)
+		model.Metadata = metadata
 	}
 
 	if schemaMap, ok := asset.Schema.(map[string]interface{}); ok && schemaMap != nil && len(schemaMap) > 0 {
@@ -649,7 +671,9 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		diags.Append(diag...)
 		model.Schema = schema
 	} else {
-		model.Schema = types.MapNull(types.StringType)
+		schema, diag := types.MapValueFrom(ctx, types.StringType, map[string]string{})
+		diags.Append(diag...)
+		model.Schema = schema
 	}
 
 	if len(asset.ExternalLinks) > 0 {
