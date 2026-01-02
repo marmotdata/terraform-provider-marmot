@@ -156,11 +156,7 @@ func (r *GlossaryResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	term, diags := r.toCreateRequest(ctx, data)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	term := r.toCreateRequest(ctx, data)
 
 	params := glossary.NewPostGlossaryParams().WithTerm(term)
 	result, err := r.client.Glossary.PostGlossary(params)
@@ -174,8 +170,7 @@ func (r *GlossaryResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	diags = r.updateModelFromResponse(ctx, &data, result.Payload)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(r.updateModelFromResponse(ctx, &data, result.Payload)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -231,11 +226,7 @@ func (r *GlossaryResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	term, diags := r.toUpdateRequest(ctx, data)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	term := r.toUpdateRequest(ctx, data)
 
 	params := glossary.NewPutGlossaryIDParams().
 		WithID(state.ID.ValueString()).
@@ -247,8 +238,7 @@ func (r *GlossaryResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	diags = r.updateModelFromResponse(ctx, &data, result.Payload)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(r.updateModelFromResponse(ctx, &data, result.Payload)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -285,9 +275,7 @@ func (r *GlossaryResource) ImportState(ctx context.Context, req resource.ImportS
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *GlossaryResource) toCreateRequest(ctx context.Context, data GlossaryResourceModel) (*models.V1GlossaryCreateTermRequest, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
+func (r *GlossaryResource) toCreateRequest(_ context.Context, data GlossaryResourceModel) *models.V1GlossaryCreateTermRequest {
 	name := data.Name.ValueString()
 	definition := data.Definition.ValueString()
 
@@ -329,12 +317,10 @@ func (r *GlossaryResource) toCreateRequest(ctx context.Context, data GlossaryRes
 		}
 	}
 
-	return req, diags
+	return req
 }
 
-func (r *GlossaryResource) toUpdateRequest(ctx context.Context, data GlossaryResourceModel) (*models.V1GlossaryUpdateTermRequest, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
+func (r *GlossaryResource) toUpdateRequest(_ context.Context, data GlossaryResourceModel) *models.V1GlossaryUpdateTermRequest {
 	req := &models.V1GlossaryUpdateTermRequest{
 		Name:       data.Name.ValueString(),
 		Definition: data.Definition.ValueString(),
@@ -373,7 +359,7 @@ func (r *GlossaryResource) toUpdateRequest(ctx context.Context, data GlossaryRes
 		}
 	}
 
-	return req, diags
+	return req
 }
 
 func (r *GlossaryResource) updateModelFromResponse(ctx context.Context, model *GlossaryResourceModel, term *models.GlossaryGlossaryTerm) diag.Diagnostics {
