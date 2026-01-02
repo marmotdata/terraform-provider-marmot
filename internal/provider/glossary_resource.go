@@ -285,13 +285,13 @@ func (r *GlossaryResource) ImportState(ctx context.Context, req resource.ImportS
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *GlossaryResource) toCreateRequest(ctx context.Context, data GlossaryResourceModel) (*models.InternalAPIV1GlossaryCreateTermRequest, diag.Diagnostics) {
+func (r *GlossaryResource) toCreateRequest(ctx context.Context, data GlossaryResourceModel) (*models.V1GlossaryCreateTermRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	name := data.Name.ValueString()
 	definition := data.Definition.ValueString()
 
-	req := &models.InternalAPIV1GlossaryCreateTermRequest{
+	req := &models.V1GlossaryCreateTermRequest{
 		Name:       &name,
 		Definition: &definition,
 	}
@@ -305,11 +305,11 @@ func (r *GlossaryResource) toCreateRequest(ctx context.Context, data GlossaryRes
 	}
 
 	if len(data.Owners) > 0 {
-		owners := make([]*models.InternalAPIV1GlossaryOwnerRequest, len(data.Owners))
+		owners := make([]*models.V1GlossaryOwnerRequest, len(data.Owners))
 		for i, owner := range data.Owners {
 			id := owner.ID.ValueString()
 			ownerType := owner.Type.ValueString()
-			owners[i] = &models.InternalAPIV1GlossaryOwnerRequest{
+			owners[i] = &models.V1GlossaryOwnerRequest{
 				ID:   &id,
 				Type: &ownerType,
 			}
@@ -332,10 +332,10 @@ func (r *GlossaryResource) toCreateRequest(ctx context.Context, data GlossaryRes
 	return req, diags
 }
 
-func (r *GlossaryResource) toUpdateRequest(ctx context.Context, data GlossaryResourceModel) (*models.InternalAPIV1GlossaryUpdateTermRequest, diag.Diagnostics) {
+func (r *GlossaryResource) toUpdateRequest(ctx context.Context, data GlossaryResourceModel) (*models.V1GlossaryUpdateTermRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	req := &models.InternalAPIV1GlossaryUpdateTermRequest{
+	req := &models.V1GlossaryUpdateTermRequest{
 		Name:       data.Name.ValueString(),
 		Definition: data.Definition.ValueString(),
 	}
@@ -349,11 +349,11 @@ func (r *GlossaryResource) toUpdateRequest(ctx context.Context, data GlossaryRes
 	}
 
 	if len(data.Owners) > 0 {
-		owners := make([]*models.InternalAPIV1GlossaryOwnerRequest, len(data.Owners))
+		owners := make([]*models.V1GlossaryOwnerRequest, len(data.Owners))
 		for i, owner := range data.Owners {
 			id := owner.ID.ValueString()
 			ownerType := owner.Type.ValueString()
-			owners[i] = &models.InternalAPIV1GlossaryOwnerRequest{
+			owners[i] = &models.V1GlossaryOwnerRequest{
 				ID:   &id,
 				Type: &ownerType,
 			}
@@ -376,7 +376,7 @@ func (r *GlossaryResource) toUpdateRequest(ctx context.Context, data GlossaryRes
 	return req, diags
 }
 
-func (r *GlossaryResource) updateModelFromResponse(ctx context.Context, model *GlossaryResourceModel, term *models.GithubComMarmotdataMarmotInternalCoreGlossaryGlossaryTerm) diag.Diagnostics {
+func (r *GlossaryResource) updateModelFromResponse(ctx context.Context, model *GlossaryResourceModel, term *models.GlossaryGlossaryTerm) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	model.ID = types.StringValue(term.ID)

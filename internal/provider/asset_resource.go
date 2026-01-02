@@ -448,7 +448,7 @@ func (r *AssetResource) ImportState(ctx context.Context, req resource.ImportStat
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (*models.InternalAPIV1AssetsCreateRequest, diag.Diagnostics) {
+func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (*models.V1AssetsCreateRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	var services []string
@@ -474,7 +474,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	assetType := data.Type.ValueString()
 	description := data.Description.ValueString()
 
-	return &models.InternalAPIV1AssetsCreateRequest{
+	return &models.V1AssetsCreateRequest{
 		Name:          &name,
 		Type:          &assetType,
 		Description:   description,
@@ -488,7 +488,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	}, diags
 }
 
-func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceModel) (*models.InternalAPIV1AssetsUpdateRequest, diag.Diagnostics) {
+func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceModel) (*models.V1AssetsUpdateRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	var services []string
@@ -515,7 +515,7 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 		userDescription = data.UserDescription.ValueString()
 	}
 
-	return &models.InternalAPIV1AssetsUpdateRequest{
+	return &models.V1AssetsUpdateRequest{
 		Name:            data.Name.ValueString(),
 		Type:            data.Type.ValueString(),
 		Description:     data.Description.ValueString(),
@@ -530,19 +530,19 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 	}, diags
 }
 
-func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink {
+func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*models.AssetExternalLink {
 	if len(links) == 0 {
 		return nil
 	}
 
-	result := make([]*models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink, len(links))
+	result := make([]*models.AssetExternalLink, len(links))
 	for i, link := range links {
 		icon := ""
 		if !link.Icon.IsNull() && !link.Icon.IsUnknown() {
 			icon = link.Icon.ValueString()
 		}
 
-		result[i] = &models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink{
+		result[i] = &models.AssetExternalLink{
 			Icon: icon,
 			Name: link.Name.ValueString(),
 			URL:  link.URL.ValueString(),
@@ -551,12 +551,12 @@ func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*model
 	return result
 }
 
-func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.Diagnostics) []*models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource {
+func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.Diagnostics) []*models.AssetAssetSource {
 	if len(sources) == 0 {
 		return nil
 	}
 
-	result := make([]*models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource, len(sources))
+	result := make([]*models.AssetAssetSource, len(sources))
 	for i, source := range sources {
 		props, propDiags := r.mapToDictionary(source.Properties)
 		diags.Append(propDiags...)
@@ -566,7 +566,7 @@ func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.D
 			priority = source.Priority.ValueInt64()
 		}
 
-		result[i] = &models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource{
+		result[i] = &models.AssetAssetSource{
 			Name:       source.Name.ValueString(),
 			Priority:   priority,
 			Properties: props,
@@ -575,17 +575,17 @@ func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.D
 	return result
 }
 
-func (r *AssetResource) convertEnvironments(environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment {
+func (r *AssetResource) convertEnvironments(environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]models.AssetEnvironment {
 	if len(environments) == 0 {
 		return nil
 	}
 
-	result := make(map[string]models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment)
+	result := make(map[string]models.AssetEnvironment)
 	for k, env := range environments {
 		metadata, mdDiags := r.mapToDictionary(env.Metadata)
 		diags.Append(mdDiags...)
 
-		result[k] = models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment{
+		result[k] = models.AssetEnvironment{
 			Name:     env.Name.ValueString(),
 			Path:     env.Path.ValueString(),
 			Metadata: metadata,
@@ -669,7 +669,7 @@ func normalizeTimestamp(timestamp string) string {
 	return t.Format("2006-01-02T15:04:05.000000Z07:00")
 }
 
-func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.GithubComMarmotdataMarmotInternalCoreAssetAsset) diag.Diagnostics {
+func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.AssetAsset) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	model.ID = types.StringValue(asset.ID)
@@ -823,7 +823,7 @@ func (r *AssetResource) convertMapToStringMapSorted(m map[string]interface{}) ma
 	return result
 }
 
-func (r *AssetResource) convertModelExternalLinks(links []*models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink) []ExternalLinkModel {
+func (r *AssetResource) convertModelExternalLinks(links []*models.AssetExternalLink) []ExternalLinkModel {
 	if len(links) == 0 {
 		return []ExternalLinkModel{}
 	}
@@ -844,7 +844,7 @@ func (r *AssetResource) convertModelExternalLinks(links []*models.GithubComMarmo
 	return result
 }
 
-func (r *AssetResource) convertModelSources(ctx context.Context, sources []*models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource, diags *diag.Diagnostics) []AssetSourceModel {
+func (r *AssetResource) convertModelSources(ctx context.Context, sources []*models.AssetAssetSource, diags *diag.Diagnostics) []AssetSourceModel {
 	if len(sources) == 0 {
 		return []AssetSourceModel{}
 	}
@@ -870,7 +870,7 @@ func (r *AssetResource) convertModelSources(ctx context.Context, sources []*mode
 	return result
 }
 
-func (r *AssetResource) convertModelEnvironments(ctx context.Context, environments map[string]models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment, diags *diag.Diagnostics) map[string]AssetEnvironmentModel {
+func (r *AssetResource) convertModelEnvironments(ctx context.Context, environments map[string]models.AssetEnvironment, diags *diag.Diagnostics) map[string]AssetEnvironmentModel {
 	if len(environments) == 0 {
 		return make(map[string]AssetEnvironmentModel)
 	}

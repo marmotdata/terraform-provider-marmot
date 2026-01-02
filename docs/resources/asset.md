@@ -74,14 +74,20 @@ resource "marmot_asset" "example" {
 - `schema` (Map of String) Schema associated with the asset
 - `sources` (Attributes List) Sources associated with the asset (see [below for nested schema](#nestedatt--sources))
 - `tags` (Set of String) Tags associated with the asset
+- `user_description` (String) User-provided description for the asset
 
 ### Read-Only
 
 - `created_at` (String) Creation timestamp
 - `created_by` (String) Creator
+- `has_run_history` (Boolean) Whether the asset has run history
 - `id` (String) Asset ID
+- `is_stub` (Boolean) Whether the asset is a stub
 - `last_sync_at` (String) Last sync timestamp
 - `mrn` (String) Marmot Resource Name
+- `parent_mrn` (String) Parent asset's Marmot Resource Name
+- `query` (String) Query associated with the asset
+- `query_language` (String) Query language used for the asset's query
 - `updated_at` (String) Last update timestamp
 
 <a id="nestedatt--environments"></a>
