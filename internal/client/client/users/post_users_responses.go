@@ -128,7 +128,7 @@ PostUsersBadRequest describes a response with status code 400, with default head
 Bad Request
 */
 type PostUsersBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post users bad request response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *PostUsersBadRequest) String() string {
 	return fmt.Sprintf("[POST /users][%d] postUsersBadRequest %s", 400, payload)
 }
 
-func (o *PostUsersBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostUsersBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostUsersBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ PostUsersConflict describes a response with status code 409, with default header
 Conflict
 */
 type PostUsersConflict struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post users conflict response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *PostUsersConflict) String() string {
 	return fmt.Sprintf("[POST /users][%d] postUsersConflict %s", 409, payload)
 }
 
-func (o *PostUsersConflict) GetPayload() *models.CommonErrorResponse {
+func (o *PostUsersConflict) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostUsersConflict) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

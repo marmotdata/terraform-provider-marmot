@@ -128,7 +128,7 @@ PostAssetsIDTagsBadRequest describes a response with status code 400, with defau
 Bad Request
 */
 type PostAssetsIDTagsBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets Id tags bad request response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *PostAssetsIDTagsBadRequest) String() string {
 	return fmt.Sprintf("[POST /assets/{id}/tags][%d] postAssetsIdTagsBadRequest %s", 400, payload)
 }
 
-func (o *PostAssetsIDTagsBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsIDTagsBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsIDTagsBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ PostAssetsIDTagsNotFound describes a response with status code 404, with default
 Not Found
 */
 type PostAssetsIDTagsNotFound struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets Id tags not found response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *PostAssetsIDTagsNotFound) String() string {
 	return fmt.Sprintf("[POST /assets/{id}/tags][%d] postAssetsIdTagsNotFound %s", 404, payload)
 }
 
-func (o *PostAssetsIDTagsNotFound) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsIDTagsNotFound) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsIDTagsNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

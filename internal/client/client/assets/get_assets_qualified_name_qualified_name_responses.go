@@ -128,7 +128,7 @@ GetAssetsQualifiedNameQualifiedNameNotFound describes a response with status cod
 Not Found
 */
 type GetAssetsQualifiedNameQualifiedNameNotFound struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get assets qualified name qualified name not found response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *GetAssetsQualifiedNameQualifiedNameNotFound) String() string {
 	return fmt.Sprintf("[GET /assets/qualified-name/{qualifiedName}][%d] getAssetsQualifiedNameQualifiedNameNotFound %s", 404, payload)
 }
 
-func (o *GetAssetsQualifiedNameQualifiedNameNotFound) GetPayload() *models.CommonErrorResponse {
+func (o *GetAssetsQualifiedNameQualifiedNameNotFound) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetAssetsQualifiedNameQualifiedNameNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ GetAssetsQualifiedNameQualifiedNameInternalServerError describes a response with
 Internal Server Error
 */
 type GetAssetsQualifiedNameQualifiedNameInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get assets qualified name qualified name internal server error response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *GetAssetsQualifiedNameQualifiedNameInternalServerError) String() string
 	return fmt.Sprintf("[GET /assets/qualified-name/{qualifiedName}][%d] getAssetsQualifiedNameQualifiedNameInternalServerError %s", 500, payload)
 }
 
-func (o *GetAssetsQualifiedNameQualifiedNameInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *GetAssetsQualifiedNameQualifiedNameInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetAssetsQualifiedNameQualifiedNameInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

@@ -67,7 +67,7 @@ type PostUsersOauthLinkParams struct {
 
 	   OAuth account link request
 	*/
-	Link *models.UsersOAuthLinkRequest
+	Link *models.V1UsersOAuthLinkRequest
 
 	timeout    time.Duration
 	Context    context.Context
@@ -123,13 +123,13 @@ func (o *PostUsersOauthLinkParams) SetHTTPClient(client *http.Client) {
 }
 
 // WithLink adds the link to the post users oauth link params
-func (o *PostUsersOauthLinkParams) WithLink(link *models.UsersOAuthLinkRequest) *PostUsersOauthLinkParams {
+func (o *PostUsersOauthLinkParams) WithLink(link *models.V1UsersOAuthLinkRequest) *PostUsersOauthLinkParams {
 	o.SetLink(link)
 	return o
 }
 
 // SetLink adds the link to the post users oauth link params
-func (o *PostUsersOauthLinkParams) SetLink(link *models.UsersOAuthLinkRequest) {
+func (o *PostUsersOauthLinkParams) SetLink(link *models.V1UsersOAuthLinkRequest) {
 	o.Link = link
 }
 

@@ -73,7 +73,7 @@ type DeleteAssetsIDTagsParams struct {
 
 	   Tag to remove
 	*/
-	Tag *models.AssetsTagRequest
+	Tag *models.V1AssetsTagRequest
 
 	timeout    time.Duration
 	Context    context.Context
@@ -140,13 +140,13 @@ func (o *DeleteAssetsIDTagsParams) SetID(id string) {
 }
 
 // WithTag adds the tag to the delete assets ID tags params
-func (o *DeleteAssetsIDTagsParams) WithTag(tag *models.AssetsTagRequest) *DeleteAssetsIDTagsParams {
+func (o *DeleteAssetsIDTagsParams) WithTag(tag *models.V1AssetsTagRequest) *DeleteAssetsIDTagsParams {
 	o.SetTag(tag)
 	return o
 }
 
 // SetTag adds the tag to the delete assets ID tags params
-func (o *DeleteAssetsIDTagsParams) SetTag(tag *models.AssetsTagRequest) {
+func (o *DeleteAssetsIDTagsParams) SetTag(tag *models.V1AssetsTagRequest) {
 	o.Tag = tag
 }
 

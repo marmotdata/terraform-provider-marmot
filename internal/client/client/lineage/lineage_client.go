@@ -62,6 +62,8 @@ type ClientService interface {
 
 	GetLineageDirectID(params *GetLineageDirectIDParams, opts ...ClientOption) (*GetLineageDirectIDOK, error)
 
+	PostAPIV1Lineage(params *PostAPIV1LineageParams, opts ...ClientOption) (*PostAPIV1LineageOK, error)
+
 	PostLineageBatch(params *PostLineageBatchParams, opts ...ClientOption) (*PostLineageBatchOK, error)
 
 	PostLineageDirect(params *PostLineageDirectParams, opts ...ClientOption) (*PostLineageDirectOK, error)
@@ -186,6 +188,46 @@ func (a *Client) GetLineageDirectID(params *GetLineageDirectIDParams, opts ...Cl
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for GetLineageDirectID: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+PostAPIV1Lineage ingests open lineage event
+
+Process OpenLineage run events and update assets/lineage accordingly
+*/
+func (a *Client) PostAPIV1Lineage(params *PostAPIV1LineageParams, opts ...ClientOption) (*PostAPIV1LineageOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPostAPIV1LineageParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "PostAPIV1Lineage",
+		Method:             "POST",
+		PathPattern:        "/api/v1/lineage",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PostAPIV1LineageReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*PostAPIV1LineageOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for PostAPIV1Lineage: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

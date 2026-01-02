@@ -35,6 +35,9 @@ type UserUpdateUserInput struct {
 	// preferences
 	Preferences interface{} `json:"preferences,omitempty"`
 
+	// profile picture
+	ProfilePicture string `json:"profile_picture,omitempty"`
+
 	// role names
 	// Min Items: 1
 	RoleNames []string `json:"role_names"`

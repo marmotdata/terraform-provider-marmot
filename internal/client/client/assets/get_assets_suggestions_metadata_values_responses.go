@@ -126,7 +126,7 @@ GetAssetsSuggestionsMetadataValuesBadRequest describes a response with status co
 Bad Request
 */
 type GetAssetsSuggestionsMetadataValuesBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get assets suggestions metadata values bad request response has a 2xx status code
@@ -169,13 +169,13 @@ func (o *GetAssetsSuggestionsMetadataValuesBadRequest) String() string {
 	return fmt.Sprintf("[GET /assets/suggestions/metadata/values][%d] getAssetsSuggestionsMetadataValuesBadRequest %s", 400, payload)
 }
 
-func (o *GetAssetsSuggestionsMetadataValuesBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *GetAssetsSuggestionsMetadataValuesBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetAssetsSuggestionsMetadataValuesBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -196,7 +196,7 @@ GetAssetsSuggestionsMetadataValuesInternalServerError describes a response with 
 Internal Server Error
 */
 type GetAssetsSuggestionsMetadataValuesInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get assets suggestions metadata values internal server error response has a 2xx status code
@@ -239,13 +239,13 @@ func (o *GetAssetsSuggestionsMetadataValuesInternalServerError) String() string 
 	return fmt.Sprintf("[GET /assets/suggestions/metadata/values][%d] getAssetsSuggestionsMetadataValuesInternalServerError %s", 500, payload)
 }
 
-func (o *GetAssetsSuggestionsMetadataValuesInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *GetAssetsSuggestionsMetadataValuesInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetAssetsSuggestionsMetadataValuesInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

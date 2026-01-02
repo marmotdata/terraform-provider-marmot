@@ -108,7 +108,7 @@ PostUsersOauthLinkBadRequest describes a response with status code 400, with def
 Bad Request
 */
 type PostUsersOauthLinkBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post users oauth link bad request response has a 2xx status code
@@ -151,13 +151,13 @@ func (o *PostUsersOauthLinkBadRequest) String() string {
 	return fmt.Sprintf("[POST /users/oauth/link][%d] postUsersOauthLinkBadRequest %s", 400, payload)
 }
 
-func (o *PostUsersOauthLinkBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostUsersOauthLinkBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostUsersOauthLinkBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

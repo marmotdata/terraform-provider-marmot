@@ -67,7 +67,13 @@ type PostUsersLoginParams struct {
 
 	   Login credentials
 	*/
-	Credentials *models.UsersLoginRequest
+	Credentials *models.V1UsersLoginRequest
+
+	/* RedirectURI.
+
+	   Custom redirect URI for CLI login
+	*/
+	RedirectURI *string
 
 	timeout    time.Duration
 	Context    context.Context
@@ -123,14 +129,25 @@ func (o *PostUsersLoginParams) SetHTTPClient(client *http.Client) {
 }
 
 // WithCredentials adds the credentials to the post users login params
-func (o *PostUsersLoginParams) WithCredentials(credentials *models.UsersLoginRequest) *PostUsersLoginParams {
+func (o *PostUsersLoginParams) WithCredentials(credentials *models.V1UsersLoginRequest) *PostUsersLoginParams {
 	o.SetCredentials(credentials)
 	return o
 }
 
 // SetCredentials adds the credentials to the post users login params
-func (o *PostUsersLoginParams) SetCredentials(credentials *models.UsersLoginRequest) {
+func (o *PostUsersLoginParams) SetCredentials(credentials *models.V1UsersLoginRequest) {
 	o.Credentials = credentials
+}
+
+// WithRedirectURI adds the redirectURI to the post users login params
+func (o *PostUsersLoginParams) WithRedirectURI(redirectURI *string) *PostUsersLoginParams {
+	o.SetRedirectURI(redirectURI)
+	return o
+}
+
+// SetRedirectURI adds the redirectUri to the post users login params
+func (o *PostUsersLoginParams) SetRedirectURI(redirectURI *string) {
+	o.RedirectURI = redirectURI
 }
 
 // WriteToRequest writes these params to a swagger request
@@ -143,6 +160,23 @@ func (o *PostUsersLoginParams) WriteToRequest(r runtime.ClientRequest, reg strfm
 	if o.Credentials != nil {
 		if err := r.SetBodyParam(o.Credentials); err != nil {
 			return err
+		}
+	}
+
+	if o.RedirectURI != nil {
+
+		// query param redirect_uri
+		var qrRedirectURI string
+
+		if o.RedirectURI != nil {
+			qrRedirectURI = *o.RedirectURI
+		}
+		qRedirectURI := qrRedirectURI
+		if qRedirectURI != "" {
+
+			if err := r.SetQueryParam("redirect_uri", qRedirectURI); err != nil {
+				return err
+			}
 		}
 	}
 

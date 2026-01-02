@@ -35,8 +35,14 @@ type AssetAsset struct {
 	// external links
 	ExternalLinks []*AssetExternalLink `json:"external_links"`
 
+	// has run history
+	HasRunHistory bool `json:"has_run_history,omitempty"`
+
 	// id
 	ID string `json:"id,omitempty"`
+
+	// is stub
+	IsStub bool `json:"is_stub,omitempty"`
 
 	// last sync at
 	LastSyncAt string `json:"last_sync_at,omitempty"`
@@ -56,8 +62,14 @@ type AssetAsset struct {
 	// providers
 	Providers []string `json:"providers"`
 
+	// query
+	Query string `json:"query,omitempty"`
+
+	// query language
+	QueryLanguage string `json:"query_language,omitempty"`
+
 	// schema
-	Schema interface{} `json:"schema,omitempty"`
+	Schema map[string]string `json:"schema,omitempty"`
 
 	// sources
 	Sources []*AssetAssetSource `json:"sources"`
@@ -70,6 +82,9 @@ type AssetAsset struct {
 
 	// updated at
 	UpdatedAt string `json:"updated_at,omitempty"`
+
+	// user description
+	UserDescription string `json:"user_description,omitempty"`
 }
 
 // Validate validates this asset asset

@@ -114,7 +114,7 @@ DeleteLineageDirectIDBadRequest describes a response with status code 400, with 
 Bad Request
 */
 type DeleteLineageDirectIDBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this delete lineage direct Id bad request response has a 2xx status code
@@ -157,13 +157,13 @@ func (o *DeleteLineageDirectIDBadRequest) String() string {
 	return fmt.Sprintf("[DELETE /lineage/direct/{id}][%d] deleteLineageDirectIdBadRequest %s", 400, payload)
 }
 
-func (o *DeleteLineageDirectIDBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *DeleteLineageDirectIDBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *DeleteLineageDirectIDBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -184,7 +184,7 @@ DeleteLineageDirectIDInternalServerError describes a response with status code 5
 Internal Server Error
 */
 type DeleteLineageDirectIDInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this delete lineage direct Id internal server error response has a 2xx status code
@@ -227,13 +227,13 @@ func (o *DeleteLineageDirectIDInternalServerError) String() string {
 	return fmt.Sprintf("[DELETE /lineage/direct/{id}][%d] deleteLineageDirectIdInternalServerError %s", 500, payload)
 }
 
-func (o *DeleteLineageDirectIDInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *DeleteLineageDirectIDInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *DeleteLineageDirectIDInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

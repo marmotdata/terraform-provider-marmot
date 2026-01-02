@@ -60,15 +60,27 @@ type ClientService interface {
 
 	DeleteAssetsIDTags(params *DeleteAssetsIDTagsParams, opts ...ClientOption) (*DeleteAssetsIDTagsOK, error)
 
+	DeleteAssetsIDTerms(params *DeleteAssetsIDTermsParams, opts ...ClientOption) (*DeleteAssetsIDTermsOK, error)
+
+	GetAssetsByGlossaryTermTermID(params *GetAssetsByGlossaryTermTermIDParams, opts ...ClientOption) (*GetAssetsByGlossaryTermTermIDOK, error)
+
 	GetAssetsDocumentationMrn(params *GetAssetsDocumentationMrnParams, opts ...ClientOption) (*GetAssetsDocumentationMrnOK, error)
 
 	GetAssetsID(params *GetAssetsIDParams, opts ...ClientOption) (*GetAssetsIDOK, error)
 
+	GetAssetsIDRunHistory(params *GetAssetsIDRunHistoryParams, opts ...ClientOption) (*GetAssetsIDRunHistoryOK, error)
+
+	GetAssetsIDRunHistoryHistogram(params *GetAssetsIDRunHistoryHistogramParams, opts ...ClientOption) (*GetAssetsIDRunHistoryHistogramOK, error)
+
+	GetAssetsIDTerms(params *GetAssetsIDTermsParams, opts ...ClientOption) (*GetAssetsIDTermsOK, error)
+
 	GetAssetsList(params *GetAssetsListParams, opts ...ClientOption) (*GetAssetsListOK, error)
 
-	GetAssetsLookupTypeName(params *GetAssetsLookupTypeNameParams, opts ...ClientOption) (*GetAssetsLookupTypeNameOK, error)
+	GetAssetsLookupTypeServiceName(params *GetAssetsLookupTypeServiceNameParams, opts ...ClientOption) (*GetAssetsLookupTypeServiceNameOK, error)
 
 	GetAssetsMatchPattern(params *GetAssetsMatchPatternParams, opts ...ClientOption) (*GetAssetsMatchPatternOK, error)
+
+	GetAssetsMyAssets(params *GetAssetsMyAssetsParams, opts ...ClientOption) (*GetAssetsMyAssetsOK, error)
 
 	GetAssetsQualifiedNameQualifiedName(params *GetAssetsQualifiedNameQualifiedNameParams, opts ...ClientOption) (*GetAssetsQualifiedNameQualifiedNameOK, error)
 
@@ -84,13 +96,13 @@ type ClientService interface {
 
 	PostAssets(params *PostAssetsParams, opts ...ClientOption) (*PostAssetsCreated, error)
 
-	PostAssetsBatch(params *PostAssetsBatchParams, opts ...ClientOption) (*PostAssetsBatchOK, error)
-
 	PostAssetsDocumentation(params *PostAssetsDocumentationParams, opts ...ClientOption) (*PostAssetsDocumentationOK, error)
 
 	PostAssetsDocumentationBatch(params *PostAssetsDocumentationBatchParams, opts ...ClientOption) (*PostAssetsDocumentationBatchOK, error)
 
 	PostAssetsIDTags(params *PostAssetsIDTagsParams, opts ...ClientOption) (*PostAssetsIDTagsOK, error)
+
+	PostAssetsIDTerms(params *PostAssetsIDTermsParams, opts ...ClientOption) (*PostAssetsIDTermsOK, error)
 
 	PutAssetsID(params *PutAssetsIDParams, opts ...ClientOption) (*PutAssetsIDOK, error)
 
@@ -178,6 +190,86 @@ func (a *Client) DeleteAssetsIDTags(params *DeleteAssetsIDTagsParams, opts ...Cl
 }
 
 /*
+DeleteAssetsIDTerms removes glossary term from asset
+
+Remove a glossary term association from an asset
+*/
+func (a *Client) DeleteAssetsIDTerms(params *DeleteAssetsIDTermsParams, opts ...ClientOption) (*DeleteAssetsIDTermsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDeleteAssetsIDTermsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "DeleteAssetsIDTerms",
+		Method:             "DELETE",
+		PathPattern:        "/assets/{id}/terms",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DeleteAssetsIDTermsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*DeleteAssetsIDTermsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for DeleteAssetsIDTerms: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+GetAssetsByGlossaryTermTermID gets assets by glossary term
+
+Retrieve all assets associated with a specific glossary term
+*/
+func (a *Client) GetAssetsByGlossaryTermTermID(params *GetAssetsByGlossaryTermTermIDParams, opts ...ClientOption) (*GetAssetsByGlossaryTermTermIDOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetAssetsByGlossaryTermTermIDParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetAssetsByGlossaryTermTermID",
+		Method:             "GET",
+		PathPattern:        "/assets/by-glossary-term/{term_id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetAssetsByGlossaryTermTermIDReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetAssetsByGlossaryTermTermIDOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for GetAssetsByGlossaryTermTermID: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
 GetAssetsDocumentationMrn gets asset documentation
 
 Get documentation for a specific asset
@@ -258,6 +350,126 @@ func (a *Client) GetAssetsID(params *GetAssetsIDParams, opts ...ClientOption) (*
 }
 
 /*
+GetAssetsIDRunHistory gets asset run history
+
+Get paginated run history for a specific asset
+*/
+func (a *Client) GetAssetsIDRunHistory(params *GetAssetsIDRunHistoryParams, opts ...ClientOption) (*GetAssetsIDRunHistoryOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetAssetsIDRunHistoryParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetAssetsIDRunHistory",
+		Method:             "GET",
+		PathPattern:        "/assets/{id}/run-history",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetAssetsIDRunHistoryReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetAssetsIDRunHistoryOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for GetAssetsIDRunHistory: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+GetAssetsIDRunHistoryHistogram gets asset run history histogram
+
+Get histogram data for asset run history over specified period
+*/
+func (a *Client) GetAssetsIDRunHistoryHistogram(params *GetAssetsIDRunHistoryHistogramParams, opts ...ClientOption) (*GetAssetsIDRunHistoryHistogramOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetAssetsIDRunHistoryHistogramParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetAssetsIDRunHistoryHistogram",
+		Method:             "GET",
+		PathPattern:        "/assets/{id}/run-history/histogram",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetAssetsIDRunHistoryHistogramReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetAssetsIDRunHistoryHistogramOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for GetAssetsIDRunHistoryHistogram: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+GetAssetsIDTerms gets asset s glossary terms
+
+Retrieve all glossary terms associated with an asset
+*/
+func (a *Client) GetAssetsIDTerms(params *GetAssetsIDTermsParams, opts ...ClientOption) (*GetAssetsIDTermsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetAssetsIDTermsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetAssetsIDTerms",
+		Method:             "GET",
+		PathPattern:        "/assets/{id}/terms",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetAssetsIDTermsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetAssetsIDTermsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for GetAssetsIDTerms: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
 GetAssetsList lists assets with pagination
 
 Get a paginated list of assets
@@ -298,24 +510,24 @@ func (a *Client) GetAssetsList(params *GetAssetsListParams, opts ...ClientOption
 }
 
 /*
-GetAssetsLookupTypeName lookups asset by type and name
+GetAssetsLookupTypeServiceName lookups asset by type service and name
 
-Get an asset using its type and name
+Get an asset by its type, service (provider), and name
 */
-func (a *Client) GetAssetsLookupTypeName(params *GetAssetsLookupTypeNameParams, opts ...ClientOption) (*GetAssetsLookupTypeNameOK, error) {
+func (a *Client) GetAssetsLookupTypeServiceName(params *GetAssetsLookupTypeServiceNameParams, opts ...ClientOption) (*GetAssetsLookupTypeServiceNameOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewGetAssetsLookupTypeNameParams()
+		params = NewGetAssetsLookupTypeServiceNameParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "GetAssetsLookupTypeName",
+		ID:                 "GetAssetsLookupTypeServiceName",
 		Method:             "GET",
-		PathPattern:        "/assets/lookup/{type}/{name}",
+		PathPattern:        "/assets/lookup/{type}/{service}/{name}",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &GetAssetsLookupTypeNameReader{formats: a.formats},
+		Reader:             &GetAssetsLookupTypeServiceNameReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -327,13 +539,13 @@ func (a *Client) GetAssetsLookupTypeName(params *GetAssetsLookupTypeNameParams, 
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*GetAssetsLookupTypeNameOK)
+	success, ok := result.(*GetAssetsLookupTypeServiceNameOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
-	msg := fmt.Sprintf("unexpected success response for GetAssetsLookupTypeName: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	msg := fmt.Sprintf("unexpected success response for GetAssetsLookupTypeServiceName: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 
@@ -374,6 +586,46 @@ func (a *Client) GetAssetsMatchPattern(params *GetAssetsMatchPatternParams, opts
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for GetAssetsMatchPattern: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+GetAssetsMyAssets gets user s assets
+
+Get assets owned by the current user or their teams
+*/
+func (a *Client) GetAssetsMyAssets(params *GetAssetsMyAssetsParams, opts ...ClientOption) (*GetAssetsMyAssetsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetAssetsMyAssetsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetAssetsMyAssets",
+		Method:             "GET",
+		PathPattern:        "/assets/my-assets",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetAssetsMyAssetsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetAssetsMyAssetsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for GetAssetsMyAssets: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 
@@ -658,46 +910,6 @@ func (a *Client) PostAssets(params *PostAssetsParams, opts ...ClientOption) (*Po
 }
 
 /*
-PostAssetsBatch batches create assets
-
-Create or update multiple assets in a single request
-*/
-func (a *Client) PostAssetsBatch(params *PostAssetsBatchParams, opts ...ClientOption) (*PostAssetsBatchOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewPostAssetsBatchParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "PostAssetsBatch",
-		Method:             "POST",
-		PathPattern:        "/assets/batch",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &PostAssetsBatchReader{formats: a.formats},
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*PostAssetsBatchOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
-	msg := fmt.Sprintf("unexpected success response for PostAssetsBatch: API contract not enforced by server. Client expected to get an error, but got: %T", result)
-	panic(msg)
-}
-
-/*
 PostAssetsDocumentation creates asset documentation
 
 Create or update documentation for an asset
@@ -814,6 +1026,46 @@ func (a *Client) PostAssetsIDTags(params *PostAssetsIDTagsParams, opts ...Client
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for PostAssetsIDTags: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+PostAssetsIDTerms adds glossary terms to asset
+
+Associate one or more glossary terms with an asset
+*/
+func (a *Client) PostAssetsIDTerms(params *PostAssetsIDTermsParams, opts ...ClientOption) (*PostAssetsIDTermsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPostAssetsIDTermsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "PostAssetsIDTerms",
+		Method:             "POST",
+		PathPattern:        "/assets/{id}/terms",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PostAssetsIDTermsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*PostAssetsIDTermsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for PostAssetsIDTerms: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

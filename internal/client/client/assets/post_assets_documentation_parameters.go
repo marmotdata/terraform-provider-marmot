@@ -67,7 +67,7 @@ type PostAssetsDocumentationParams struct {
 
 	   Documentation creation request
 	*/
-	Request *models.AssetsDocumentationCreateRequest
+	Request *models.V1AssetsDocumentationCreateRequest
 
 	timeout    time.Duration
 	Context    context.Context
@@ -123,13 +123,13 @@ func (o *PostAssetsDocumentationParams) SetHTTPClient(client *http.Client) {
 }
 
 // WithRequest adds the request to the post assets documentation params
-func (o *PostAssetsDocumentationParams) WithRequest(request *models.AssetsDocumentationCreateRequest) *PostAssetsDocumentationParams {
+func (o *PostAssetsDocumentationParams) WithRequest(request *models.V1AssetsDocumentationCreateRequest) *PostAssetsDocumentationParams {
 	o.SetRequest(request)
 	return o
 }
 
 // SetRequest adds the request to the post assets documentation params
-func (o *PostAssetsDocumentationParams) SetRequest(request *models.AssetsDocumentationCreateRequest) {
+func (o *PostAssetsDocumentationParams) SetRequest(request *models.V1AssetsDocumentationCreateRequest) {
 	o.Request = request
 }
 

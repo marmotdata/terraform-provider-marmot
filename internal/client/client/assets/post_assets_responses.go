@@ -134,7 +134,7 @@ PostAssetsBadRequest describes a response with status code 400, with default hea
 Bad Request
 */
 type PostAssetsBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets bad request response has a 2xx status code
@@ -177,13 +177,13 @@ func (o *PostAssetsBadRequest) String() string {
 	return fmt.Sprintf("[POST /assets][%d] postAssetsBadRequest %s", 400, payload)
 }
 
-func (o *PostAssetsBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -204,7 +204,7 @@ PostAssetsUnauthorized describes a response with status code 401, with default h
 Unauthorized
 */
 type PostAssetsUnauthorized struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets unauthorized response has a 2xx status code
@@ -247,13 +247,13 @@ func (o *PostAssetsUnauthorized) String() string {
 	return fmt.Sprintf("[POST /assets][%d] postAssetsUnauthorized %s", 401, payload)
 }
 
-func (o *PostAssetsUnauthorized) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsUnauthorized) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -274,7 +274,7 @@ PostAssetsConflict describes a response with status code 409, with default heade
 Conflict
 */
 type PostAssetsConflict struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets conflict response has a 2xx status code
@@ -317,13 +317,13 @@ func (o *PostAssetsConflict) String() string {
 	return fmt.Sprintf("[POST /assets][%d] postAssetsConflict %s", 409, payload)
 }
 
-func (o *PostAssetsConflict) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsConflict) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsConflict) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

@@ -56,34 +56,100 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
-	GetAuthConfig(params *GetAuthConfigParams, opts ...ClientOption) (*GetAuthConfigOK, error)
+	GetAuthProviderCallback(params *GetAuthProviderCallbackParams, opts ...ClientOption) error
 
-	GetAuthOktaCallback(params *GetAuthOktaCallbackParams, opts ...ClientOption) error
+	GetAuthProviderLogin(params *GetAuthProviderLoginParams, opts ...ClientOption) error
 
-	GetAuthOktaLogin(params *GetAuthOktaLoginParams, opts ...ClientOption) error
+	GetAuthProviders(params *GetAuthProvidersParams, opts ...ClientOption) (*GetAuthProvidersOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
 
 /*
-GetAuthConfig gets auth configuration
+GetAuthProviderCallback handles o auth callback
 
-Returns the enabled auth providers without sensitive data
+Processes the OAuth callback from any provider
 */
-func (a *Client) GetAuthConfig(params *GetAuthConfigParams, opts ...ClientOption) (*GetAuthConfigOK, error) {
+func (a *Client) GetAuthProviderCallback(params *GetAuthProviderCallbackParams, opts ...ClientOption) error {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewGetAuthConfigParams()
+		params = NewGetAuthProviderCallbackParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "GetAuthConfig",
+		ID:                 "GetAuthProviderCallback",
 		Method:             "GET",
-		PathPattern:        "/auth/config",
+		PathPattern:        "/auth/{provider}/callback",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &GetAuthConfigReader{formats: a.formats},
+		Reader:             &GetAuthProviderCallbackReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+GetAuthProviderLogin initiates o auth login
+
+Redirects the user to the OAuth provider for authentication
+*/
+func (a *Client) GetAuthProviderLogin(params *GetAuthProviderLoginParams, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetAuthProviderLoginParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetAuthProviderLogin",
+		Method:             "GET",
+		PathPattern:        "/auth/{provider}/login",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetAuthProviderLoginReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+GetAuthProviders gets auth configuration
+
+Returns the enabled auth providers without sensitive data
+*/
+func (a *Client) GetAuthProviders(params *GetAuthProvidersParams, opts ...ClientOption) (*GetAuthProvidersOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetAuthProvidersParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetAuthProviders",
+		Method:             "GET",
+		PathPattern:        "/auth-providers",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetAuthProvidersReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -95,80 +161,14 @@ func (a *Client) GetAuthConfig(params *GetAuthConfigParams, opts ...ClientOption
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*GetAuthConfigOK)
+	success, ok := result.(*GetAuthProvidersOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
-	msg := fmt.Sprintf("unexpected success response for GetAuthConfig: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	msg := fmt.Sprintf("unexpected success response for GetAuthProviders: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
-}
-
-/*
-GetAuthOktaCallback handles okta o auth callback
-
-Processes the OAuth callback from Okta
-*/
-func (a *Client) GetAuthOktaCallback(params *GetAuthOktaCallbackParams, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewGetAuthOktaCallbackParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "GetAuthOktaCallback",
-		Method:             "GET",
-		PathPattern:        "/auth/okta/callback",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &GetAuthOktaCallbackReader{formats: a.formats},
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	_, err := a.transport.Submit(op)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-/*
-GetAuthOktaLogin initiates okta o auth login
-
-Redirects the user to Okta for authentication
-*/
-func (a *Client) GetAuthOktaLogin(params *GetAuthOktaLoginParams, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewGetAuthOktaLoginParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "GetAuthOktaLogin",
-		Method:             "GET",
-		PathPattern:        "/auth/okta/login",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &GetAuthOktaLoginReader{formats: a.formats},
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	_, err := a.transport.Submit(op)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // SetTransport changes the transport on the client

@@ -99,7 +99,7 @@ func (r *LineageResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	params := lineage.NewPostLineageDirectParams().WithEdge(&models.LineageLineageEdge{
+	params := lineage.NewPostLineageDirectParams().WithEdge(&models.GithubComMarmotdataMarmotInternalCoreLineageLineageEdge{
 		Source: data.Source.ValueString(),
 		Target: data.Target.ValueString(),
 	})

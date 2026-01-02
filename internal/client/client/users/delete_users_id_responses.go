@@ -114,7 +114,7 @@ DeleteUsersIDNotFound describes a response with status code 404, with default he
 Not Found
 */
 type DeleteUsersIDNotFound struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this delete users Id not found response has a 2xx status code
@@ -157,13 +157,13 @@ func (o *DeleteUsersIDNotFound) String() string {
 	return fmt.Sprintf("[DELETE /users/{id}][%d] deleteUsersIdNotFound %s", 404, payload)
 }
 
-func (o *DeleteUsersIDNotFound) GetPayload() *models.CommonErrorResponse {
+func (o *DeleteUsersIDNotFound) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *DeleteUsersIDNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -184,7 +184,7 @@ DeleteUsersIDInternalServerError describes a response with status code 500, with
 Internal Server Error
 */
 type DeleteUsersIDInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this delete users Id internal server error response has a 2xx status code
@@ -227,13 +227,13 @@ func (o *DeleteUsersIDInternalServerError) String() string {
 	return fmt.Sprintf("[DELETE /users/{id}][%d] deleteUsersIdInternalServerError %s", 500, payload)
 }
 
-func (o *DeleteUsersIDInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *DeleteUsersIDInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *DeleteUsersIDInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

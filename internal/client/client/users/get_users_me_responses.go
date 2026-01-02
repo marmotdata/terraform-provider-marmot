@@ -122,7 +122,7 @@ GetUsersMeUnauthorized describes a response with status code 401, with default h
 Unauthorized
 */
 type GetUsersMeUnauthorized struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get users me unauthorized response has a 2xx status code
@@ -165,13 +165,13 @@ func (o *GetUsersMeUnauthorized) String() string {
 	return fmt.Sprintf("[GET /users/me][%d] getUsersMeUnauthorized %s", 401, payload)
 }
 
-func (o *GetUsersMeUnauthorized) GetPayload() *models.CommonErrorResponse {
+func (o *GetUsersMeUnauthorized) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetUsersMeUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

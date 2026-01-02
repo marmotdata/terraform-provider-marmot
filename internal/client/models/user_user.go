@@ -28,11 +28,20 @@ type UserUser struct {
 	// id
 	ID string `json:"id,omitempty"`
 
+	// identities
+	Identities []*UserUserIdentity `json:"identities"`
+
+	// must change password
+	MustChangePassword bool `json:"must_change_password,omitempty"`
+
 	// name
 	Name string `json:"name,omitempty"`
 
 	// preferences
 	Preferences interface{} `json:"preferences,omitempty"`
+
+	// profile picture
+	ProfilePicture string `json:"profile_picture,omitempty"`
 
 	// roles
 	Roles []*UserRole `json:"roles"`
@@ -48,6 +57,10 @@ type UserUser struct {
 func (m *UserUser) Validate(formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.validateIdentities(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateRoles(formats); err != nil {
 		res = append(res, err)
 	}
@@ -55,6 +68,32 @@ func (m *UserUser) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *UserUser) validateIdentities(formats strfmt.Registry) error {
+	if swag.IsZero(m.Identities) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.Identities); i++ {
+		if swag.IsZero(m.Identities[i]) { // not required
+			continue
+		}
+
+		if m.Identities[i] != nil {
+			if err := m.Identities[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("identities" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("identities" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
 	return nil
 }
 
@@ -88,6 +127,10 @@ func (m *UserUser) validateRoles(formats strfmt.Registry) error {
 func (m *UserUser) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.contextValidateIdentities(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateRoles(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -95,6 +138,31 @@ func (m *UserUser) ContextValidate(ctx context.Context, formats strfmt.Registry)
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *UserUser) contextValidateIdentities(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(m.Identities); i++ {
+
+		if m.Identities[i] != nil {
+
+			if swag.IsZero(m.Identities[i]) { // not required
+				return nil
+			}
+
+			if err := m.Identities[i].ContextValidate(ctx, formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("identities" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("identities" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
 	return nil
 }
 

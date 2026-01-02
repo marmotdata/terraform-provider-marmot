@@ -62,23 +62,29 @@ type AssetEnvironmentModel struct {
 
 // AssetResourceModel describes the asset resource data model.
 type AssetResourceModel struct {
-	Name          types.String                     `tfsdk:"name"`
-	Type          types.String                     `tfsdk:"type"`
-	Description   types.String                     `tfsdk:"description"`
-	Services      types.Set                        `tfsdk:"services"`
-	Tags          types.Set                        `tfsdk:"tags"`
-	Metadata      types.Map                        `tfsdk:"metadata"`
-	Schema        types.Map                        `tfsdk:"schema"`
-	ExternalLinks []ExternalLinkModel              `tfsdk:"external_links"`
-	Sources       []AssetSourceModel               `tfsdk:"sources"`
-	Environments  map[string]AssetEnvironmentModel `tfsdk:"environments"`
+	Name            types.String                     `tfsdk:"name"`
+	Type            types.String                     `tfsdk:"type"`
+	Description     types.String                     `tfsdk:"description"`
+	UserDescription types.String                     `tfsdk:"user_description"`
+	Services        types.Set                        `tfsdk:"services"`
+	Tags            types.Set                        `tfsdk:"tags"`
+	Metadata        types.Map                        `tfsdk:"metadata"`
+	Schema          types.Map                        `tfsdk:"schema"`
+	ExternalLinks   []ExternalLinkModel              `tfsdk:"external_links"`
+	Sources         []AssetSourceModel               `tfsdk:"sources"`
+	Environments    map[string]AssetEnvironmentModel `tfsdk:"environments"`
 
-	ID         types.String `tfsdk:"id"`
-	CreatedAt  types.String `tfsdk:"created_at"`
-	CreatedBy  types.String `tfsdk:"created_by"`
-	UpdatedAt  types.String `tfsdk:"updated_at"`
-	LastSyncAt types.String `tfsdk:"last_sync_at"`
-	MRN        types.String `tfsdk:"mrn"`
+	ID            types.String `tfsdk:"id"`
+	CreatedAt     types.String `tfsdk:"created_at"`
+	CreatedBy     types.String `tfsdk:"created_by"`
+	UpdatedAt     types.String `tfsdk:"updated_at"`
+	LastSyncAt    types.String `tfsdk:"last_sync_at"`
+	MRN           types.String `tfsdk:"mrn"`
+	ParentMRN     types.String `tfsdk:"parent_mrn"`
+	Query         types.String `tfsdk:"query"`
+	QueryLanguage types.String `tfsdk:"query_language"`
+	HasRunHistory types.Bool   `tfsdk:"has_run_history"`
+	IsStub        types.Bool   `tfsdk:"is_stub"`
 }
 
 func (r *AssetResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -109,6 +115,13 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.LengthAtMost(1000),
+				},
+			},
+			"user_description": schema.StringAttribute{
+				MarkdownDescription: "User-provided description for the asset",
+				Optional:            true,
+				Validators: []validator.String{
+					stringvalidator.LengthAtMost(2000),
 				},
 			},
 			"services": schema.SetAttribute{
@@ -256,6 +269,26 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
+			},
+			"parent_mrn": schema.StringAttribute{
+				MarkdownDescription: "Parent asset's Marmot Resource Name",
+				Computed:            true,
+			},
+			"query": schema.StringAttribute{
+				MarkdownDescription: "Query associated with the asset",
+				Computed:            true,
+			},
+			"query_language": schema.StringAttribute{
+				MarkdownDescription: "Query language used for the asset's query",
+				Computed:            true,
+			},
+			"has_run_history": schema.BoolAttribute{
+				MarkdownDescription: "Whether the asset has run history",
+				Computed:            true,
+			},
+			"is_stub": schema.BoolAttribute{
+				MarkdownDescription: "Whether the asset is a stub",
+				Computed:            true,
 			},
 		},
 	}
@@ -415,7 +448,7 @@ func (r *AssetResource) ImportState(ctx context.Context, req resource.ImportStat
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (*models.AssetsCreateRequest, diag.Diagnostics) {
+func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (*models.InternalAPIV1AssetsCreateRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	var services []string
@@ -431,8 +464,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	metadata, metadataDiags := r.mapToDictionary(data.Metadata)
 	diags.Append(metadataDiags...)
 
-	schema, schemaDiags := r.mapToDictionary(data.Schema)
-	diags.Append(schemaDiags...)
+	schema := r.mapToStringMap(data.Schema)
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
 	sources := r.convertSources(data.Sources, &diags)
@@ -442,7 +474,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	assetType := data.Type.ValueString()
 	description := data.Description.ValueString()
 
-	return &models.AssetsCreateRequest{
+	return &models.InternalAPIV1AssetsCreateRequest{
 		Name:          &name,
 		Type:          &assetType,
 		Description:   description,
@@ -456,7 +488,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	}, diags
 }
 
-func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceModel) (*models.AssetsUpdateRequest, diag.Diagnostics) {
+func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceModel) (*models.InternalAPIV1AssetsUpdateRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	var services []string
@@ -472,40 +504,45 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 	metadata, metadataDiags := r.mapToDictionary(data.Metadata)
 	diags.Append(metadataDiags...)
 
-	schema, schemaDiags := r.mapToDictionary(data.Schema)
-	diags.Append(schemaDiags...)
+	schema := r.mapToStringMap(data.Schema)
 
 	externalLinks := r.convertExternalLinks(data.ExternalLinks)
 	sources := r.convertSources(data.Sources, &diags)
 	environments := r.convertEnvironments(data.Environments, &diags)
 
-	return &models.AssetsUpdateRequest{
-		Name:          data.Name.ValueString(),
-		Type:          data.Type.ValueString(),
-		Description:   data.Description.ValueString(),
-		Providers:     services,
-		Tags:          tags,
-		Metadata:      metadata,
-		Schema:        schema,
-		ExternalLinks: externalLinks,
-		Sources:       sources,
-		Environments:  environments,
+	userDescription := ""
+	if !data.UserDescription.IsNull() && !data.UserDescription.IsUnknown() {
+		userDescription = data.UserDescription.ValueString()
+	}
+
+	return &models.InternalAPIV1AssetsUpdateRequest{
+		Name:            data.Name.ValueString(),
+		Type:            data.Type.ValueString(),
+		Description:     data.Description.ValueString(),
+		UserDescription: userDescription,
+		Providers:       services,
+		Tags:            tags,
+		Metadata:        metadata,
+		Schema:          schema,
+		ExternalLinks:   externalLinks,
+		Sources:         sources,
+		Environments:    environments,
 	}, diags
 }
 
-func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*models.AssetExternalLink {
+func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink {
 	if len(links) == 0 {
 		return nil
 	}
 
-	result := make([]*models.AssetExternalLink, len(links))
+	result := make([]*models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink, len(links))
 	for i, link := range links {
 		icon := ""
 		if !link.Icon.IsNull() && !link.Icon.IsUnknown() {
 			icon = link.Icon.ValueString()
 		}
 
-		result[i] = &models.AssetExternalLink{
+		result[i] = &models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink{
 			Icon: icon,
 			Name: link.Name.ValueString(),
 			URL:  link.URL.ValueString(),
@@ -514,12 +551,12 @@ func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*model
 	return result
 }
 
-func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.Diagnostics) []*models.AssetAssetSource {
+func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.Diagnostics) []*models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource {
 	if len(sources) == 0 {
 		return nil
 	}
 
-	result := make([]*models.AssetAssetSource, len(sources))
+	result := make([]*models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource, len(sources))
 	for i, source := range sources {
 		props, propDiags := r.mapToDictionary(source.Properties)
 		diags.Append(propDiags...)
@@ -529,7 +566,7 @@ func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.D
 			priority = source.Priority.ValueInt64()
 		}
 
-		result[i] = &models.AssetAssetSource{
+		result[i] = &models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource{
 			Name:       source.Name.ValueString(),
 			Priority:   priority,
 			Properties: props,
@@ -538,17 +575,17 @@ func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.D
 	return result
 }
 
-func (r *AssetResource) convertEnvironments(environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]models.AssetEnvironment {
+func (r *AssetResource) convertEnvironments(environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment {
 	if len(environments) == 0 {
 		return nil
 	}
 
-	result := make(map[string]models.AssetEnvironment)
+	result := make(map[string]models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment)
 	for k, env := range environments {
 		metadata, mdDiags := r.mapToDictionary(env.Metadata)
 		diags.Append(mdDiags...)
 
-		result[k] = models.AssetEnvironment{
+		result[k] = models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment{
 			Name:     env.Name.ValueString(),
 			Path:     env.Path.ValueString(),
 			Metadata: metadata,
@@ -597,6 +634,30 @@ func (r *AssetResource) mapToDictionary(tfMap types.Map) (map[string]interface{}
 	return result, nil
 }
 
+func (r *AssetResource) mapToStringMap(tfMap types.Map) map[string]string {
+	if tfMap.IsNull() || tfMap.IsUnknown() {
+		return nil
+	}
+
+	elements := tfMap.Elements()
+	if len(elements) == 0 {
+		return nil
+	}
+
+	result := make(map[string]string, len(elements))
+	for k, v := range elements {
+		strVal, ok := v.(basetypes.StringValue)
+		if ok && !strVal.IsNull() && !strVal.IsUnknown() {
+			result[k] = strVal.ValueString()
+		}
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 func normalizeTimestamp(timestamp string) string {
 	if timestamp == "" {
 		return ""
@@ -608,7 +669,7 @@ func normalizeTimestamp(timestamp string) string {
 	return t.Format("2006-01-02T15:04:05.000000Z07:00")
 }
 
-func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.AssetAsset) diag.Diagnostics {
+func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.GithubComMarmotdataMarmotInternalCoreAssetAsset) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	model.ID = types.StringValue(asset.ID)
@@ -619,6 +680,34 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	model.CreatedBy = types.StringValue(asset.CreatedBy)
 	model.UpdatedAt = types.StringValue(normalizeTimestamp(asset.UpdatedAt))
 	model.MRN = types.StringValue(asset.Mrn)
+
+	// New fields
+	if asset.UserDescription != "" {
+		model.UserDescription = types.StringValue(asset.UserDescription)
+	} else {
+		model.UserDescription = types.StringNull()
+	}
+
+	if asset.ParentMrn != "" {
+		model.ParentMRN = types.StringValue(asset.ParentMrn)
+	} else {
+		model.ParentMRN = types.StringNull()
+	}
+
+	if asset.Query != "" {
+		model.Query = types.StringValue(asset.Query)
+	} else {
+		model.Query = types.StringNull()
+	}
+
+	if asset.QueryLanguage != "" {
+		model.QueryLanguage = types.StringValue(asset.QueryLanguage)
+	} else {
+		model.QueryLanguage = types.StringNull()
+	}
+
+	model.HasRunHistory = types.BoolValue(asset.HasRunHistory)
+	model.IsStub = types.BoolValue(asset.IsStub)
 
 	if asset.LastSyncAt != "" {
 		model.LastSyncAt = types.StringValue(normalizeTimestamp(asset.LastSyncAt))
@@ -665,9 +754,8 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		model.Metadata = metadata
 	}
 
-	if schemaMap, ok := asset.Schema.(map[string]interface{}); ok && schemaMap != nil && len(schemaMap) > 0 {
-		sortedSchema := r.convertMapToStringMapSorted(schemaMap)
-		schema, diag := types.MapValueFrom(ctx, types.StringType, sortedSchema)
+	if len(asset.Schema) > 0 {
+		schema, diag := types.MapValueFrom(ctx, types.StringType, asset.Schema)
 		diags.Append(diag...)
 		model.Schema = schema
 	} else {
@@ -735,7 +823,7 @@ func (r *AssetResource) convertMapToStringMapSorted(m map[string]interface{}) ma
 	return result
 }
 
-func (r *AssetResource) convertModelExternalLinks(links []*models.AssetExternalLink) []ExternalLinkModel {
+func (r *AssetResource) convertModelExternalLinks(links []*models.GithubComMarmotdataMarmotInternalCoreAssetExternalLink) []ExternalLinkModel {
 	if len(links) == 0 {
 		return []ExternalLinkModel{}
 	}
@@ -756,7 +844,7 @@ func (r *AssetResource) convertModelExternalLinks(links []*models.AssetExternalL
 	return result
 }
 
-func (r *AssetResource) convertModelSources(ctx context.Context, sources []*models.AssetAssetSource, diags *diag.Diagnostics) []AssetSourceModel {
+func (r *AssetResource) convertModelSources(ctx context.Context, sources []*models.GithubComMarmotdataMarmotInternalCoreAssetAssetSource, diags *diag.Diagnostics) []AssetSourceModel {
 	if len(sources) == 0 {
 		return []AssetSourceModel{}
 	}
@@ -782,7 +870,7 @@ func (r *AssetResource) convertModelSources(ctx context.Context, sources []*mode
 	return result
 }
 
-func (r *AssetResource) convertModelEnvironments(ctx context.Context, environments map[string]models.AssetEnvironment, diags *diag.Diagnostics) map[string]AssetEnvironmentModel {
+func (r *AssetResource) convertModelEnvironments(ctx context.Context, environments map[string]models.GithubComMarmotdataMarmotInternalCoreAssetEnvironment, diags *diag.Diagnostics) map[string]AssetEnvironmentModel {
 	if len(environments) == 0 {
 		return make(map[string]AssetEnvironmentModel)
 	}

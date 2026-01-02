@@ -73,7 +73,7 @@ type PostAssetsIDTagsParams struct {
 
 	   Tag to add
 	*/
-	Tag *models.AssetsTagRequest
+	Tag *models.V1AssetsTagRequest
 
 	timeout    time.Duration
 	Context    context.Context
@@ -140,13 +140,13 @@ func (o *PostAssetsIDTagsParams) SetID(id string) {
 }
 
 // WithTag adds the tag to the post assets ID tags params
-func (o *PostAssetsIDTagsParams) WithTag(tag *models.AssetsTagRequest) *PostAssetsIDTagsParams {
+func (o *PostAssetsIDTagsParams) WithTag(tag *models.V1AssetsTagRequest) *PostAssetsIDTagsParams {
 	o.SetTag(tag)
 	return o
 }
 
 // SetTag adds the tag to the post assets ID tags params
-func (o *PostAssetsIDTagsParams) SetTag(tag *models.AssetsTagRequest) {
+func (o *PostAssetsIDTagsParams) SetTag(tag *models.V1AssetsTagRequest) {
 	o.Tag = tag
 }
 

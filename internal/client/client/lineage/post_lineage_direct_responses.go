@@ -128,7 +128,7 @@ PostLineageDirectBadRequest describes a response with status code 400, with defa
 Bad Request
 */
 type PostLineageDirectBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post lineage direct bad request response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *PostLineageDirectBadRequest) String() string {
 	return fmt.Sprintf("[POST /lineage/direct][%d] postLineageDirectBadRequest %s", 400, payload)
 }
 
-func (o *PostLineageDirectBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostLineageDirectBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostLineageDirectBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ PostLineageDirectInternalServerError describes a response with status code 500, 
 Internal Server Error
 */
 type PostLineageDirectInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post lineage direct internal server error response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *PostLineageDirectInternalServerError) String() string {
 	return fmt.Sprintf("[POST /lineage/direct][%d] postLineageDirectInternalServerError %s", 500, payload)
 }
 
-func (o *PostLineageDirectInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *PostLineageDirectInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostLineageDirectInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

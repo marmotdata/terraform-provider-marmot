@@ -67,7 +67,7 @@ type PostAssetsParams struct {
 
 	   Asset creation request
 	*/
-	Asset *models.AssetsCreateRequest
+	Asset *models.V1AssetsCreateRequest
 
 	timeout    time.Duration
 	Context    context.Context
@@ -123,13 +123,13 @@ func (o *PostAssetsParams) SetHTTPClient(client *http.Client) {
 }
 
 // WithAsset adds the asset to the post assets params
-func (o *PostAssetsParams) WithAsset(asset *models.AssetsCreateRequest) *PostAssetsParams {
+func (o *PostAssetsParams) WithAsset(asset *models.V1AssetsCreateRequest) *PostAssetsParams {
 	o.SetAsset(asset)
 	return o
 }
 
 // SetAsset adds the asset to the post assets params
-func (o *PostAssetsParams) SetAsset(asset *models.AssetsCreateRequest) {
+func (o *PostAssetsParams) SetAsset(asset *models.V1AssetsCreateRequest) {
 	o.Asset = asset
 }
 

@@ -128,7 +128,7 @@ GetAssetsIDNotFound describes a response with status code 404, with default head
 Not Found
 */
 type GetAssetsIDNotFound struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get assets Id not found response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *GetAssetsIDNotFound) String() string {
 	return fmt.Sprintf("[GET /assets/{id}][%d] getAssetsIdNotFound %s", 404, payload)
 }
 
-func (o *GetAssetsIDNotFound) GetPayload() *models.CommonErrorResponse {
+func (o *GetAssetsIDNotFound) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetAssetsIDNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ GetAssetsIDInternalServerError describes a response with status code 500, with d
 Internal Server Error
 */
 type GetAssetsIDInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get assets Id internal server error response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *GetAssetsIDInternalServerError) String() string {
 	return fmt.Sprintf("[GET /assets/{id}][%d] getAssetsIdInternalServerError %s", 500, payload)
 }
 
-func (o *GetAssetsIDInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *GetAssetsIDInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetAssetsIDInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

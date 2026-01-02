@@ -18,13 +18,11 @@ import (
 // swagger:model asset.MetadataValueSuggestion
 type AssetMetadataValueSuggestion struct {
 
-	// number of assets using this value
+	// count
 	Count int64 `json:"count,omitempty"`
 
-	// optional example asset
-	Example struct {
-		AssetAsset
-	} `json:"example,omitempty"`
+	// example
+	Example *AssetAsset `json:"example,omitempty"`
 
 	// value
 	Value string `json:"value,omitempty"`
@@ -49,6 +47,17 @@ func (m *AssetMetadataValueSuggestion) validateExample(formats strfmt.Registry) 
 		return nil
 	}
 
+	if m.Example != nil {
+		if err := m.Example.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("example")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("example")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -67,6 +76,22 @@ func (m *AssetMetadataValueSuggestion) ContextValidate(ctx context.Context, form
 }
 
 func (m *AssetMetadataValueSuggestion) contextValidateExample(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Example != nil {
+
+		if swag.IsZero(m.Example) { // not required
+			return nil
+		}
+
+		if err := m.Example.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("example")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("example")
+			}
+			return err
+		}
+	}
 
 	return nil
 }

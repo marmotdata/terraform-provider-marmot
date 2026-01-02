@@ -52,7 +52,7 @@ GetUsersOK describes a response with status code 200, with default header values
 OK
 */
 type GetUsersOK struct {
-	Payload *models.UsersListUsersResponse
+	Payload *models.V1UsersListUsersResponse
 }
 
 // IsSuccess returns true when this get users o k response has a 2xx status code
@@ -95,13 +95,13 @@ func (o *GetUsersOK) String() string {
 	return fmt.Sprintf("[GET /users][%d] getUsersOK %s", 200, payload)
 }
 
-func (o *GetUsersOK) GetPayload() *models.UsersListUsersResponse {
+func (o *GetUsersOK) GetPayload() *models.V1UsersListUsersResponse {
 	return o.Payload
 }
 
 func (o *GetUsersOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.UsersListUsersResponse)
+	o.Payload = new(models.V1UsersListUsersResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -122,7 +122,7 @@ GetUsersInternalServerError describes a response with status code 500, with defa
 Internal Server Error
 */
 type GetUsersInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get users internal server error response has a 2xx status code
@@ -165,13 +165,13 @@ func (o *GetUsersInternalServerError) String() string {
 	return fmt.Sprintf("[GET /users][%d] getUsersInternalServerError %s", 500, payload)
 }
 
-func (o *GetUsersInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *GetUsersInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetUsersInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

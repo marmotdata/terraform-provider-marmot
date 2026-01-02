@@ -128,7 +128,7 @@ GetLineageDirectIDNotFound describes a response with status code 404, with defau
 Not Found
 */
 type GetLineageDirectIDNotFound struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get lineage direct Id not found response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *GetLineageDirectIDNotFound) String() string {
 	return fmt.Sprintf("[GET /lineage/direct/{id}][%d] getLineageDirectIdNotFound %s", 404, payload)
 }
 
-func (o *GetLineageDirectIDNotFound) GetPayload() *models.CommonErrorResponse {
+func (o *GetLineageDirectIDNotFound) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetLineageDirectIDNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ GetLineageDirectIDInternalServerError describes a response with status code 500,
 Internal Server Error
 */
 type GetLineageDirectIDInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get lineage direct Id internal server error response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *GetLineageDirectIDInternalServerError) String() string {
 	return fmt.Sprintf("[GET /lineage/direct/{id}][%d] getLineageDirectIdInternalServerError %s", 500, payload)
 }
 
-func (o *GetLineageDirectIDInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *GetLineageDirectIDInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetLineageDirectIDInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

@@ -128,7 +128,7 @@ PutUsersIDBadRequest describes a response with status code 400, with default hea
 Bad Request
 */
 type PutUsersIDBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this put users Id bad request response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *PutUsersIDBadRequest) String() string {
 	return fmt.Sprintf("[PUT /users/{id}][%d] putUsersIdBadRequest %s", 400, payload)
 }
 
-func (o *PutUsersIDBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PutUsersIDBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PutUsersIDBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ PutUsersIDNotFound describes a response with status code 404, with default heade
 Not Found
 */
 type PutUsersIDNotFound struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this put users Id not found response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *PutUsersIDNotFound) String() string {
 	return fmt.Sprintf("[PUT /users/{id}][%d] putUsersIdNotFound %s", 404, payload)
 }
 
-func (o *PutUsersIDNotFound) GetPayload() *models.CommonErrorResponse {
+func (o *PutUsersIDNotFound) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PutUsersIDNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

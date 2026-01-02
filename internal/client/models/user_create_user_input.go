@@ -23,7 +23,7 @@ type UserCreateUserInput struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// OAuth-related fields
+	// oauth provider
 	OauthProvider string `json:"oauth_provider,omitempty"`
 
 	// oauth provider data
@@ -35,6 +35,9 @@ type UserCreateUserInput struct {
 	// password
 	// Min Length: 8
 	Password string `json:"password,omitempty"`
+
+	// profile picture
+	ProfilePicture string `json:"profile_picture,omitempty"`
 
 	// role names
 	// Required: true

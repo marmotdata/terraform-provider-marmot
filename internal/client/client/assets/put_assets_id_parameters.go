@@ -67,7 +67,7 @@ type PutAssetsIDParams struct {
 
 	   Asset update request
 	*/
-	Asset *models.AssetsUpdateRequest
+	Asset *models.V1AssetsUpdateRequest
 
 	/* ID.
 
@@ -129,13 +129,13 @@ func (o *PutAssetsIDParams) SetHTTPClient(client *http.Client) {
 }
 
 // WithAsset adds the asset to the put assets ID params
-func (o *PutAssetsIDParams) WithAsset(asset *models.AssetsUpdateRequest) *PutAssetsIDParams {
+func (o *PutAssetsIDParams) WithAsset(asset *models.V1AssetsUpdateRequest) *PutAssetsIDParams {
 	o.SetAsset(asset)
 	return o
 }
 
 // SetAsset adds the asset to the put assets ID params
-func (o *PutAssetsIDParams) SetAsset(asset *models.AssetsUpdateRequest) {
+func (o *PutAssetsIDParams) SetAsset(asset *models.V1AssetsUpdateRequest) {
 	o.Asset = asset
 }
 

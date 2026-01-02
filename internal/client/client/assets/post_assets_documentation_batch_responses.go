@@ -58,7 +58,7 @@ PostAssetsDocumentationBatchOK describes a response with status code 200, with d
 OK
 */
 type PostAssetsDocumentationBatchOK struct {
-	Payload *models.AssetsBatchDocumentationResponse
+	Payload *models.V1AssetsBatchDocumentationResponse
 }
 
 // IsSuccess returns true when this post assets documentation batch o k response has a 2xx status code
@@ -101,13 +101,13 @@ func (o *PostAssetsDocumentationBatchOK) String() string {
 	return fmt.Sprintf("[POST /assets/documentation/batch][%d] postAssetsDocumentationBatchOK %s", 200, payload)
 }
 
-func (o *PostAssetsDocumentationBatchOK) GetPayload() *models.AssetsBatchDocumentationResponse {
+func (o *PostAssetsDocumentationBatchOK) GetPayload() *models.V1AssetsBatchDocumentationResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsDocumentationBatchOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.AssetsBatchDocumentationResponse)
+	o.Payload = new(models.V1AssetsBatchDocumentationResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -128,7 +128,7 @@ PostAssetsDocumentationBatchBadRequest describes a response with status code 400
 Bad Request
 */
 type PostAssetsDocumentationBatchBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets documentation batch bad request response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *PostAssetsDocumentationBatchBadRequest) String() string {
 	return fmt.Sprintf("[POST /assets/documentation/batch][%d] postAssetsDocumentationBatchBadRequest %s", 400, payload)
 }
 
-func (o *PostAssetsDocumentationBatchBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsDocumentationBatchBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsDocumentationBatchBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ PostAssetsDocumentationBatchInternalServerError describes a response with status
 Internal Server Error
 */
 type PostAssetsDocumentationBatchInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets documentation batch internal server error response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *PostAssetsDocumentationBatchInternalServerError) String() string {
 	return fmt.Sprintf("[POST /assets/documentation/batch][%d] postAssetsDocumentationBatchInternalServerError %s", 500, payload)
 }
 
-func (o *PostAssetsDocumentationBatchInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsDocumentationBatchInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsDocumentationBatchInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

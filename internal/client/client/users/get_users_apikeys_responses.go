@@ -120,7 +120,7 @@ GetUsersApikeysInternalServerError describes a response with status code 500, wi
 Internal Server Error
 */
 type GetUsersApikeysInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get users apikeys internal server error response has a 2xx status code
@@ -163,13 +163,13 @@ func (o *GetUsersApikeysInternalServerError) String() string {
 	return fmt.Sprintf("[GET /users/apikeys][%d] getUsersApikeysInternalServerError %s", 500, payload)
 }
 
-func (o *GetUsersApikeysInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *GetUsersApikeysInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetUsersApikeysInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

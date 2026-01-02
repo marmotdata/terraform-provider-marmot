@@ -58,7 +58,7 @@ PostUsersLoginOK describes a response with status code 200, with default header 
 OK
 */
 type PostUsersLoginOK struct {
-	Payload *models.UsersTokenResponse
+	Payload *models.V1UsersTokenResponse
 }
 
 // IsSuccess returns true when this post users login o k response has a 2xx status code
@@ -101,13 +101,13 @@ func (o *PostUsersLoginOK) String() string {
 	return fmt.Sprintf("[POST /users/login][%d] postUsersLoginOK %s", 200, payload)
 }
 
-func (o *PostUsersLoginOK) GetPayload() *models.UsersTokenResponse {
+func (o *PostUsersLoginOK) GetPayload() *models.V1UsersTokenResponse {
 	return o.Payload
 }
 
 func (o *PostUsersLoginOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.UsersTokenResponse)
+	o.Payload = new(models.V1UsersTokenResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -128,7 +128,7 @@ PostUsersLoginBadRequest describes a response with status code 400, with default
 Bad Request
 */
 type PostUsersLoginBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post users login bad request response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *PostUsersLoginBadRequest) String() string {
 	return fmt.Sprintf("[POST /users/login][%d] postUsersLoginBadRequest %s", 400, payload)
 }
 
-func (o *PostUsersLoginBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostUsersLoginBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostUsersLoginBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ PostUsersLoginUnauthorized describes a response with status code 401, with defau
 Unauthorized
 */
 type PostUsersLoginUnauthorized struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post users login unauthorized response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *PostUsersLoginUnauthorized) String() string {
 	return fmt.Sprintf("[POST /users/login][%d] postUsersLoginUnauthorized %s", 401, payload)
 }
 
-func (o *PostUsersLoginUnauthorized) GetPayload() *models.CommonErrorResponse {
+func (o *PostUsersLoginUnauthorized) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostUsersLoginUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

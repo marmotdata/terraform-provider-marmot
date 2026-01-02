@@ -122,7 +122,7 @@ PostUsersApikeysBadRequest describes a response with status code 400, with defau
 Bad Request
 */
 type PostUsersApikeysBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post users apikeys bad request response has a 2xx status code
@@ -165,13 +165,13 @@ func (o *PostUsersApikeysBadRequest) String() string {
 	return fmt.Sprintf("[POST /users/apikeys][%d] postUsersApikeysBadRequest %s", 400, payload)
 }
 
-func (o *PostUsersApikeysBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostUsersApikeysBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostUsersApikeysBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

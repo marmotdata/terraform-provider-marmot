@@ -120,7 +120,7 @@ GetAssetsSuggestionsTagsInternalServerError describes a response with status cod
 Internal Server Error
 */
 type GetAssetsSuggestionsTagsInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this get assets suggestions tags internal server error response has a 2xx status code
@@ -163,13 +163,13 @@ func (o *GetAssetsSuggestionsTagsInternalServerError) String() string {
 	return fmt.Sprintf("[GET /assets/suggestions/tags][%d] getAssetsSuggestionsTagsInternalServerError %s", 500, payload)
 }
 
-func (o *GetAssetsSuggestionsTagsInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *GetAssetsSuggestionsTagsInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *GetAssetsSuggestionsTagsInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

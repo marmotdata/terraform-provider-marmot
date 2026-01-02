@@ -12,7 +12,16 @@ import (
 
 	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/assets"
 	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/auth"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/glossary"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/ingestion"
 	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/lineage"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/metrics"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/pipelines"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/plugins"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/products"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/runs"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/search"
+	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/ui"
 	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/users"
 )
 
@@ -60,7 +69,16 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *Marmot {
 	cli.Transport = transport
 	cli.Assets = assets.New(transport, formats)
 	cli.Auth = auth.New(transport, formats)
+	cli.Glossary = glossary.New(transport, formats)
+	cli.Ingestion = ingestion.New(transport, formats)
 	cli.Lineage = lineage.New(transport, formats)
+	cli.Metrics = metrics.New(transport, formats)
+	cli.Pipelines = pipelines.New(transport, formats)
+	cli.Plugins = plugins.New(transport, formats)
+	cli.Products = products.New(transport, formats)
+	cli.Runs = runs.New(transport, formats)
+	cli.Search = search.New(transport, formats)
+	cli.UI = ui.New(transport, formats)
 	cli.Users = users.New(transport, formats)
 	return cli
 }
@@ -110,7 +128,25 @@ type Marmot struct {
 
 	Auth auth.ClientService
 
+	Glossary glossary.ClientService
+
+	Ingestion ingestion.ClientService
+
 	Lineage lineage.ClientService
+
+	Metrics metrics.ClientService
+
+	Pipelines pipelines.ClientService
+
+	Plugins plugins.ClientService
+
+	Products products.ClientService
+
+	Runs runs.ClientService
+
+	Search search.ClientService
+
+	UI ui.ClientService
 
 	Users users.ClientService
 
@@ -122,6 +158,15 @@ func (c *Marmot) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
 	c.Assets.SetTransport(transport)
 	c.Auth.SetTransport(transport)
+	c.Glossary.SetTransport(transport)
+	c.Ingestion.SetTransport(transport)
 	c.Lineage.SetTransport(transport)
+	c.Metrics.SetTransport(transport)
+	c.Pipelines.SetTransport(transport)
+	c.Plugins.SetTransport(transport)
+	c.Products.SetTransport(transport)
+	c.Runs.SetTransport(transport)
+	c.Search.SetTransport(transport)
+	c.UI.SetTransport(transport)
 	c.Users.SetTransport(transport)
 }

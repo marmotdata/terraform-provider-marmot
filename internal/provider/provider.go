@@ -115,6 +115,7 @@ func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resour
 	return []func() resource.Resource{
 		NewAssetResource,
 		NewLineageResource,
+		NewGlossaryResource,
 	}
 }
 

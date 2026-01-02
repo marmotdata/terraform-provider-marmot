@@ -128,7 +128,7 @@ PostAssetsDocumentationBadRequest describes a response with status code 400, wit
 Bad Request
 */
 type PostAssetsDocumentationBadRequest struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets documentation bad request response has a 2xx status code
@@ -171,13 +171,13 @@ func (o *PostAssetsDocumentationBadRequest) String() string {
 	return fmt.Sprintf("[POST /assets/documentation][%d] postAssetsDocumentationBadRequest %s", 400, payload)
 }
 
-func (o *PostAssetsDocumentationBadRequest) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsDocumentationBadRequest) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsDocumentationBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -198,7 +198,7 @@ PostAssetsDocumentationInternalServerError describes a response with status code
 Internal Server Error
 */
 type PostAssetsDocumentationInternalServerError struct {
-	Payload *models.CommonErrorResponse
+	Payload *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse
 }
 
 // IsSuccess returns true when this post assets documentation internal server error response has a 2xx status code
@@ -241,13 +241,13 @@ func (o *PostAssetsDocumentationInternalServerError) String() string {
 	return fmt.Sprintf("[POST /assets/documentation][%d] postAssetsDocumentationInternalServerError %s", 500, payload)
 }
 
-func (o *PostAssetsDocumentationInternalServerError) GetPayload() *models.CommonErrorResponse {
+func (o *PostAssetsDocumentationInternalServerError) GetPayload() *models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse {
 	return o.Payload
 }
 
 func (o *PostAssetsDocumentationInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.CommonErrorResponse)
+	o.Payload = new(models.GithubComMarmotdataMarmotInternalAPIV1CommonErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
