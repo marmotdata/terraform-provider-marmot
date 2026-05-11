@@ -9,7 +9,7 @@ require (
 	github.com/go-openapi/swag v0.25.1
 	github.com/go-openapi/validate v0.25.2
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
-	github.com/hashicorp/terraform-plugin-framework-validators v0.18.0
+	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 )
 
