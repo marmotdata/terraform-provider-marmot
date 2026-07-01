@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-openapi/strfmt"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -15,9 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/client"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/lineage"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/models"
+	marmot "github.com/marmotdata/marmot/sdk/go"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -30,7 +27,7 @@ func NewLineageResource() resource.Resource {
 
 // LineageResource defines the resource implementation.
 type LineageResource struct {
-	client *client.Marmot
+	client *marmot.Client
 }
 
 // LineageResourceModel describes the lineage resource data model.
@@ -79,11 +76,11 @@ func (r *LineageResource) Configure(ctx context.Context, req resource.ConfigureR
 		return
 	}
 
-	client, ok := req.ProviderData.(*client.Marmot)
+	client, ok := req.ProviderData.(*marmot.Client)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Marmot, got: %T", req.ProviderData),
+			fmt.Sprintf("Expected *marmot.Client, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -99,18 +96,16 @@ func (r *LineageResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	params := lineage.NewPostLineageDirectParams().WithEdge(&models.LineageLineageEdge{
+	edge, err := r.client.Lineage.Write(ctx, marmot.WriteEdgeInput{
 		Source: data.Source.ValueString(),
 		Target: data.Target.ValueString(),
 	})
-
-	result, err := r.client.Lineage.PostLineageDirect(params)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create lineage: %s", err))
 		return
 	}
 
-	data.ID = types.StringValue(result.Payload.ID)
+	data.ID = types.StringValue(edge.ID)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -123,15 +118,14 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	params := lineage.NewGetLineageDirectIDParams().WithID(strfmt.UUID(data.ID.ValueString()))
-	result, err := r.client.Lineage.GetLineageDirectID(params)
+	edge, err := r.client.Lineage.Edge(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read lineage: %s", err))
 		return
 	}
 
-	data.Source = types.StringValue(result.Payload.Source)
-	data.Target = types.StringValue(result.Payload.Target)
+	data.Source = types.StringValue(edge.Source)
+	data.Target = types.StringValue(edge.Target)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -151,9 +145,7 @@ func (r *LineageResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	params := lineage.NewDeleteLineageDirectIDParams().WithID(strfmt.UUID(data.ID.ValueString()))
-	_, err := r.client.Lineage.DeleteLineageDirectID(params)
-	if err != nil {
+	if err := r.client.Lineage.Delete(ctx, data.ID.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete lineage: %s", err))
 		return
 	}

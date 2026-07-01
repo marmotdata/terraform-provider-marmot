@@ -22,11 +22,6 @@ terraform {
   }
 }
 ```
-{{ if .HasExamples }}
-{{- range .ExampleFiles }}
-{{ tffile . }}
-{{- end }}
-{{- end }}
 
 ## Authentication
 
@@ -38,7 +33,9 @@ Marmot CLI credentials from `marmot login`.
 
 To keep the secret entirely out of state, you can inject it using a Terraform
 [ephemeral resource](https://developer.hashicorp.com/terraform/language/resources/ephemeral)
-(Terraform >= 1.10). For example, with Google Secret Manager:
+(Terraform >= 1.10).
+
+For example, with Google Secret Manager:
 
 {{ tffile "examples/provider/ephemeral-google-secret-manager.tf" }}
 

@@ -21,9 +21,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/client"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/assets"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/models"
+	marmot "github.com/marmotdata/marmot/sdk/go"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -36,7 +34,7 @@ func NewAssetResource() resource.Resource {
 
 // AssetResource defines the resource implementation.
 type AssetResource struct {
-	client *client.Marmot
+	client *marmot.Client
 }
 
 // ExternalLink represents a link to an external resource.
@@ -299,11 +297,11 @@ func (r *AssetResource) Configure(ctx context.Context, req resource.ConfigureReq
 		return
 	}
 
-	client, ok := req.ProviderData.(*client.Marmot)
+	client, ok := req.ProviderData.(*marmot.Client)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Marmot, got: %T", req.ProviderData),
+			fmt.Sprintf("Expected *marmot.Client, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -319,25 +317,24 @@ func (r *AssetResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	asset, diags := r.toCreateRequest(ctx, data)
+	input, diags := r.toCreateRequest(ctx, data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	params := assets.NewPostAssetsParams().WithAsset(asset)
-	result, err := r.client.Assets.PostAssets(params)
+	asset, err := r.client.Assets.Create(ctx, input)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create asset: %s", err))
 		return
 	}
 
-	if result.Payload.ID == "" {
+	if asset.ID == "" {
 		resp.Diagnostics.AddError("API Error", "Asset created but no ID returned")
 		return
 	}
 
-	applyComputedFields(&data, result.Payload)
+	applyComputedFields(&data, asset)
 
 	tflog.Info(ctx, "Asset created", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -360,14 +357,13 @@ func (r *AssetResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	params := assets.NewGetAssetsIDParams().WithID(data.ID.ValueString())
-	result, err := r.client.Assets.GetAssetsID(params)
+	asset, err := r.client.Assets.Get(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read asset: %s", err))
 		return
 	}
 
-	diags := r.updateModelFromResponse(ctx, &data, result.Payload)
+	diags := r.updateModelFromResponse(ctx, &data, asset)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -390,23 +386,19 @@ func (r *AssetResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	asset, diags := r.toUpdateRequest(ctx, data)
+	input, diags := r.toUpdateRequest(ctx, data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	params := assets.NewPutAssetsIDParams().
-		WithID(state.ID.ValueString()).
-		WithAsset(asset)
-
-	result, err := r.client.Assets.PutAssetsID(params)
+	asset, err := r.client.Assets.Update(ctx, state.ID.ValueString(), input)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update asset: %s", err))
 		return
 	}
 
-	applyComputedFields(&data, result.Payload)
+	applyComputedFields(&data, asset)
 
 	tflog.Info(ctx, "Asset updated", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -424,9 +416,7 @@ func (r *AssetResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	params := assets.NewDeleteAssetsIDParams().WithID(data.ID.ValueString())
-	_, err := r.client.Assets.DeleteAssetsID(params)
-	if err != nil {
+	if err := r.client.Assets.Delete(ctx, data.ID.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete asset: %s", err))
 		return
 	}
@@ -440,7 +430,7 @@ func (r *AssetResource) ImportState(ctx context.Context, req resource.ImportStat
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (*models.V1AssetsCreateRequest, diag.Diagnostics) {
+func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceModel) (marmot.CreateAssetInput, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	var services []string
@@ -462,14 +452,10 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	sources := r.convertSources(data.Sources, &diags)
 	environments := r.convertEnvironments(data.Environments, &diags)
 
-	name := data.Name.ValueString()
-	assetType := data.Type.ValueString()
-	description := data.Description.ValueString()
-
-	return &models.V1AssetsCreateRequest{
-		Name:          &name,
-		Type:          &assetType,
-		Description:   description,
+	return marmot.CreateAssetInput{
+		Name:          data.Name.ValueString(),
+		Type:          data.Type.ValueString(),
+		Description:   data.Description.ValueString(),
 		Providers:     services,
 		Tags:          tags,
 		Metadata:      metadata,
@@ -480,7 +466,7 @@ func (r *AssetResource) toCreateRequest(ctx context.Context, data AssetResourceM
 	}, diags
 }
 
-func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceModel) (*models.V1AssetsUpdateRequest, diag.Diagnostics) {
+func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceModel) (marmot.UpdateAssetInput, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	var services []string
@@ -507,7 +493,7 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 		userDescription = data.UserDescription.ValueString()
 	}
 
-	return &models.V1AssetsUpdateRequest{
+	return marmot.UpdateAssetInput{
 		Name:            data.Name.ValueString(),
 		Type:            data.Type.ValueString(),
 		Description:     data.Description.ValueString(),
@@ -522,19 +508,19 @@ func (r *AssetResource) toUpdateRequest(ctx context.Context, data AssetResourceM
 	}, diags
 }
 
-func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*models.AssetExternalLink {
+func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*marmot.AssetExternalLink {
 	if len(links) == 0 {
 		return nil
 	}
 
-	result := make([]*models.AssetExternalLink, len(links))
+	result := make([]*marmot.AssetExternalLink, len(links))
 	for i, link := range links {
 		icon := ""
 		if !link.Icon.IsNull() && !link.Icon.IsUnknown() {
 			icon = link.Icon.ValueString()
 		}
 
-		result[i] = &models.AssetExternalLink{
+		result[i] = &marmot.AssetExternalLink{
 			Icon: icon,
 			Name: link.Name.ValueString(),
 			URL:  link.URL.ValueString(),
@@ -543,12 +529,12 @@ func (r *AssetResource) convertExternalLinks(links []ExternalLinkModel) []*model
 	return result
 }
 
-func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.Diagnostics) []*models.AssetAssetSource {
+func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.Diagnostics) []*marmot.AssetSource {
 	if len(sources) == 0 {
 		return nil
 	}
 
-	result := make([]*models.AssetAssetSource, len(sources))
+	result := make([]*marmot.AssetSource, len(sources))
 	for i, source := range sources {
 		props, propDiags := r.mapToDictionary(source.Properties)
 		diags.Append(propDiags...)
@@ -558,7 +544,7 @@ func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.D
 			priority = source.Priority.ValueInt64()
 		}
 
-		result[i] = &models.AssetAssetSource{
+		result[i] = &marmot.AssetSource{
 			Name:       source.Name.ValueString(),
 			Priority:   priority,
 			Properties: props,
@@ -567,17 +553,17 @@ func (r *AssetResource) convertSources(sources []AssetSourceModel, diags *diag.D
 	return result
 }
 
-func (r *AssetResource) convertEnvironments(environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]models.AssetEnvironment {
+func (r *AssetResource) convertEnvironments(environments map[string]AssetEnvironmentModel, diags *diag.Diagnostics) map[string]marmot.AssetEnvironment {
 	if len(environments) == 0 {
 		return nil
 	}
 
-	result := make(map[string]models.AssetEnvironment)
+	result := make(map[string]marmot.AssetEnvironment)
 	for k, env := range environments {
 		metadata, mdDiags := r.mapToDictionary(env.Metadata)
 		diags.Append(mdDiags...)
 
-		result[k] = models.AssetEnvironment{
+		result[k] = marmot.AssetEnvironment{
 			Name:     env.Name.ValueString(),
 			Path:     env.Path.ValueString(),
 			Metadata: metadata,
@@ -665,7 +651,7 @@ func normalizeTimestamp(timestamp string) string {
 // API response onto the model, leaving every configured attribute untouched.
 // Create and Update use this so plan values, including nulls, are saved to state
 // exactly as written — only unknown (computed) values may change after apply.
-func applyComputedFields(model *AssetResourceModel, asset *models.AssetAsset) {
+func applyComputedFields(model *AssetResourceModel, asset *marmot.Asset) {
 	model.ID = types.StringValue(asset.ID)
 	model.CreatedAt = types.StringValue(normalizeTimestamp(asset.CreatedAt))
 	model.CreatedBy = types.StringValue(asset.CreatedBy)
@@ -696,7 +682,7 @@ func applyComputedFields(model *AssetResourceModel, asset *models.AssetAsset) {
 	}
 }
 
-func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.AssetAsset) diag.Diagnostics {
+func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *marmot.Asset) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	model.ID = types.StringValue(asset.ID)
@@ -848,7 +834,7 @@ func (r *AssetResource) convertMapToStringMapSorted(m map[string]interface{}) ma
 	return result
 }
 
-func (r *AssetResource) convertModelExternalLinks(links []*models.AssetExternalLink) []ExternalLinkModel {
+func (r *AssetResource) convertModelExternalLinks(links []*marmot.AssetExternalLink) []ExternalLinkModel {
 	if len(links) == 0 {
 		return []ExternalLinkModel{}
 	}
@@ -869,7 +855,7 @@ func (r *AssetResource) convertModelExternalLinks(links []*models.AssetExternalL
 	return result
 }
 
-func (r *AssetResource) convertModelSources(ctx context.Context, sources []*models.AssetAssetSource, diags *diag.Diagnostics) []AssetSourceModel {
+func (r *AssetResource) convertModelSources(ctx context.Context, sources []*marmot.AssetSource, diags *diag.Diagnostics) []AssetSourceModel {
 	if len(sources) == 0 {
 		return []AssetSourceModel{}
 	}
@@ -895,7 +881,7 @@ func (r *AssetResource) convertModelSources(ctx context.Context, sources []*mode
 	return result
 }
 
-func (r *AssetResource) convertModelEnvironments(ctx context.Context, environments map[string]models.AssetEnvironment, diags *diag.Diagnostics) map[string]AssetEnvironmentModel {
+func (r *AssetResource) convertModelEnvironments(ctx context.Context, environments map[string]marmot.AssetEnvironment, diags *diag.Diagnostics) map[string]AssetEnvironmentModel {
 	if len(environments) == 0 {
 		return make(map[string]AssetEnvironmentModel)
 	}

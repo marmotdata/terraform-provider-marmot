@@ -17,9 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/client"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/client/glossary"
-	"github.com/marmotdata/terraform-provider-marmot/internal/client/models"
+	marmot "github.com/marmotdata/marmot/sdk/go"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -32,7 +30,7 @@ func NewGlossaryResource() resource.Resource {
 
 // GlossaryResource defines the resource implementation.
 type GlossaryResource struct {
-	client *client.Marmot
+	client *marmot.Client
 }
 
 // OwnerModel represents an owner of a glossary term.
@@ -136,11 +134,11 @@ func (r *GlossaryResource) Configure(ctx context.Context, req resource.Configure
 		return
 	}
 
-	client, ok := req.ProviderData.(*client.Marmot)
+	client, ok := req.ProviderData.(*marmot.Client)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Marmot, got: %T", req.ProviderData),
+			fmt.Sprintf("Expected *marmot.Client, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -156,21 +154,18 @@ func (r *GlossaryResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	term := r.toCreateRequest(ctx, data)
-
-	params := glossary.NewPostGlossaryParams().WithTerm(term)
-	result, err := r.client.Glossary.PostGlossary(params)
+	term, err := r.client.Glossary.Create(ctx, r.toCreateRequest(ctx, data))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create glossary term: %s", err))
 		return
 	}
 
-	if result.Payload.ID == "" {
+	if term.ID == "" {
 		resp.Diagnostics.AddError("API Error", "Glossary term created but no ID returned")
 		return
 	}
 
-	applyGlossaryComputedFields(&data, result.Payload)
+	applyGlossaryComputedFields(&data, term)
 
 	tflog.Info(ctx, "Glossary term created", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -193,14 +188,13 @@ func (r *GlossaryResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	params := glossary.NewGetGlossaryIDParams().WithID(data.ID.ValueString())
-	result, err := r.client.Glossary.GetGlossaryID(params)
+	term, err := r.client.Glossary.Get(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read glossary term: %s", err))
 		return
 	}
 
-	diags := r.updateModelFromResponse(ctx, &data, result.Payload)
+	diags := r.updateModelFromResponse(ctx, &data, term)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -223,19 +217,13 @@ func (r *GlossaryResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	term := r.toUpdateRequest(ctx, data)
-
-	params := glossary.NewPutGlossaryIDParams().
-		WithID(state.ID.ValueString()).
-		WithTerm(term)
-
-	result, err := r.client.Glossary.PutGlossaryID(params)
+	term, err := r.client.Glossary.Update(ctx, state.ID.ValueString(), r.toUpdateRequest(ctx, data))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update glossary term: %s", err))
 		return
 	}
 
-	applyGlossaryComputedFields(&data, result.Payload)
+	applyGlossaryComputedFields(&data, term)
 
 	tflog.Info(ctx, "Glossary term updated", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -253,9 +241,7 @@ func (r *GlossaryResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	params := glossary.NewDeleteGlossaryIDParams().WithID(data.ID.ValueString())
-	_, err := r.client.Glossary.DeleteGlossaryID(params)
-	if err != nil {
+	if err := r.client.Glossary.Delete(ctx, data.ID.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete glossary term: %s", err))
 		return
 	}
@@ -269,104 +255,79 @@ func (r *GlossaryResource) ImportState(ctx context.Context, req resource.ImportS
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *GlossaryResource) toCreateRequest(_ context.Context, data GlossaryResourceModel) *models.V1GlossaryCreateTermRequest {
-	name := data.Name.ValueString()
-	definition := data.Definition.ValueString()
-
-	req := &models.V1GlossaryCreateTermRequest{
-		Name:       &name,
-		Definition: &definition,
-	}
-
-	if !data.Description.IsNull() && !data.Description.IsUnknown() {
-		req.Description = data.Description.ValueString()
-	}
-
-	if !data.ParentTermID.IsNull() && !data.ParentTermID.IsUnknown() {
-		req.ParentTermID = data.ParentTermID.ValueString()
-	}
-
-	if len(data.Owners) > 0 {
-		owners := make([]*models.V1GlossaryOwnerRequest, len(data.Owners))
-		for i, owner := range data.Owners {
-			id := owner.ID.ValueString()
-			ownerType := owner.Type.ValueString()
-			owners[i] = &models.V1GlossaryOwnerRequest{
-				ID:   &id,
-				Type: &ownerType,
-			}
-		}
-		req.Owners = owners
-	}
-
-	if !data.Metadata.IsNull() && !data.Metadata.IsUnknown() {
-		metadata := make(map[string]interface{})
-		for k, v := range data.Metadata.Elements() {
-			if strVal, ok := v.(types.String); ok && !strVal.IsNull() {
-				metadata[k] = strVal.ValueString()
-			}
-		}
-		if len(metadata) > 0 {
-			req.Metadata = metadata
-		}
-	}
-
-	return req
-}
-
-func (r *GlossaryResource) toUpdateRequest(_ context.Context, data GlossaryResourceModel) *models.V1GlossaryUpdateTermRequest {
-	req := &models.V1GlossaryUpdateTermRequest{
+func (r *GlossaryResource) toCreateRequest(_ context.Context, data GlossaryResourceModel) marmot.CreateTermInput {
+	in := marmot.CreateTermInput{
 		Name:       data.Name.ValueString(),
 		Definition: data.Definition.ValueString(),
+		Owners:     glossaryOwners(data.Owners),
+		Metadata:   glossaryMetadata(data.Metadata),
 	}
-
 	if !data.Description.IsNull() && !data.Description.IsUnknown() {
-		req.Description = data.Description.ValueString()
+		in.Description = data.Description.ValueString()
 	}
-
 	if !data.ParentTermID.IsNull() && !data.ParentTermID.IsUnknown() {
-		req.ParentTermID = data.ParentTermID.ValueString()
+		in.ParentTermID = data.ParentTermID.ValueString()
 	}
+	return in
+}
 
-	if len(data.Owners) > 0 {
-		owners := make([]*models.V1GlossaryOwnerRequest, len(data.Owners))
-		for i, owner := range data.Owners {
-			id := owner.ID.ValueString()
-			ownerType := owner.Type.ValueString()
-			owners[i] = &models.V1GlossaryOwnerRequest{
-				ID:   &id,
-				Type: &ownerType,
-			}
-		}
-		req.Owners = owners
+func (r *GlossaryResource) toUpdateRequest(_ context.Context, data GlossaryResourceModel) marmot.UpdateTermInput {
+	in := marmot.UpdateTermInput{
+		Name:       data.Name.ValueString(),
+		Definition: data.Definition.ValueString(),
+		Owners:     glossaryOwners(data.Owners),
+		Metadata:   glossaryMetadata(data.Metadata),
 	}
+	if !data.Description.IsNull() && !data.Description.IsUnknown() {
+		in.Description = data.Description.ValueString()
+	}
+	if !data.ParentTermID.IsNull() && !data.ParentTermID.IsUnknown() {
+		in.ParentTermID = data.ParentTermID.ValueString()
+	}
+	return in
+}
 
-	if !data.Metadata.IsNull() && !data.Metadata.IsUnknown() {
-		metadata := make(map[string]interface{})
-		for k, v := range data.Metadata.Elements() {
-			if strVal, ok := v.(types.String); ok && !strVal.IsNull() {
-				metadata[k] = strVal.ValueString()
-			}
-		}
-		if len(metadata) > 0 {
-			req.Metadata = metadata
+// glossaryOwners converts the resource model's owners into SDK term owners.
+func glossaryOwners(owners []OwnerModel) []marmot.TermOwner {
+	if len(owners) == 0 {
+		return nil
+	}
+	out := make([]marmot.TermOwner, len(owners))
+	for i, o := range owners {
+		out[i] = marmot.TermOwner{ID: o.ID.ValueString(), Type: o.Type.ValueString()}
+	}
+	return out
+}
+
+// glossaryMetadata converts a Terraform string map into the SDK metadata map,
+// returning nil when unset so no metadata is sent.
+func glossaryMetadata(m types.Map) map[string]any {
+	if m.IsNull() || m.IsUnknown() {
+		return nil
+	}
+	out := make(map[string]any)
+	for k, v := range m.Elements() {
+		if strVal, ok := v.(types.String); ok && !strVal.IsNull() {
+			out[k] = strVal.ValueString()
 		}
 	}
-
-	return req
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // applyComputedFields copies the server-generated (read-only) attributes from an
 // API response onto the model, leaving every configured attribute untouched.
 // Create and Update use this so plan values, including nulls, are saved to state
 // exactly as written — only unknown (computed) values may change after apply.
-func applyGlossaryComputedFields(model *GlossaryResourceModel, term *models.GlossaryGlossaryTerm) {
+func applyGlossaryComputedFields(model *GlossaryResourceModel, term *marmot.GlossaryTerm) {
 	model.ID = types.StringValue(term.ID)
 	model.CreatedAt = types.StringValue(term.CreatedAt)
 	model.UpdatedAt = types.StringValue(term.UpdatedAt)
 }
 
-func (r *GlossaryResource) updateModelFromResponse(ctx context.Context, model *GlossaryResourceModel, term *models.GlossaryGlossaryTerm) diag.Diagnostics {
+func (r *GlossaryResource) updateModelFromResponse(ctx context.Context, model *GlossaryResourceModel, term *marmot.GlossaryTerm) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	model.ID = types.StringValue(term.ID)
