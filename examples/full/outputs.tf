@@ -1,5 +1,5 @@
 output "kafka_asset_id" {
-  value = marmot_asset.kafka_asset.resource_id
+  value = marmot_asset.kafka_asset.id
 }
 
 output "kafka_asset_mrn" {
@@ -7,7 +7,7 @@ output "kafka_asset_mrn" {
 }
 
 output "postgres_asset_id" {
-  value = marmot_asset.postgres_asset.resource_id
+  value = marmot_asset.postgres_asset.id
 }
 
 output "postgres_asset_mrn" {
@@ -15,7 +15,7 @@ output "postgres_asset_mrn" {
 }
 
 output "s3_asset_id" {
-  value = marmot_asset.s3_asset.resource_id
+  value = marmot_asset.s3_asset.id
 }
 
 output "s3_asset_mrn" {
@@ -23,7 +23,7 @@ output "s3_asset_mrn" {
 }
 
 output "service_asset_id" {
-  value = marmot_asset.service_asset.resource_id
+  value = marmot_asset.service_asset.id
 }
 
 output "service_asset_mrn" {
@@ -31,13 +31,13 @@ output "service_asset_mrn" {
 }
 
 output "kafka_to_service_lineage_id" {
-  value = marmot_lineage.kafka_to_service_lineage.resource_id
+  value = marmot_lineage.kafka_to_service_lineage.id
 }
 
 output "service_to_postgres_lineage_id" {
-  value = marmot_lineage.service_to_postgres_lineage.resource_id
+  value = marmot_lineage.service_to_postgres_lineage.id
 }
 
 output "service_to_s3_lineage_id" {
-  value = marmot_lineage.service_to_s3_lineage.resource_id
+  value = marmot_lineage.service_to_s3_lineage.id
 }

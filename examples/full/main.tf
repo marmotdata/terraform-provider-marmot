@@ -337,29 +337,14 @@ resource "marmot_asset" "service_asset" {
 resource "marmot_lineage" "kafka_to_service_lineage" {
   source = marmot_asset.kafka_asset.mrn
   target = marmot_asset.service_asset.mrn
-
-  depends_on = [
-    marmot_asset.kafka_asset,
-    marmot_asset.service_asset
-  ]
 }
 
 resource "marmot_lineage" "service_to_postgres_lineage" {
   source = marmot_asset.service_asset.mrn
   target = marmot_asset.postgres_asset.mrn
-
-  depends_on = [
-    marmot_asset.service_asset,
-    marmot_asset.postgres_asset
-  ]
 }
 
 resource "marmot_lineage" "service_to_s3_lineage" {
   source = marmot_asset.service_asset.mrn
   target = marmot_asset.s3_asset.mrn
-
-  depends_on = [
-    marmot_asset.service_asset,
-    marmot_asset.s3_asset
-  ]
 }

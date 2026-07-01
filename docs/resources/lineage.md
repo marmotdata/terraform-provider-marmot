@@ -14,8 +14,8 @@ Lineage resource representing a connection between two assets
 
 ```terraform
 resource "marmot_lineage" "example" {
-  source = marmot_asset.source.resource_id
-  target = marmot_asset.target.resource_id
+  source = marmot_asset.source.mrn
+  target = marmot_asset.target.mrn
 }
 
 resource "marmot_asset" "source" {

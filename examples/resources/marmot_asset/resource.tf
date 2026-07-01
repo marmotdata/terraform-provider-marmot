@@ -11,19 +11,19 @@ resource "marmot_asset" "example" {
     "department" = "engineering"
   }
 
-  external_links {
+  external_links = [{
     name = "Documentation"
     url  = "https://example.com/docs"
     icon = "doc"
-  }
+  }]
 
-  sources {
+  sources = [{
     name     = "source1"
     priority = 1
     properties = {
-      "connection" = "jdbc:postgresql://localhost:5432/db"
+      connection = "jdbc:postgresql://localhost:5432/db"
     }
-  }
+  }]
 
   environments = {
     "prod" = {

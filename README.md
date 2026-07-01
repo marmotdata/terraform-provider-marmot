@@ -1,64 +1,131 @@
-# Terraform Provider Scaffolding (Terraform Plugin Framework)
+# Terraform Provider: Marmot
 
-_This template repository is built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework). The template repository built on the [Terraform Plugin SDK](https://github.com/hashicorp/terraform-plugin-sdk) can be found at [terraform-provider-scaffolding](https://github.com/hashicorp/terraform-provider-scaffolding). See [Which SDK Should I Use?](https://developer.hashicorp.com/terraform/plugin/framework-benefits) in the Terraform documentation for additional information._
+The [Marmot Terraform provider](https://registry.terraform.io/providers/marmotdata/marmot/latest/docs)
+lets you manage your [Marmot](https://marmotdata.io) instance as code. Use it to
+declare assets, the lineage between them, and glossary terms alongside the
+rest of your infrastructure.
 
-This repository is a *template* for a [Terraform](https://www.terraform.io) provider. It is intended as a starting point for creating Terraform providers, containing:
+* [Terraform Registry](https://registry.terraform.io/providers/marmotdata/marmot/latest/docs)
+* [Marmot documentation](https://marmotdata.io/docs)
 
-- A resource and a data source (`internal/provider/`),
-- Examples (`examples/`) and generated documentation (`docs/`),
-- Miscellaneous meta files.
+## Usage
 
-These files contain boilerplate code that you will need to edit to create your own Terraform provider. Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
+To use the provider, declare it as a required provider in your Terraform configuration:
 
-Please see the [GitHub template repository documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template) for how to create a new repository from this template on GitHub.
+```hcl
+terraform {
+  required_providers {
+    marmot = {
+      source = "marmotdata/marmot"
+    }
+  }
+}
+```
 
-Once you've written your provider, you'll want to [publish it on the Terraform Registry](https://developer.hashicorp.com/terraform/registry/providers/publishing) so that others can use it.
+The provider authenticates with a Marmot API key, set through the `api_key`
+attribute or the `MARMOT_API_KEY` environment variable. A bearer `token` (or `MARMOT_TOKEN`) is also
+supported, and when no credential is provided the provider falls back to the Marmot
+CLI credentials from `marmot login`.
+
+To keep the secret entirely out of state, you can inject it using a Terraform
+[ephemeral resource](https://developer.hashicorp.com/terraform/language/resources/ephemeral). 
+
+For example, with Google Secret Manager:
+
+```hcl
+ephemeral "google_secret_manager_secret_version" "marmot_api_key" {
+  secret  = "marmot-api-key"
+  version = "latest"
+}
+
+provider "marmot" {
+  host    = "https://your-marmot-host.com"
+  api_key = ephemeral.google_secret_manager_secret_version.marmot_api_key.secret_data
+}
+```
+
+The same pattern works with any provider that exposes secrets as an ephemeral
+resource, such as AWS Secrets Manager or HashiCorp Vault.
+
+
+## Assets
+
+Register the datasets, services, and other resources in your platform as assets:
+
+```hcl
+resource "marmot_asset" "customer_orders" {
+  name        = "customer-orders"
+  type        = "Database"
+  services    = ["PostgreSQL"]
+  tags        = ["orders", "customer", "customer-orders"]
+}
+```
+
+## Lineage
+
+Describes how data flows between assets to build a lineage graph:
+
+```hcl
+resource "marmot_asset" "order_processor" {
+  name     = "order-processor"
+  type     = "Service"
+  services = ["Kubernetes"]
+}
+
+resource "marmot_lineage" "orders_to_processor" {
+  source = marmot_asset.customer_orders.mrn
+  target = marmot_asset.order_processor.mrn
+}
+```
+
+## Glossary Terms
+
+Define shared business terminology and organize it hierarchically:
+
+```hcl
+resource "marmot_glossary_term" "active_customer" {
+  name       = "Active Customer"
+  definition = "A customer with at least one order in the last 90 days."
+  metadata = {
+    domain = "sales"
+  }
+}
+```
 
 ## Requirements
 
-- [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.0
-- [Go](https://golang.org/doc/install) >= 1.23
+* [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.0
+  (>= 1.10 to inject credentials from an ephemeral resource)
+* [Go](https://go.dev/doc/install) >= 1.25 (to build the provider from source)
 
-## Building The Provider
+## Developing the Provider
 
-1. Clone the repository
-1. Enter the repository directory
-1. Build the provider using the Go `install` command:
+To build and install the provider into your `$GOPATH/bin`:
 
 ```shell
 go install
 ```
 
-## Adding Dependencies
-
-This provider uses [Go modules](https://github.com/golang/go/wiki/Modules).
-Please see the Go documentation for the most up to date information about using Go modules.
-
-To add a new dependency `github.com/author/dependency` to your Terraform provider:
+To generate or update the documentation under `docs/`:
 
 ```shell
-go get github.com/author/dependency
-go mod tidy
+make generate
 ```
 
-Then commit the changes to `go.mod` and `go.sum`.
-
-## Using the provider
-
-Fill this in for each provider
-
-## Developing the Provider
-
-If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (see [Requirements](#requirements) above).
-
-To compile the provider, run `go install`. This will build the provider and put the provider binary in the `$GOPATH/bin` directory.
-
-To generate or update documentation, run `make generate`.
-
-In order to run the full suite of Acceptance tests, run `make testacc`.
-
-*Note:* Acceptance tests create real resources, and often cost money to run.
+To run the acceptance tests (these create real resources against a Marmot instance and
+may incur cost):
 
 ```shell
 make testacc
 ```
+
+## Contributing
+
+Contributions are welcome! Whether it's a bug report, a feature request, or a pull
+request, thank you for investing your time in the project. Please open an issue to
+discuss significant changes before starting work, and make sure `go build ./...`,
+`go vet ./...`, and the linter pass before submitting.
+
+## License
+
+[Mozilla Public License v2.0](./LICENSE)
