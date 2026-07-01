@@ -337,11 +337,7 @@ func (r *AssetResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	diags = r.updateModelFromResponse(ctx, &data, result.Payload)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	applyComputedFields(&data, result.Payload)
 
 	tflog.Info(ctx, "Asset created", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -410,11 +406,7 @@ func (r *AssetResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	diags = r.updateModelFromResponse(ctx, &data, result.Payload)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	applyComputedFields(&data, result.Payload)
 
 	tflog.Info(ctx, "Asset updated", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -669,13 +661,52 @@ func normalizeTimestamp(timestamp string) string {
 	return t.Format("2006-01-02T15:04:05.000000Z07:00")
 }
 
+// applyComputedFields copies the server-generated (read-only) attributes from an
+// API response onto the model, leaving every configured attribute untouched.
+// Create and Update use this so plan values, including nulls, are saved to state
+// exactly as written — only unknown (computed) values may change after apply.
+func applyComputedFields(model *AssetResourceModel, asset *models.AssetAsset) {
+	model.ID = types.StringValue(asset.ID)
+	model.CreatedAt = types.StringValue(normalizeTimestamp(asset.CreatedAt))
+	model.CreatedBy = types.StringValue(asset.CreatedBy)
+	model.UpdatedAt = types.StringValue(normalizeTimestamp(asset.UpdatedAt))
+	model.MRN = types.StringValue(asset.Mrn)
+	model.HasRunHistory = types.BoolValue(asset.HasRunHistory)
+	model.IsStub = types.BoolValue(asset.IsStub)
+
+	if asset.ParentMrn != "" {
+		model.ParentMRN = types.StringValue(asset.ParentMrn)
+	} else {
+		model.ParentMRN = types.StringNull()
+	}
+	if asset.Query != "" {
+		model.Query = types.StringValue(asset.Query)
+	} else {
+		model.Query = types.StringNull()
+	}
+	if asset.QueryLanguage != "" {
+		model.QueryLanguage = types.StringValue(asset.QueryLanguage)
+	} else {
+		model.QueryLanguage = types.StringNull()
+	}
+	if asset.LastSyncAt != "" {
+		model.LastSyncAt = types.StringValue(normalizeTimestamp(asset.LastSyncAt))
+	} else {
+		model.LastSyncAt = types.StringNull()
+	}
+}
+
 func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *AssetResourceModel, asset *models.AssetAsset) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	model.ID = types.StringValue(asset.ID)
 	model.Name = types.StringValue(asset.Name)
 	model.Type = types.StringValue(asset.Type)
-	model.Description = types.StringValue(asset.Description)
+	if asset.Description != "" {
+		model.Description = types.StringValue(asset.Description)
+	} else {
+		model.Description = types.StringNull()
+	}
 	model.CreatedAt = types.StringValue(normalizeTimestamp(asset.CreatedAt))
 	model.CreatedBy = types.StringValue(asset.CreatedBy)
 	model.UpdatedAt = types.StringValue(normalizeTimestamp(asset.UpdatedAt))
@@ -738,9 +769,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		diags.Append(diag...)
 		model.Tags = tags
 	} else {
-		tags, diag := types.SetValueFrom(ctx, types.StringType, []string{})
-		diags.Append(diag...)
-		model.Tags = tags
+		model.Tags = types.SetNull(types.StringType)
 	}
 
 	if metaMap, ok := asset.Metadata.(map[string]interface{}); ok && metaMap != nil && len(metaMap) > 0 {
@@ -749,9 +778,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		diags.Append(diag...)
 		model.Metadata = metadata
 	} else {
-		metadata, diag := types.MapValueFrom(ctx, types.StringType, map[string]string{})
-		diags.Append(diag...)
-		model.Metadata = metadata
+		model.Metadata = types.MapNull(types.StringType)
 	}
 
 	if len(asset.Schema) > 0 {
@@ -759,9 +786,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 		diags.Append(diag...)
 		model.Schema = schema
 	} else {
-		schema, diag := types.MapValueFrom(ctx, types.StringType, map[string]string{})
-		diags.Append(diag...)
-		model.Schema = schema
+		model.Schema = types.MapNull(types.StringType)
 	}
 
 	if len(asset.ExternalLinks) > 0 {
@@ -779,7 +804,7 @@ func (r *AssetResource) updateModelFromResponse(ctx context.Context, model *Asse
 	if len(asset.Environments) > 0 {
 		model.Environments = r.convertModelEnvironments(ctx, asset.Environments, &diags)
 	} else {
-		model.Environments = make(map[string]AssetEnvironmentModel)
+		model.Environments = nil
 	}
 
 	return diags

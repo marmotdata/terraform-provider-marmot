@@ -170,10 +170,7 @@ func (r *GlossaryResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	resp.Diagnostics.Append(r.updateModelFromResponse(ctx, &data, result.Payload)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	applyGlossaryComputedFields(&data, result.Payload)
 
 	tflog.Info(ctx, "Glossary term created", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -238,10 +235,7 @@ func (r *GlossaryResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	resp.Diagnostics.Append(r.updateModelFromResponse(ctx, &data, result.Payload)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	applyGlossaryComputedFields(&data, result.Payload)
 
 	tflog.Info(ctx, "Glossary term updated", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -360,6 +354,16 @@ func (r *GlossaryResource) toUpdateRequest(_ context.Context, data GlossaryResou
 	}
 
 	return req
+}
+
+// applyComputedFields copies the server-generated (read-only) attributes from an
+// API response onto the model, leaving every configured attribute untouched.
+// Create and Update use this so plan values, including nulls, are saved to state
+// exactly as written — only unknown (computed) values may change after apply.
+func applyGlossaryComputedFields(model *GlossaryResourceModel, term *models.GlossaryGlossaryTerm) {
+	model.ID = types.StringValue(term.ID)
+	model.CreatedAt = types.StringValue(term.CreatedAt)
+	model.UpdatedAt = types.StringValue(term.UpdatedAt)
 }
 
 func (r *GlossaryResource) updateModelFromResponse(ctx context.Context, model *GlossaryResourceModel, term *models.GlossaryGlossaryTerm) diag.Diagnostics {
