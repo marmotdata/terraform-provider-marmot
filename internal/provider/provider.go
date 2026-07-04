@@ -57,8 +57,8 @@ func (p *MarmotProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 			"the open-source context layer for agents and humans: it catalogs every service, API, " +
 			"queue, topic, database, and pipeline in your organization, storing only metadata such " +
 			"as schemas, ownership, descriptions, and lineage. \n\nThis provider populates Marmot from " +
-			"Terraform, letting you declare assets, the lineage between them, and glossary terms " +
-			"alongside the infrastructure they describe.",
+			"Terraform, letting you declare your Marmot resources alongside the infrastructure " +
+			"they describe.",
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
 				MarkdownDescription: "Marmot API host URL. May also be set via the `MARMOT_HOST` " +
@@ -125,6 +125,11 @@ func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewAssetResource,
 		NewLineageResource,
 		NewGlossaryResource,
+		NewTeamResource,
+		NewUserResource,
+		NewDataProductResource,
+		NewDataProductRuleResource,
+		NewDataProductAssetResource,
 	}
 }
 

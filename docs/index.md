@@ -3,14 +3,14 @@
 page_title: "marmot Provider"
 description: |-
   Manage your Marmot https://marmotdata.io catalog as code. Marmot is the open-source context layer for agents and humans: it catalogs every service, API, queue, topic, database, and pipeline in your organization, storing only metadata such as schemas, ownership, descriptions, and lineage.
-  This provider populates Marmot from Terraform, letting you declare assets, the lineage between them, and glossary terms alongside the infrastructure they describe.
+  This provider populates Marmot from Terraform, letting you declare your Marmot resources alongside the infrastructure they describe.
 ---
 
 # marmot Provider
 
 Manage your [Marmot](https://marmotdata.io) catalog as code. Marmot is the open-source context layer for agents and humans: it catalogs every service, API, queue, topic, database, and pipeline in your organization, storing only metadata such as schemas, ownership, descriptions, and lineage. 
 
-This provider populates Marmot from Terraform, letting you declare assets, the lineage between them, and glossary terms alongside the infrastructure they describe.
+This provider populates Marmot from Terraform, letting you declare your Marmot resources alongside the infrastructure they describe.
 
 ## Usage
 

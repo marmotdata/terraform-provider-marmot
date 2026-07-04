@@ -127,3 +127,14 @@ Optional:
 
 - `priority` (Number) Priority of the source
 - `properties` (Map of String) Properties of the source
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Assets are imported by their ID.
+terraform import marmot_asset.example 018e1234-5678-7abc-def0-123456789abc
+```

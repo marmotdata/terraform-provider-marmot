@@ -1,11 +1,11 @@
 # Terraform Provider: Marmot
 
-The [Marmot Terraform provider](https://registry.terraform.io/providers/marmotdata/marmot/latest/docs)
-lets you manage your [Marmot](https://marmotdata.io) instance as code. Use it to
-declare assets, the lineage between them, and glossary terms alongside the
-rest of your infrastructure.
+The [Marmot Terraform provider](https://registry.terraform.io/providers/marmotdata/marmot/0.3.0/docs)
+lets you manage your [Marmot](https://marmotdata.io) instance as code. It populates
+Marmot from Terraform, letting you declare your Marmot resources alongside the
+infrastructure they describe.
 
-* [Terraform Registry](https://registry.terraform.io/providers/marmotdata/marmot/latest/docs)
+* [Terraform Registry](https://registry.terraform.io/providers/marmotdata/marmot/0.3.0/docs)
 * [Marmot documentation](https://marmotdata.io/docs)
 
 ## Usage
@@ -89,6 +89,57 @@ resource "marmot_glossary_term" "active_customer" {
   metadata = {
     domain = "sales"
   }
+}
+```
+
+## Teams and Users
+
+Manage the teams and users that own catalog entities. A user's password goes
+through the write-only `password_wo` attribute (Terraform >= 1.11), so it never
+lands in state:
+
+```hcl
+resource "marmot_team" "analytics" {
+  name = "analytics"
+}
+
+ephemeral "random_password" "svc" {
+  length = 24
+}
+
+resource "marmot_user" "svc" {
+  name                = "Catalog Service"
+  username            = "svc-catalog"
+  password_wo         = ephemeral.random_password.svc.result
+  password_wo_version = "1"
+}
+```
+
+## Data Products
+
+Group related assets into a data product. Add assets directly, or match them
+with a rule:
+
+```hcl
+resource "marmot_data_product" "orders" {
+  name        = "orders"
+  description = "Order events and the tables derived from them"
+  tags        = ["orders"]
+
+  owner_team_ids = [marmot_team.analytics.id]
+}
+
+resource "marmot_data_product_asset" "orders_table" {
+  data_product_id = marmot_data_product.orders.id
+  asset_id        = marmot_asset.orders_table.id
+}
+
+resource "marmot_data_product_rule" "order_datasets" {
+  data_product_id = marmot_data_product.orders.id
+
+  name             = "order-datasets"
+  type             = "query"
+  query_expression = "tag:orders"
 }
 ```
 

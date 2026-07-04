@@ -33,19 +33,14 @@ type GlossaryResource struct {
 	client *marmot.Client
 }
 
-// OwnerModel represents an owner of a glossary term.
-type OwnerModel struct {
-	ID   types.String `tfsdk:"id"`
-	Type types.String `tfsdk:"type"`
-}
-
 // GlossaryResourceModel describes the glossary resource data model.
 type GlossaryResourceModel struct {
 	Name         types.String `tfsdk:"name"`
 	Definition   types.String `tfsdk:"definition"`
 	Description  types.String `tfsdk:"description"`
 	ParentTermID types.String `tfsdk:"parent_term_id"`
-	Owners       []OwnerModel `tfsdk:"owners"`
+	OwnerTeamIDs types.Set    `tfsdk:"owner_team_ids"`
+	OwnerUserIDs types.Set    `tfsdk:"owner_user_ids"`
 	Metadata     types.Map    `tfsdk:"metadata"`
 	ID           types.String `tfsdk:"id"`
 	CreatedAt    types.String `tfsdk:"created_at"`
@@ -83,24 +78,18 @@ func (r *GlossaryResource) Schema(ctx context.Context, req resource.SchemaReques
 				MarkdownDescription: "ID of the parent glossary term for hierarchical organization",
 				Optional:            true,
 			},
-			"owners": schema.ListNestedAttribute{
-				MarkdownDescription: "Owners of the glossary term",
+			"owner_team_ids": schema.SetAttribute{
+				MarkdownDescription: "IDs of teams that own the term.",
 				Optional:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							MarkdownDescription: "ID of the owner (user or team ID)",
-							Required:            true,
-						},
-						"type": schema.StringAttribute{
-							MarkdownDescription: "Type of owner: 'user' or 'team'",
-							Required:            true,
-							Validators: []validator.String{
-								stringvalidator.OneOf("user", "team"),
-							},
-						},
-					},
-				},
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
+			"owner_user_ids": schema.SetAttribute{
+				MarkdownDescription: "IDs of users that own the term. Defaults to the calling user " +
+					"when no owners are set.",
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
 			},
 			"metadata": schema.MapAttribute{
 				MarkdownDescription: "Metadata associated with the glossary term",
@@ -154,7 +143,7 @@ func (r *GlossaryResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	term, err := r.client.Glossary.Create(ctx, r.toCreateRequest(ctx, data))
+	term, err := r.client.Glossary.Create(ctx, r.toCreateRequest(ctx, data, &resp.Diagnostics))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create glossary term: %s", err))
 		return
@@ -166,6 +155,7 @@ func (r *GlossaryResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	applyGlossaryComputedFields(&data, term)
+	setGlossaryOwnerSets(ctx, &data, term, &resp.Diagnostics)
 
 	tflog.Info(ctx, "Glossary term created", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -217,13 +207,14 @@ func (r *GlossaryResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	term, err := r.client.Glossary.Update(ctx, state.ID.ValueString(), r.toUpdateRequest(ctx, data))
+	term, err := r.client.Glossary.Update(ctx, state.ID.ValueString(), r.toUpdateRequest(ctx, data, &resp.Diagnostics))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update glossary term: %s", err))
 		return
 	}
 
 	applyGlossaryComputedFields(&data, term)
+	setGlossaryOwnerSets(ctx, &data, term, &resp.Diagnostics)
 
 	tflog.Info(ctx, "Glossary term updated", map[string]interface{}{
 		"id":   data.ID.ValueString(),
@@ -255,11 +246,11 @@ func (r *GlossaryResource) ImportState(ctx context.Context, req resource.ImportS
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *GlossaryResource) toCreateRequest(_ context.Context, data GlossaryResourceModel) marmot.CreateTermInput {
+func (r *GlossaryResource) toCreateRequest(ctx context.Context, data GlossaryResourceModel, diags *diag.Diagnostics) marmot.CreateTermInput {
 	in := marmot.CreateTermInput{
 		Name:       data.Name.ValueString(),
 		Definition: data.Definition.ValueString(),
-		Owners:     glossaryOwners(data.Owners),
+		Owners:     glossaryOwners(ctx, data.OwnerTeamIDs, data.OwnerUserIDs, diags),
 		Metadata:   glossaryMetadata(data.Metadata),
 	}
 	if !data.Description.IsNull() && !data.Description.IsUnknown() {
@@ -271,11 +262,11 @@ func (r *GlossaryResource) toCreateRequest(_ context.Context, data GlossaryResou
 	return in
 }
 
-func (r *GlossaryResource) toUpdateRequest(_ context.Context, data GlossaryResourceModel) marmot.UpdateTermInput {
+func (r *GlossaryResource) toUpdateRequest(ctx context.Context, data GlossaryResourceModel, diags *diag.Diagnostics) marmot.UpdateTermInput {
 	in := marmot.UpdateTermInput{
 		Name:       data.Name.ValueString(),
 		Definition: data.Definition.ValueString(),
-		Owners:     glossaryOwners(data.Owners),
+		Owners:     glossaryOwners(ctx, data.OwnerTeamIDs, data.OwnerUserIDs, diags),
 		Metadata:   glossaryMetadata(data.Metadata),
 	}
 	if !data.Description.IsNull() && !data.Description.IsUnknown() {
@@ -287,16 +278,34 @@ func (r *GlossaryResource) toUpdateRequest(_ context.Context, data GlossaryResou
 	return in
 }
 
-// glossaryOwners converts the resource model's owners into SDK term owners.
-func glossaryOwners(owners []OwnerModel) []marmot.TermOwner {
-	if len(owners) == 0 {
-		return nil
+// glossaryOwners builds the SDK owner list from the team and user ID sets,
+// returning nil when both are empty so the server applies its default owner.
+func glossaryOwners(ctx context.Context, teamIDs, userIDs types.Set, diags *diag.Diagnostics) []marmot.TermOwner {
+	var out []marmot.TermOwner
+	for _, id := range setStrings(ctx, teamIDs, diags) {
+		out = append(out, marmot.TermOwner{ID: id, Type: "team"})
 	}
-	out := make([]marmot.TermOwner, len(owners))
-	for i, o := range owners {
-		out[i] = marmot.TermOwner{ID: o.ID.ValueString(), Type: o.Type.ValueString()}
+	for _, id := range setStrings(ctx, userIDs, diags) {
+		out = append(out, marmot.TermOwner{ID: id, Type: "user"})
 	}
 	return out
+}
+
+// setGlossaryOwnerSets populates the team and user owner sets from an API
+// response. Owners are server-controlled (an unset owner list defaults to the
+// calling user), so both sets are always taken from the response.
+func setGlossaryOwnerSets(ctx context.Context, model *GlossaryResourceModel, term *marmot.GlossaryTerm, diags *diag.Diagnostics) {
+	var teamIDs, userIDs []string
+	for _, owner := range term.Owners {
+		switch owner.Type {
+		case "team":
+			teamIDs = append(teamIDs, owner.ID)
+		case "user":
+			userIDs = append(userIDs, owner.ID)
+		}
+	}
+	model.OwnerTeamIDs = stringsToSet(ctx, teamIDs, diags)
+	model.OwnerUserIDs = stringsToSet(ctx, userIDs, diags)
 }
 
 // glossaryMetadata converts a Terraform string map into the SDK metadata map,
@@ -320,7 +329,7 @@ func glossaryMetadata(m types.Map) map[string]any {
 // applyComputedFields copies the server-generated (read-only) attributes from an
 // API response onto the model, leaving every configured attribute untouched.
 // Create and Update use this so plan values, including nulls, are saved to state
-// exactly as written — only unknown (computed) values may change after apply.
+// exactly as written; only unknown (computed) values may change after apply.
 func applyGlossaryComputedFields(model *GlossaryResourceModel, term *marmot.GlossaryTerm) {
 	model.ID = types.StringValue(term.ID)
 	model.CreatedAt = types.StringValue(term.CreatedAt)
@@ -348,18 +357,7 @@ func (r *GlossaryResource) updateModelFromResponse(ctx context.Context, model *G
 		model.ParentTermID = types.StringNull()
 	}
 
-	if len(term.Owners) > 0 {
-		owners := make([]OwnerModel, len(term.Owners))
-		for i, owner := range term.Owners {
-			owners[i] = OwnerModel{
-				ID:   types.StringValue(owner.ID),
-				Type: types.StringValue(owner.Type),
-			}
-		}
-		model.Owners = owners
-	} else {
-		model.Owners = nil
-	}
+	setGlossaryOwnerSets(ctx, model, term, &diags)
 
 	if metaMap, ok := term.Metadata.(map[string]interface{}); ok && metaMap != nil && len(metaMap) > 0 {
 		strMap := make(map[string]string)

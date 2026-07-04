@@ -42,3 +42,14 @@ resource "marmot_asset" "target" {
 ### Read-Only
 
 - `id` (String) Lineage ID
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Lineage edges are imported by their ID.
+terraform import marmot_lineage.example 018e1234-5678-7abc-def0-123456789abc
+```
