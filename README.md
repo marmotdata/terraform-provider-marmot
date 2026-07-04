@@ -103,14 +103,14 @@ resource "marmot_team" "analytics" {
   name = "analytics"
 }
 
-ephemeral "random_password" "svc" {
+ephemeral "random_password" "alice" {
   length = 24
 }
 
-resource "marmot_user" "svc" {
-  name                = "Catalog Service"
-  username            = "svc-catalog"
-  password_wo         = ephemeral.random_password.svc.result
+resource "marmot_user" "alice" {
+  name                = "Alice Nguyen"
+  username            = "alice"
+  password_wo         = ephemeral.random_password.alice.result
   password_wo_version = "1"
 }
 ```

@@ -18,14 +18,14 @@ Set the password through the write-only `password_wo` attribute so it never land
 ```terraform
 # password_wo is a write-only argument, so the password never reaches state.
 # Bump password_wo_version to rotate the password on a later apply.
-ephemeral "random_password" "svc" {
+ephemeral "random_password" "alice" {
   length = 24
 }
 
-resource "marmot_user" "svc" {
-  name                = "Catalog Service"
-  username            = "svc-catalog"
-  password_wo         = ephemeral.random_password.svc.result
+resource "marmot_user" "alice" {
+  name                = "Alice Nguyen"
+  username            = "alice"
+  password_wo         = ephemeral.random_password.alice.result
   password_wo_version = "1"
 
   role_names = ["admin"]
@@ -35,7 +35,7 @@ resource "marmot_user" "svc" {
 resource "marmot_data_product" "reporting" {
   name = "reporting"
 
-  owner_user_ids = [marmot_user.svc.id]
+  owner_user_ids = [marmot_user.alice.id]
 }
 ```
 
@@ -72,5 +72,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 ```shell
 # Users are imported by their ID. password_wo can't be imported; set it and
 # password_wo_version afterwards to manage the password.
-terraform import marmot_user.svc 018e1234-5678-7abc-def0-123456789abc
+terraform import marmot_user.alice 018e1234-5678-7abc-def0-123456789abc
 ```
