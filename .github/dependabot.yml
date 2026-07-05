@@ -8,14 +8,23 @@ updates:
     schedule:
       # Check for updates to Go modules every weekday
       interval: "daily"
+    groups:
+      gomod:
+        patterns:
+          - "*"
   - package-ecosystem: "gomod"
     directory: "/tools"
     schedule:
       interval: "daily"
+    groups:
+      gomod-tools:
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
-    # TODO: Dependabot only updates hashicorp GHAs in the template repository, the following lines can be removed for consumers of this template
-    allow:
-      - dependency-name: "hashicorp/*"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
