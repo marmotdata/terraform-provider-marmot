@@ -47,7 +47,7 @@ resource "marmot_pipeline" "bigquery_analytics" {
 - `id` (String) Pipeline ID
 - `last_run_at` (String) Timestamp of the most recent run
 - `last_run_status` (String) Status of the most recent run
-- `managed_by` (String) What manages the pipeline, for example the API or the CLI
+- `managed_by` (String) External controller that runs this pipeline, such as the Marmot Kubernetes operator. Empty for Terraform-managed pipelines, which the server runs on their cron.
 - `next_run_at` (String) Timestamp of the next scheduled run
 - `updated_at` (String) Last update timestamp
 

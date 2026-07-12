@@ -108,8 +108,9 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 				},
 			},
 			"managed_by": schema.StringAttribute{
-				MarkdownDescription: "What manages the pipeline, for example the API or the CLI",
-				Computed:            true,
+				MarkdownDescription: "External controller that runs this pipeline, such as the Marmot " +
+					"Kubernetes operator. Empty for Terraform-managed pipelines, which the server runs on their cron.",
+				Computed: true,
 			},
 			"last_run_status": schema.StringAttribute{
 				MarkdownDescription: "Status of the most recent run",
