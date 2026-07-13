@@ -5,7 +5,7 @@ go 1.25.8
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-framework-jsontypes v0.2.0
-	github.com/hashicorp/terraform-plugin-framework-validators v0.18.0
+	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/marmotdata/marmot/sdk/go v0.0.0-20260712200451-46ff3139e95c
 )
