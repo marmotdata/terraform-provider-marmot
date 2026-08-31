@@ -121,7 +121,7 @@ func (p *MarmotProvider) Configure(ctx context.Context, req provider.ConfigureRe
 }
 
 func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
+	resources := []func() resource.Resource{
 		NewAssetResource,
 		NewPipelineResource,
 		NewLineageResource,
@@ -131,11 +131,17 @@ func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewDataProductResource,
 		NewDataProductRuleResource,
 		NewDataProductAssetResource,
+		NewServiceAccountResource,
 	}
+	// Access grants: every hierarchy node crossed with the three authority
+	// levels, matching the google_*_iam_{policy,binding,member} pattern.
+	return append(resources, IAMResources()...)
 }
 
 func (p *MarmotProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		NewIAMPolicyDataSource,
+	}
 }
 
 func (p *MarmotProvider) Functions(ctx context.Context) []func() function.Function {
