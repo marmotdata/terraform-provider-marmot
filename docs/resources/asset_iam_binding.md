@@ -3,11 +3,14 @@
 page_title: "marmot_asset_iam_binding Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Authoritative for one role on an asset. Other roles are left alone, but any member of this role not in the configuration is removed.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_asset_iam_binding (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Authoritative for one role on an asset. Other roles are left alone, but any member of this role not in the configuration is removed.
 
@@ -16,11 +19,12 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# Own one role on the asset. Members not listed here are removed from that role,
-# while other roles on the same asset are left alone.
+# This resource decides who holds one particular role on the asset. Anyone left
+# out of the list loses that role on the next apply, but roles it does not
+# mention are untouched, so another team can keep managing its own.
 resource "marmot_asset_iam_binding" "orders_readers" {
   asset_id = marmot_asset.orders.id
-  role     = "catalog-reader"
+  role     = "catalog.viewer"
   members = [
     "serviceAccount:${marmot_service_account.etl.id}",
     "group:${marmot_team.analysts.id}",
@@ -34,7 +38,7 @@ resource "marmot_asset_iam_binding" "orders_readers" {
 ### Required
 
 - `asset_id` (String) ID of the resource the grant applies to.
-- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`.
+- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`. At least one is required; a role with no members is not a grant, so remove the resource instead.
 - `role` (String) Marmot role name, for example `viewer`. A `roles/` prefix is accepted.
 
 ### Read-Only
@@ -50,5 +54,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```shell
 terraform import marmot_asset_iam_binding.orders_readers \
-  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/catalog-reader"
+  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/catalog.viewer"
 ```

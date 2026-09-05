@@ -3,29 +3,29 @@
 page_title: "marmot_service_account Resource - marmot"
 subcategory: ""
 description: |-
-  A machine principal. Grant it access either catalog-wide through role_ids or per resource with the *_iam_member and *_iam_binding resources, where it is referenced as serviceAccount:{id}. An account with no roles and no grants can authenticate but reaches nothing.
-  API keys are issued through the UI or the API rather than by Terraform, since a key's plaintext is disclosed only at creation and has no place in state. Keep them in a secret manager and read them back as ephemeral values.
+  A machine principal. Give it API keys with marmot_service_account_api_key, and grant it access either through organization-level roles (role_ids) or per resource with the *_iam_member and *_iam_binding resources, referencing it as serviceAccount:{id}. An account with no roles and no grants can authenticate but reaches nothing.
 ---
 
 # marmot_service_account (Resource)
 
-A machine principal. Grant it access either catalog-wide through `role_ids` or per resource with the `*_iam_member` and `*_iam_binding` resources, where it is referenced as `serviceAccount:{id}`. An account with no roles and no grants can authenticate but reaches nothing.
-
-API keys are issued through the UI or the API rather than by Terraform, since a key's plaintext is disclosed only at creation and has no place in state. Keep them in a secret manager and read them back as ephemeral values.
+A machine principal. Give it API keys with `marmot_service_account_api_key`, and grant it access either through organization-level roles (`role_ids`) or per resource with the `*_iam_member` and `*_iam_binding` resources, referencing it as `serviceAccount:{id}`. An account with no roles and no grants can authenticate but reaches nothing.
 
 ## Example Usage
 
 ```terraform
-resource "marmot_service_account" "etl" {
-  name        = "orders-etl"
-  description = "Ingests the orders pipeline, owned by the data platform team"
+# A new service account can authenticate but reaches nothing until it is
+# granted something.
+resource "marmot_service_account" "ingest_agent" {
+  name        = "orders-ingest-agent"
+  description = "Ingestion agent for the orders pipeline"
 }
 
-# Grant it what it needs per resource; it holds no catalog-wide role.
-resource "marmot_data_product_iam_member" "etl_reads_finance" {
-  data_product_id = marmot_data_product.finance.id
-  role            = "catalog-reader"
-  member          = "serviceAccount:${marmot_service_account.etl.id}"
+# Give it exactly the one asset it needs rather than a role over the whole
+# catalog, so its reach stays obvious from the configuration.
+resource "marmot_asset_iam_member" "agent_reads_orders" {
+  asset_id = marmot_asset.orders.id
+  role     = "catalog.viewer"
+  member   = "serviceAccount:${marmot_service_account.ingest_agent.id}"
 }
 ```
 
@@ -39,7 +39,7 @@ resource "marmot_data_product_iam_member" "etl_reads_finance" {
 ### Optional
 
 - `active` (Boolean) Whether the account may authenticate. Defaults to true.
-- `description` (String) What the account is for and who owns it
+- `description` (String) What this account is for and who owns it
 - `role_ids` (Set of String) IDs of organization-level roles held by this account. These apply across the whole catalog; use the IAM resources for per-resource grants.
 
 ### Read-Only

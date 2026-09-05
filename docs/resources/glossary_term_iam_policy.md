@@ -3,11 +3,14 @@
 page_title: "marmot_glossary_term_iam_policy Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Authoritative. Sets the complete access policy on a glossary term and its descendants, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource: they will fight.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_glossary_term_iam_policy (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Authoritative. Sets the complete access policy on a glossary term and its descendants, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource: they will fight.
 
@@ -16,9 +19,11 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
+# Owns the term's policy outright. Anything not listed here is revoked, for the
+# term and for its descendants.
 data "marmot_iam_policy" "finance_vocabulary" {
   binding {
-    role    = "catalog-reader"
+    role    = "catalog.viewer"
     members = ["group:${marmot_team.finance_analysts.id}"]
   }
 }

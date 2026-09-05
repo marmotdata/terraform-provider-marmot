@@ -273,7 +273,9 @@ func (r *PipelineResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	if err := r.client.Ingestion.DeleteSchedule(ctx, data.ID.ValueString()); err != nil {
+	// An object already gone is the outcome Delete wanted, so a 404 here
+	// is success. Erroring instead wedges destroy behind a manual state rm.
+	if err := r.client.Ingestion.DeleteSchedule(ctx, data.ID.ValueString()); err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete pipeline: %s", err))
 		return
 	}

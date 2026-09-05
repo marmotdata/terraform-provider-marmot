@@ -1,6 +1,8 @@
+# Owns the term's policy outright. Anything not listed here is revoked, for the
+# term and for its descendants.
 data "marmot_iam_policy" "finance_vocabulary" {
   binding {
-    role    = "catalog-reader"
+    role    = "catalog.viewer"
     members = ["group:${marmot_team.finance_analysts.id}"]
   }
 }

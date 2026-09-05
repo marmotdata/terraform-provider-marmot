@@ -1,9 +1,10 @@
-# Own the asset's entire policy. Any binding not described here is removed, so
-# do not combine this with marmot_asset_iam_binding or marmot_asset_iam_member
-# on the same asset — they will overwrite each other on every apply.
+# This resource is the sole owner of the asset's policy, so anything not listed
+# below is revoked on the next apply. For the same reason, never point an
+# _iam_binding or _iam_member at an asset you manage this way: the two will
+# spend every apply undoing each other.
 data "marmot_iam_policy" "orders" {
   binding {
-    role    = "catalog-reader"
+    role    = "catalog.viewer"
     members = ["serviceAccount:${marmot_service_account.etl.id}"]
   }
 }

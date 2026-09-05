@@ -3,11 +3,14 @@
 page_title: "marmot_organization_iam_binding Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Authoritative for one role on the whole catalog. Other roles are left alone, but any member of this role not in the configuration is removed.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_organization_iam_binding (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Authoritative for one role on the whole catalog. Other roles are left alone, but any member of this role not in the configuration is removed.
 
@@ -16,6 +19,8 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
+# The organization is the top of the hierarchy, so this role reaches the whole
+# catalog. Members left out of the list lose it everywhere.
 resource "marmot_organization_iam_binding" "platform_admins" {
   role    = "admin"
   members = ["group:${marmot_team.platform.id}"]
@@ -27,7 +32,7 @@ resource "marmot_organization_iam_binding" "platform_admins" {
 
 ### Required
 
-- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`.
+- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`. At least one is required; a role with no members is not a grant, so remove the resource instead.
 - `role` (String) Marmot role name, for example `viewer`. A `roles/` prefix is accepted.
 
 ### Read-Only

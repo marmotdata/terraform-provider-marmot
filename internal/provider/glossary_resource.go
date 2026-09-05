@@ -180,6 +180,10 @@ func (r *GlossaryResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	term, err := r.client.Glossary.Get(ctx, data.ID.ValueString())
 	if err != nil {
+		if marmot.IsNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read glossary term: %s", err))
 		return
 	}
@@ -232,7 +236,9 @@ func (r *GlossaryResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	if err := r.client.Glossary.Delete(ctx, data.ID.ValueString()); err != nil {
+	// An object already gone is the outcome Delete wanted, so a 404 here
+	// is success. Erroring instead wedges destroy behind a manual state rm.
+	if err := r.client.Glossary.Delete(ctx, data.ID.ValueString()); err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete glossary term: %s", err))
 		return
 	}

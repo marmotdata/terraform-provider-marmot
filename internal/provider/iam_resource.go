@@ -7,14 +7,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -44,8 +47,12 @@ type iamTarget struct {
 	// typePrefix is the Terraform type name, e.g. "asset" for
 	// marmot_asset_iam_binding.
 	typePrefix string
-	// apiType is the path segment the API uses.
+	// apiType is the path segment the API uses, in the API's own camelCase.
 	apiType string
+	// idPrefix is the first segment of a Terraform id and of an import id. It
+	// follows the resource type name, not apiType, so an import id reads like
+	// the resource it addresses.
+	idPrefix string
 	// idAttr is the Terraform attribute naming the resource; empty for the
 	// organization, which is the root and has no id.
 	idAttr string
@@ -54,10 +61,10 @@ type iamTarget struct {
 }
 
 var iamTargets = []iamTarget{
-	{typePrefix: "organization", apiType: "root", idAttr: "", label: "the whole catalog"},
-	{typePrefix: "asset", apiType: "asset", idAttr: "asset_id", label: "an asset"},
-	{typePrefix: "data_product", apiType: "data_product", idAttr: "data_product_id", label: "a data product and every asset it resolves"},
-	{typePrefix: "glossary_term", apiType: "glossary_term", idAttr: "glossary_term_id", label: "a glossary term and its descendants"},
+	{typePrefix: "organization", apiType: "root", idPrefix: "root", idAttr: "", label: "the whole catalog"},
+	{typePrefix: "asset", apiType: "asset", idPrefix: "asset", idAttr: "asset_id", label: "an asset"},
+	{typePrefix: "data_product", apiType: "dataProduct", idPrefix: "data_product", idAttr: "data_product_id", label: "a data product and every asset it resolves"},
+	{typePrefix: "glossary_term", apiType: "glossaryTerm", idPrefix: "glossary_term", idAttr: "glossary_term_id", label: "a glossary term and its descendants"},
 }
 
 // IAMResources returns every combination of hierarchy node and authority level.
@@ -65,8 +72,9 @@ func IAMResources() []func() resource.Resource {
 	var out []func() resource.Resource
 	for _, target := range iamTargets {
 		for _, kind := range []iamKind{iamKindPolicy, iamKindBinding, iamKindMember} {
-			t, k := target, kind
-			out = append(out, func() resource.Resource { return &iamResource{target: t, kind: k} })
+			out = append(out, func() resource.Resource {
+				return &iamResource{target: target, kind: kind}
+			})
 		}
 	}
 	return out
@@ -151,9 +159,15 @@ func (r *iamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 		}
 		attrs["members"] = schema.SetAttribute{
 			MarkdownDescription: "Members holding the role: `user:{id}`, `group:{team id}`, " +
-				"`serviceAccount:{id}`, or `allAuthenticated`.",
+				"`serviceAccount:{id}`, or `allAuthenticated`. At least one is required; " +
+				"a role with no members is not a grant, so remove the resource instead.",
 			Required:    true,
 			ElementType: types.StringType,
+			Validators: []validator.Set{
+				// Marmot drops a binding that holds nobody, so an empty set
+				// would apply and then read back as absent, forever.
+				setvalidator.SizeAtLeast(1),
+			},
 		}
 	default:
 		description = "Non-authoritative. Grants one member one role on " + r.target.label +
@@ -172,7 +186,8 @@ func (r *iamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 
 	resp.Schema = schema.Schema{
-		MarkdownDescription: description + "\n\nGrants are additive and there are no denies, so a " +
+		MarkdownDescription: iamCloudOnly + description +
+			"\n\nGrants are additive and there are no denies, so a " +
 			"member also holding the permission over the whole catalog keeps it here. Restricting a " +
 			"principal means giving it a role that does not carry the permission at the organization " +
 			"level, then granting it on specific resources.",
@@ -180,10 +195,17 @@ func (r *iamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 }
 
-// The framework requires a model struct to match the schema exactly, and the
-// schema differs per kind, so CRUD reads and writes attributes individually
-// rather than through one struct that would have to be wrong for two of the
-// three kinds.
+// iamCloudOnly heads every access-grant page. Access policies are served by
+// Marmot Cloud and have no equivalent endpoint in open-source Marmot, so a
+// configuration pointed at a self-hosted instance fails at apply rather than at
+// plan. Saying so up front is cheaper than the 404 that would otherwise be a
+// reader's first clue.
+const iamCloudOnly = "-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** " +
+	"They are not part of open-source Marmot. Every plan includes them, " +
+	"the Free one included.\n\n"
+
+// The framework requires a model struct matching the schema exactly, and the
+// schema differs per kind, so CRUD reads and writes attributes individually.
 
 func (r *iamResource) targetID(ctx context.Context, src attrGetter, diags *diag.Diagnostics) (string, bool) {
 	if r.target.idAttr == "" {
@@ -202,16 +224,11 @@ type attrGetter interface {
 	GetAttribute(ctx context.Context, p path.Path, target any) diag.Diagnostics
 }
 
-// attrSetter is satisfied by tfsdk.State.
-type attrSetter interface {
-	SetAttribute(ctx context.Context, p path.Path, val any) diag.Diagnostics
-}
-
-// stateID is a stable Terraform identifier. It has to distinguish two resources
-// managing different roles on the same catalog resource, so the role — and for
-// a member resource the member — are part of it.
+// stateID has to distinguish two resources managing different roles on one
+// catalog resource, so the role — and for a member resource the member — are
+// part of it.
 func (r *iamResource) stateID(resourceID, role, member string) string {
-	parts := []string{r.target.apiType}
+	parts := []string{r.target.idPrefix}
 	if resourceID != "" {
 		parts = append(parts, resourceID)
 	}
@@ -271,13 +288,20 @@ func (r *iamResource) apply(ctx context.Context, plan attrGetter, state *tfsdk.S
 		}
 	}
 
+	// Parsed before anything is written, so a malformed document is an error
+	// rather than a policy silently emptied by a failed decode.
+	var desired iamPolicy
+	if r.kind == iamKindPolicy {
+		if err := json.Unmarshal([]byte(policyData.ValueString()), &desired); err != nil {
+			diags.AddError("Invalid policy_data", "Could not parse policy JSON: "+err.Error())
+			return
+		}
+	}
+
 	err := r.client.modifyPolicy(ctx, r.target.apiType, resourceID, func(p *iamPolicy) {
 		switch r.kind {
 		case iamKindPolicy:
-			var parsed iamPolicy
-			if err := json.Unmarshal([]byte(policyData.ValueString()), &parsed); err == nil {
-				p.Bindings = parsed.Bindings
-			}
+			p.Bindings = desired.Bindings
 		case iamKindBinding:
 			p.setRole(roleName, memberList)
 		default:
@@ -287,17 +311,6 @@ func (r *iamResource) apply(ctx context.Context, plan attrGetter, state *tfsdk.S
 	if err != nil {
 		diags.AddError("Unable to Write Access Policy", err.Error())
 		return
-	}
-
-	// policy_data is parsed twice — once to validate, once inside the callback —
-	// so a malformed document surfaces as an error rather than as a silently
-	// empty policy.
-	if r.kind == iamKindPolicy {
-		var parsed iamPolicy
-		if err := json.Unmarshal([]byte(policyData.ValueString()), &parsed); err != nil {
-			diags.AddError("Invalid policy_data", "Could not parse policy JSON: "+err.Error())
-			return
-		}
 	}
 
 	updated, err := r.client.GetPolicy(ctx, r.target.apiType, resourceID)
@@ -312,15 +325,22 @@ func (r *iamResource) apply(ctx context.Context, plan attrGetter, state *tfsdk.S
 		"bindings":      len(updated.Bindings),
 	})
 
-	r.persist(ctx, state, diags, resourceID, roleName, member.ValueString(), memberList, policyData, updated)
+	r.persist(ctx, state, diags, resourceID, roleName, member.ValueString(), role, members, policyData, updated)
 }
 
+// persist writes the applied grant back to state.
+//
+// role and members go back exactly as configured, never normalised: Terraform
+// requires the state of a non-computed attribute to equal the plan, so
+// rewriting "roles/viewer" to "viewer" fails the apply with "provider produced
+// inconsistent result". Normalisation belongs on the wire, not in state.
 func (r *iamResource) persist(
 	ctx context.Context,
 	state *tfsdk.State,
 	diags *diag.Diagnostics,
 	resourceID, roleName, member string,
-	memberList []string,
+	role types.String,
+	members types.Set,
 	policyData types.String,
 	policy *iamPolicy,
 ) {
@@ -334,12 +354,10 @@ func (r *iamResource) persist(
 	case iamKindPolicy:
 		diags.Append(state.SetAttribute(ctx, path.Root("policy_data"), policyData)...)
 	case iamKindBinding:
-		diags.Append(state.SetAttribute(ctx, path.Root("role"), roleName)...)
-		set, d := types.SetValueFrom(ctx, types.StringType, normaliseMembers(memberList))
-		diags.Append(d...)
-		diags.Append(state.SetAttribute(ctx, path.Root("members"), set)...)
+		diags.Append(state.SetAttribute(ctx, path.Root("role"), role)...)
+		diags.Append(state.SetAttribute(ctx, path.Root("members"), members)...)
 	default:
-		diags.Append(state.SetAttribute(ctx, path.Root("role"), roleName)...)
+		diags.Append(state.SetAttribute(ctx, path.Root("role"), role)...)
 		diags.Append(state.SetAttribute(ctx, path.Root("member"), member)...)
 	}
 }
@@ -350,12 +368,15 @@ func (r *iamResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	var role, member types.String
+	var role, member, policyData types.String
 	if r.kind != iamKindPolicy {
 		resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("role"), &role)...)
 	}
 	if r.kind == iamKindMember {
 		resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("member"), &member)...)
+	}
+	if r.kind == iamKindPolicy {
+		resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("policy_data"), &policyData)...)
 	}
 	if resp.Diagnostics.HasError() {
 		return
@@ -379,6 +400,12 @@ func (r *iamResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	switch r.kind {
 	case iamKindPolicy:
 		remote := iamPolicy{Bindings: policy.Bindings}
+		// Keep the configured document while it still says what the server
+		// does, so formatting is not mistaken for a change in access.
+		var stored iamPolicy
+		if err := json.Unmarshal([]byte(policyData.ValueString()), &stored); err == nil && sameBindings(stored, remote) {
+			break
+		}
 		canonicalisePolicy(&remote)
 		encoded, err := json.Marshal(remote)
 		if err != nil {
@@ -398,14 +425,7 @@ func (r *iamResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		resp.Diagnostics.Append(d...)
 		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("members"), set)...)
 	default:
-		found := false
-		for _, m := range policy.bindingFor(roleName) {
-			if m == member.ValueString() {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(policy.bindingFor(roleName), member.ValueString()) {
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -445,7 +465,30 @@ func (r *iamResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		}
 	})
 	if err != nil {
+		// Deleting the target takes its policy with it, and the server then
+		// refuses every write addressed to it — including this revoke. Ask
+		// what the policy says now rather than matching on the error text.
+		if current, readErr := r.client.GetPolicy(ctx, r.target.apiType, resourceID); readErr == nil && r.revoked(current, roleName, member.ValueString()) {
+			tflog.Info(ctx, "Marmot access grant was already gone", map[string]any{
+				"resource_type": r.target.apiType,
+				"resource_id":   resourceID,
+				"role":          roleName,
+			})
+			return
+		}
 		resp.Diagnostics.AddError("Unable to Revoke Access", err.Error())
+	}
+}
+
+// revoked reports whether the policy no longer carries what this resource owned.
+func (r *iamResource) revoked(policy *iamPolicy, roleName, member string) bool {
+	switch r.kind {
+	case iamKindPolicy:
+		return len(policy.Bindings) == 0
+	case iamKindBinding:
+		return len(policy.bindingFor(roleName)) == 0
+	default:
+		return !slices.Contains(policy.bindingFor(roleName), member)
 	}
 }
 
@@ -453,9 +496,9 @@ func (r *iamResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 // trips: "asset/{id}/roles/{role}" for a binding, plus "/{member}" for a member.
 func (r *iamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	parts := strings.Split(req.ID, "/")
-	if len(parts) < 1 || parts[0] != r.target.apiType {
+	if len(parts) < 1 || parts[0] != r.target.idPrefix {
 		resp.Diagnostics.AddError("Unexpected Import ID",
-			fmt.Sprintf("Expected an id beginning with %q, got %q", r.target.apiType, req.ID))
+			fmt.Sprintf("Expected an id beginning with %q, got %q", r.target.idPrefix, req.ID))
 		return
 	}
 	parts = parts[1:]

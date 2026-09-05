@@ -107,7 +107,7 @@ func (r *ServiceAccountResource) Configure(ctx context.Context, req resource.Con
 	r.client = client
 }
 
-func (r *ServiceAccountResource) roleIDs(ctx context.Context, set types.Set, diags *resource.CreateResponse) []string {
+func (r *ServiceAccountResource) roleIDs(ctx context.Context, set types.Set) []string {
 	if set.IsNull() || set.IsUnknown() {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (r *ServiceAccountResource) Create(ctx context.Context, req resource.Create
 	account, err := r.client.ServiceAccounts.Create(ctx, marmot.CreateServiceAccountInput{
 		Name:        data.Name.ValueString(),
 		Description: data.Description.ValueString(),
-		RoleIDs:     r.roleIDs(ctx, data.RoleIDs, resp),
+		RoleIDs:     r.roleIDs(ctx, data.RoleIDs),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create service account", err.Error())

@@ -5,12 +5,15 @@ package provider
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -59,7 +62,7 @@ type setPolicyRequest struct {
 }
 
 // errPolicyConflict is returned when the policy changed between read and write.
-var errPolicyConflict = fmt.Errorf("iam policy changed since it was read")
+var errPolicyConflict = errors.New("iam policy changed since it was read")
 
 func (c *iamClient) policyURL(resourceType, resourceID string) string {
 	if resourceID == "" {
@@ -139,34 +142,59 @@ func (c *iamClient) SetPolicy(ctx context.Context, resourceType, resourceID stri
 // modifyPolicy applies a change as a read-modify-write against the current
 // etag, retrying when another writer got there first.
 //
-// The non-authoritative resources (_binding, _member) exist precisely so that
-// several Terraform configurations can manage different roles on one resource.
-// That guarantees concurrent read-modify-write cycles, so retrying a conflict
-// is the normal path, not an error case.
+// The _binding and _member resources exist so that several configurations can
+// manage one resource, so conflicts are the normal path. One apply granting n
+// members produces n writers racing for a single etag, and each conflict costs
+// a writer its turn: the budget has to cover a queue draining one slot at a
+// time.
 func (c *iamClient) modifyPolicy(
 	ctx context.Context,
 	resourceType, resourceID string,
 	modify func(*iamPolicy),
 ) error {
-	const attempts = 5
+	const (
+		attempts = 24
+		baseWait = 25 * time.Millisecond
+		maxWait  = 2 * time.Second
+	)
 	var lastErr error
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		current, err := c.GetPolicy(ctx, resourceType, resourceID)
 		if err != nil {
 			return err
 		}
 		modify(current)
 		if _, err := c.SetPolicy(ctx, resourceType, resourceID, *current); err != nil {
-			if err == errPolicyConflict {
+			if errors.Is(err, errPolicyConflict) {
 				lastErr = err
-				time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+				if err := sleepCtx(ctx, backoff(attempt, baseWait, maxWait)); err != nil {
+					return err
+				}
 				continue
 			}
 			return err
 		}
 		return nil
 	}
-	return fmt.Errorf("policy kept changing under concurrent writes: %w", lastErr)
+	return fmt.Errorf("policy kept changing under concurrent writes after %d attempts: %w", attempts, lastErr)
+}
+
+// backoff draws a wait uniformly from [0, min(ceiling, base*2^attempt)). The
+// jitter is what lets writers that collided at the same instant drain.
+func backoff(attempt int, base, ceiling time.Duration) time.Duration {
+	window := min(base<<min(attempt, 16), ceiling)
+	return time.Duration(rand.Int64N(int64(window)))
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // bindingFor returns the members of one role, or nil when the role is unbound.
@@ -183,66 +211,51 @@ func (p *iamPolicy) bindingFor(role string) []string {
 // no members remain — an empty binding and an absent one mean the same thing,
 // and keeping both representations would show a permanent diff.
 func (p *iamPolicy) setRole(role string, members []string) {
-	members = normaliseMembers(members)
-	out := make([]iamBinding, 0, len(p.Bindings)+1)
-	replaced := false
-	for _, b := range p.Bindings {
-		if b.Role != role {
-			out = append(out, b)
-			continue
-		}
-		replaced = true
-		if len(members) > 0 {
-			out = append(out, iamBinding{Role: role, Members: members})
-		}
-	}
-	if !replaced && len(members) > 0 {
+	out := slices.DeleteFunc(slices.Clone(p.Bindings), func(b iamBinding) bool {
+		return b.Role == role
+	})
+	if members = normaliseMembers(members); len(members) > 0 {
 		out = append(out, iamBinding{Role: role, Members: members})
 	}
 	p.Bindings = out
 }
 
 func (p *iamPolicy) addMember(role, member string) {
-	members := append(append([]string{}, p.bindingFor(role)...), member)
-	p.setRole(role, members)
+	p.setRole(role, append(slices.Clone(p.bindingFor(role)), member))
 }
 
 func (p *iamPolicy) removeMember(role, member string) {
-	current := p.bindingFor(role)
-	out := make([]string, 0, len(current))
-	for _, m := range current {
-		if m != member {
-			out = append(out, m)
-		}
-	}
-	p.setRole(role, out)
+	p.setRole(role, slices.DeleteFunc(slices.Clone(p.bindingFor(role)), func(m string) bool {
+		return m == member
+	}))
 }
 
 // normaliseMembers sorts and de-duplicates so a reordered list in the
-// configuration does not read as a change.
+// configuration does not read as a change. Members themselves are left alone:
+// trimming one would make state differ from configuration, which Terraform
+// rejects.
 func normaliseMembers(members []string) []string {
-	seen := make(map[string]struct{}, len(members))
-	out := make([]string, 0, len(members))
-	for _, m := range members {
-		m = strings.TrimSpace(m)
-		if m == "" {
-			continue
-		}
-		if _, ok := seen[m]; ok {
-			continue
-		}
-		seen[m] = struct{}{}
-		out = append(out, m)
-	}
-	sort.Strings(out)
-	return out
+	out := slices.Clone(members)
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
-// canonicalisePolicy puts a policy into the one shape both the data source
-// and the policy resource encode: bindings sorted by role, members sorted and
-// de-duplicated, empty bindings dropped. Without a single canonical form the
-// server's ordering (by member type, then id) and the configuration's
-// ordering read as a permanent diff.
+// sameBindings reports whether two documents grant the same thing. policy_data
+// is a string, so without a semantic comparison any document not byte-identical
+// to this provider's encoder — jsonencode output, say — plans an update on
+// every run and never converges.
+func sameBindings(a, b iamPolicy) bool {
+	canonicalisePolicy(&a)
+	canonicalisePolicy(&b)
+	return slices.EqualFunc(a.Bindings, b.Bindings, func(x, y iamBinding) bool {
+		return x.Role == y.Role && slices.Equal(x.Members, y.Members)
+	})
+}
+
+// canonicalisePolicy puts a policy into the one shape both the data source and
+// the policy resource encode: bindings sorted by role, members sorted and
+// de-duplicated, empty bindings dropped. Without it the server's ordering and
+// the configuration's read as a permanent diff.
 func canonicalisePolicy(p *iamPolicy) {
 	out := make([]iamBinding, 0, len(p.Bindings))
 	for _, b := range p.Bindings {
@@ -252,6 +265,6 @@ func canonicalisePolicy(p *iamPolicy) {
 		}
 		out = append(out, iamBinding{Role: b.Role, Members: members})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Role < out[j].Role })
+	slices.SortFunc(out, func(x, y iamBinding) int { return cmp.Compare(x.Role, y.Role) })
 	p.Bindings = out
 }

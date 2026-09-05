@@ -1,5 +1,6 @@
-# Owns the catalog-wide policy in full. Anything not listed here is revoked, so
-# take care: this is the resource that can lock everyone out.
+# This owns the catalog-wide policy in full, so anything missing from it is
+# revoked everywhere at once. Read the plan carefully before applying: this is
+# the one resource that can lock every user out, including you.
 data "marmot_iam_policy" "organization" {
   binding {
     role    = "admin"

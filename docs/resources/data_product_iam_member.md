@@ -3,11 +3,14 @@
 page_title: "marmot_data_product_iam_member Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Non-authoritative. Grants one member one role on a data product and every asset it resolves, leaving every other member and role untouched.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_data_product_iam_member (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Non-authoritative. Grants one member one role on a data product and every asset it resolves, leaving every other member and role untouched.
 
@@ -16,13 +19,13 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# A grant on a data product reaches every asset the product resolves, through
-# its rules and its manual members alike. This is how you grant access to a
-# whole domain without listing its assets — and how that access keeps up as the
-# domain grows.
+# A grant on a data product reaches every asset the product contains, including
+# ones that start matching its rules later. This is how you give a team a whole
+# domain without naming each table, and how that access keeps up as the domain
+# grows.
 resource "marmot_data_product_iam_member" "finance_reader" {
   data_product_id = marmot_data_product.finance.id
-  role            = "catalog-reader"
+  role            = "catalog.viewer"
   member          = "group:${marmot_team.finance_analysts.id}"
 }
 ```
@@ -49,5 +52,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```shell
 terraform import marmot_data_product_iam_member.finance_reader \
-  "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718/roles/catalog-reader/group:5f6a7b8c-9d0e-4f10-a2b3-c4d5e6f70819"
+  "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718/roles/catalog.viewer/group:5f6a7b8c-9d0e-4f10-a2b3-c4d5e6f70819"
 ```

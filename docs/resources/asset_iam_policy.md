@@ -3,11 +3,14 @@
 page_title: "marmot_asset_iam_policy Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Authoritative. Sets the complete access policy on an asset, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource: they will fight.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_asset_iam_policy (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Authoritative. Sets the complete access policy on an asset, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource: they will fight.
 
@@ -16,12 +19,13 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# Own the asset's entire policy. Any binding not described here is removed, so
-# do not combine this with marmot_asset_iam_binding or marmot_asset_iam_member
-# on the same asset — they will overwrite each other on every apply.
+# This resource is the sole owner of the asset's policy, so anything not listed
+# below is revoked on the next apply. For the same reason, never point an
+# _iam_binding or _iam_member at an asset you manage this way: the two will
+# spend every apply undoing each other.
 data "marmot_iam_policy" "orders" {
   binding {
-    role    = "catalog-reader"
+    role    = "catalog.viewer"
     members = ["serviceAccount:${marmot_service_account.etl.id}"]
   }
 }

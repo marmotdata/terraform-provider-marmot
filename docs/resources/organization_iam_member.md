@@ -3,11 +3,14 @@
 page_title: "marmot_organization_iam_member Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Non-authoritative. Grants one member one role on the whole catalog, leaving every other member and role untouched.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_organization_iam_member (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Non-authoritative. Grants one member one role on the whole catalog, leaving every other member and role untouched.
 
@@ -16,11 +19,11 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# Organization is the root of the hierarchy: a grant here applies to the whole
-# catalog and is inherited by every asset, data product and glossary term.
+# A grant at the organization reaches every asset, data product and glossary
+# term in the catalog.
 #
-# allAuthenticated is how Marmot's default — everyone can read everything — is
-# stated explicitly. Removing this resource is what locks an instance down.
+# allAuthenticated spells out Marmot's default of letting any signed-in user
+# read everything. Removing this resource is what closes an instance down.
 resource "marmot_organization_iam_member" "everyone_reads" {
   role   = "user"
   member = "allAuthenticated"

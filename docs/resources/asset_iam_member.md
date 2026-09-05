@@ -3,11 +3,14 @@
 page_title: "marmot_asset_iam_member Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Non-authoritative. Grants one member one role on an asset, leaving every other member and role untouched.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_asset_iam_member (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Non-authoritative. Grants one member one role on an asset, leaving every other member and role untouched.
 
@@ -16,12 +19,12 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# Grant one service account read access to one asset, without touching any
-# other grant on it. Use this when several configurations manage access to the
-# same asset.
+# Adds one member to one role and leaves every other grant on the asset alone.
+# Reach for this when more than one configuration grants access to the same
+# asset, because neither will quietly undo the other's work.
 resource "marmot_asset_iam_member" "etl_reads_orders" {
   asset_id = marmot_asset.orders.id
-  role     = "catalog-reader"
+  role     = "catalog.viewer"
   member   = "serviceAccount:${marmot_service_account.etl.id}"
 }
 ```
@@ -48,5 +51,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```shell
 terraform import marmot_asset_iam_member.etl_reads_orders \
-  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/catalog-reader/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
+  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/catalog.viewer/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
 ```

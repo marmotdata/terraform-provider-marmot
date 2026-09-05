@@ -1,6 +1,8 @@
+# Owns the data product's policy outright, which makes this block the complete
+# and only answer to who can reach the product and everything inside it.
 data "marmot_iam_policy" "finance" {
   binding {
-    role    = "catalog-reader"
+    role    = "catalog.viewer"
     members = ["group:${marmot_team.finance_analysts.id}"]
   }
 }

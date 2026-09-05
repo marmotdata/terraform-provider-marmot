@@ -37,7 +37,8 @@ func (d *IAMPolicyDataSource) Metadata(_ context.Context, req datasource.Metadat
 
 func (d *IAMPolicyDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Builds a policy document for the authoritative `*_iam_policy` resources. " +
+		MarkdownDescription: iamCloudOnly +
+			"Builds a policy document for the authoritative `*_iam_policy` resources. " +
 			"Purely local: it renders its blocks to JSON and contacts no server.",
 		Attributes: map[string]schema.Attribute{
 			"policy_data": schema.StringAttribute{

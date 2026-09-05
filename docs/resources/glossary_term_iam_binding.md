@@ -3,11 +3,14 @@
 page_title: "marmot_glossary_term_iam_binding Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Authoritative for one role on a glossary term and its descendants. Other roles are left alone, but any member of this role not in the configuration is removed.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_glossary_term_iam_binding (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Authoritative for one role on a glossary term and its descendants. Other roles are left alone, but any member of this role not in the configuration is removed.
 
@@ -16,9 +19,11 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
+# Owns one role on the term. Because a grant reaches the term's children too,
+# this covers the subtree beneath it as well.
 resource "marmot_glossary_term_iam_binding" "finance_vocabulary" {
   glossary_term_id = marmot_glossary_term.finance.id
-  role             = "catalog-reader"
+  role             = "catalog.viewer"
   members          = ["group:${marmot_team.finance_analysts.id}"]
 }
 ```
@@ -29,7 +34,7 @@ resource "marmot_glossary_term_iam_binding" "finance_vocabulary" {
 ### Required
 
 - `glossary_term_id` (String) ID of the resource the grant applies to.
-- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`.
+- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`. At least one is required; a role with no members is not a grant, so remove the resource instead.
 - `role` (String) Marmot role name, for example `viewer`. A `roles/` prefix is accepted.
 
 ### Read-Only
@@ -45,5 +50,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```shell
 terraform import marmot_glossary_term_iam_binding.finance_vocabulary \
-  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/catalog-reader"
+  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/catalog.viewer"
 ```

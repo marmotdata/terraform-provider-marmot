@@ -1,9 +1,9 @@
-# A grant on a data product reaches every asset the product resolves, through
-# its rules and its manual members alike. This is how you grant access to a
-# whole domain without listing its assets — and how that access keeps up as the
-# domain grows.
+# A grant on a data product reaches every asset the product contains, including
+# ones that start matching its rules later. This is how you give a team a whole
+# domain without naming each table, and how that access keeps up as the domain
+# grows.
 resource "marmot_data_product_iam_member" "finance_reader" {
   data_product_id = marmot_data_product.finance.id
-  role            = "catalog-reader"
+  role            = "catalog.viewer"
   member          = "group:${marmot_team.finance_analysts.id}"
 }

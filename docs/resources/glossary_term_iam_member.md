@@ -3,11 +3,14 @@
 page_title: "marmot_glossary_term_iam_member Resource - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Non-authoritative. Grants one member one role on a glossary term and its descendants, leaving every other member and role untouched.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_glossary_term_iam_member (Resource)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Non-authoritative. Grants one member one role on a glossary term and its descendants, leaving every other member and role untouched.
 
@@ -16,11 +19,11 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# A grant on a term covers its descendants, so binding the top of a subtree
-# grants the whole vocabulary beneath it.
+# A grant on a term also covers everything beneath it, so granting at the top of
+# a subtree opens the whole vocabulary under it without naming each child.
 resource "marmot_glossary_term_iam_member" "finance_vocabulary" {
   glossary_term_id = marmot_glossary_term.finance.id
-  role             = "catalog-reader"
+  role             = "catalog.viewer"
   member           = "group:${marmot_team.finance_analysts.id}"
 }
 ```
@@ -47,5 +50,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```shell
 terraform import marmot_glossary_term_iam_member.finance_vocabulary \
-  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/catalog-reader/group:5f6a7b8c-9d0e-4f10-a2b3-c4d5e6f70819"
+  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/catalog.viewer/group:5f6a7b8c-9d0e-4f10-a2b3-c4d5e6f70819"
 ```

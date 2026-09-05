@@ -3,22 +3,25 @@
 page_title: "marmot_iam_policy Data Source - marmot"
 subcategory: ""
 description: |-
+  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
   Builds a policy document for the authoritative *_iam_policy resources. Purely local: it renders its blocks to JSON and contacts no server.
 ---
 
 # marmot_iam_policy (Data Source)
+
+-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
 
 Builds a policy document for the authoritative `*_iam_policy` resources. Purely local: it renders its blocks to JSON and contacts no server.
 
 ## Example Usage
 
 ```terraform
-# Renders a policy document for the authoritative *_iam_policy resources. It
-# makes no API calls; it exists so a policy can be written as HCL rather than as
-# an inline JSON string.
+# Builds the JSON document the authoritative *_iam_policy resources expect.
+# Nothing is sent to Marmot when it runs; it exists so a policy can be written
+# as ordinary HCL blocks instead of a hand-written JSON string.
 data "marmot_iam_policy" "catalog_readers" {
   binding {
-    role = "catalog-reader"
+    role = "catalog.viewer"
     members = [
       "serviceAccount:${marmot_service_account.etl.id}",
       "group:${marmot_team.analysts.id}",
