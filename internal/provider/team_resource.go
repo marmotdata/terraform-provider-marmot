@@ -236,7 +236,9 @@ func (r *TeamResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	if err := r.client.Teams.Delete(ctx, data.ID.ValueString()); err != nil {
+	// An object already gone is the outcome Delete wanted, so a 404 here
+	// is success. Erroring instead wedges destroy behind a manual state rm.
+	if err := r.client.Teams.Delete(ctx, data.ID.ValueString()); err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete team: %s", err))
 		return
 	}

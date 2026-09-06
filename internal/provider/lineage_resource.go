@@ -120,6 +120,10 @@ func (r *LineageResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 	edge, err := r.client.Lineage.Edge(ctx, data.ID.ValueString())
 	if err != nil {
+		if marmot.IsNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read lineage: %s", err))
 		return
 	}
@@ -145,7 +149,9 @@ func (r *LineageResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	if err := r.client.Lineage.Delete(ctx, data.ID.ValueString()); err != nil {
+	// An object already gone is the outcome Delete wanted, so a 404 here
+	// is success. Erroring instead wedges destroy behind a manual state rm.
+	if err := r.client.Lineage.Delete(ctx, data.ID.ValueString()); err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete lineage: %s", err))
 		return
 	}

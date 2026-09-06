@@ -113,6 +113,7 @@ func (p *MarmotProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 	resp.ResourceData = sdkClient
 	resp.DataSourceData = sdkClient
+	resp.EphemeralResourceData = sdkClient
 
 	tflog.Info(ctx, "Configured Marmot client", map[string]any{
 		"host":        sdkClient.Host(),
@@ -121,7 +122,7 @@ func (p *MarmotProvider) Configure(ctx context.Context, req provider.ConfigureRe
 }
 
 func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
+	resources := []func() resource.Resource{
 		NewAssetResource,
 		NewPipelineResource,
 		NewLineageResource,
@@ -131,11 +132,18 @@ func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewDataProductResource,
 		NewDataProductRuleResource,
 		NewDataProductAssetResource,
+		NewServiceAccountResource,
+		NewServiceAccountAPIKeyResource,
 	}
+	// Access grants: every hierarchy node crossed with the three authority
+	// levels, matching the google_*_iam_{policy,binding,member} pattern.
+	return append(resources, IAMResources()...)
 }
 
 func (p *MarmotProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		NewIAMPolicyDataSource,
+	}
 }
 
 func (p *MarmotProvider) Functions(ctx context.Context) []func() function.Function {
@@ -143,7 +151,9 @@ func (p *MarmotProvider) Functions(ctx context.Context) []func() function.Functi
 }
 
 func (p *MarmotProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
-	return nil
+	return []func() ephemeral.EphemeralResource{
+		NewServiceAccountAPIKeyEphemeralResource,
+	}
 }
 
 func (p *MarmotProvider) Actions(ctx context.Context) []func() action.Action {
