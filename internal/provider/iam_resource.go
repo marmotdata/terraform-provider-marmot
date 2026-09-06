@@ -195,14 +195,12 @@ func (r *iamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 }
 
-// iamCloudOnly heads every access-grant page. Access policies are served by
-// Marmot Cloud and have no equivalent endpoint in open-source Marmot, so a
-// configuration pointed at a self-hosted instance fails at apply rather than at
-// plan. Saying so up front is cheaper than the 404 that would otherwise be a
-// reader's first clue.
-const iamCloudOnly = "-> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** " +
-	"They are not part of open-source Marmot. Every plan includes them, " +
-	"the Free one included.\n\n"
+// iamCloudOnly heads every access-grant page. Configuring the provider makes no
+// request, and a resource being created is not read beforehand, so without this
+// the first clue is a failed apply.
+const iamCloudOnly = "~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot " +
+	"serves no access-policy API, so these resources fail on apply rather than at plan. " +
+	"[Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.\n\n"
 
 // The framework requires a model struct matching the schema exactly, and the
 // schema differs per kind, so CRUD reads and writes attributes individually.
@@ -384,13 +382,6 @@ func (r *iamResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 
 	policy, err := r.client.GetPolicy(ctx, r.target.apiType, resourceID)
 	if err != nil {
-		// A resource deleted outside Terraform takes its policy with it, so a
-		// read failure here is treated as drift rather than a hard error only
-		// when the resource itself is gone.
-		if strings.Contains(err.Error(), "Not Found") {
-			resp.State.RemoveResource(ctx)
-			return
-		}
 		resp.Diagnostics.AddError("Unable to Read Access Policy", err.Error())
 		return
 	}

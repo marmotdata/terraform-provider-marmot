@@ -64,6 +64,32 @@ type setPolicyRequest struct {
 // errPolicyConflict is returned when the policy changed between read and write.
 var errPolicyConflict = errors.New("iam policy changed since it was read")
 
+// errNoPolicyAPI means the instance does not serve the access-policy endpoints.
+//
+// Marmot answers 501; builds from before it had that case fall through to a
+// bare 404. Neither is ambiguous: the endpoints answer 400 for a resource type
+// they do not know and 200 with an empty policy even when the resource has been
+// deleted, so they never produce a 404 of their own.
+type errNoPolicyAPI struct {
+	host   string
+	status int
+}
+
+func (e *errNoPolicyAPI) Error() string {
+	return fmt.Sprintf("%s: no access-policy API (HTTP %d). Access grants require "+
+		"Marmot Cloud or Marmot Enterprise (https://cloud.marmotdata.io). If this is not "+
+		"the instance you meant to reach, check the provider's host setting; otherwise "+
+		"remove the marmot_*_iam_* resources from this configuration", e.host, e.status)
+}
+
+// noPolicyAPI reports whether a status means the endpoints are absent.
+func (c *iamClient) noPolicyAPI(status int) (*errNoPolicyAPI, bool) {
+	if status != http.StatusNotImplemented && status != http.StatusNotFound {
+		return nil, false
+	}
+	return &errNoPolicyAPI{host: c.host, status: status}, true
+}
+
 func (c *iamClient) policyURL(resourceType, resourceID string) string {
 	if resourceID == "" {
 		resourceID = "-"
@@ -111,6 +137,9 @@ func (c *iamClient) GetPolicy(ctx context.Context, resourceType, resourceID stri
 	if err != nil {
 		return nil, err
 	}
+	if err, ok := c.noPolicyAPI(status); ok {
+		return nil, err
+	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("reading policy: %s: %s", http.StatusText(status), strings.TrimSpace(string(payload)))
 	}
@@ -128,6 +157,9 @@ func (c *iamClient) SetPolicy(ctx context.Context, resourceType, resourceID stri
 	}
 	if status == http.StatusConflict {
 		return nil, errPolicyConflict
+	}
+	if err, ok := c.noPolicyAPI(status); ok {
+		return nil, err
 	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("writing policy: %s: %s", http.StatusText(status), strings.TrimSpace(string(payload)))

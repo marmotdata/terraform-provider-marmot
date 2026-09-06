@@ -3,14 +3,14 @@
 page_title: "marmot_asset_iam_member Resource - marmot"
 subcategory: ""
 description: |-
-  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
   Non-authoritative. Grants one member one role on an asset, leaving every other member and role untouched.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_asset_iam_member (Resource)
 
--> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
 
 Non-authoritative. Grants one member one role on an asset, leaving every other member and role untouched.
 

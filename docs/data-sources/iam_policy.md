@@ -3,13 +3,13 @@
 page_title: "marmot_iam_policy Data Source - marmot"
 subcategory: ""
 description: |-
-  -> Access grants require Marmot Cloud https://cloud.marmotdata.io. They are not part of open-source Marmot. Every plan includes them, the Free one included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
   Builds a policy document for the authoritative *_iam_policy resources. Purely local: it renders its blocks to JSON and contacts no server.
 ---
 
 # marmot_iam_policy (Data Source)
 
--> **Access grants require [Marmot Cloud](https://cloud.marmotdata.io).** They are not part of open-source Marmot. Every plan includes them, the Free one included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
 
 Builds a policy document for the authoritative `*_iam_policy` resources. Purely local: it renders its blocks to JSON and contacts no server.
 
