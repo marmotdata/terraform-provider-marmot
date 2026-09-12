@@ -67,7 +67,7 @@ func bodyOf(t *testing.T, r *recordedRequest) map[string]any {
 func TestCreateSecretStoreSendsTypeAndConfig(t *testing.T) {
 	handler, last := record(t, http.StatusCreated, `{
 		"id": "s1", "name": "gcp-prod", "store_type": "google",
-		"config": {"project": "acme", "auth": {"method": "default"}},
+		"config": {"service_account": "sa@acme.iam.gserviceaccount.com"},
 		"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"
 	}`)
 	c := newTestSecretStoreClient(t, handler)
@@ -75,7 +75,7 @@ func TestCreateSecretStoreSendsTypeAndConfig(t *testing.T) {
 	store, err := c.CreateSecretStore(t.Context(), createSecretStoreRequest{
 		Name:      "gcp-prod",
 		StoreType: "google",
-		Config:    map[string]any{"project": "acme", "auth": map[string]any{"method": "default"}},
+		Config:    map[string]any{"service_account": "sa@acme.iam.gserviceaccount.com"},
 	})
 	if err != nil {
 		t.Fatalf("CreateSecretStore: %v", err)
@@ -90,7 +90,7 @@ func TestCreateSecretStoreSendsTypeAndConfig(t *testing.T) {
 	if body["store_type"] != "google" || body["name"] != "gcp-prod" {
 		t.Errorf("body = %v, want store_type google and name gcp-prod", body)
 	}
-	if store.ID != "s1" || store.StoreType != "google" || store.Config["project"] != "acme" {
+	if store.ID != "s1" || store.StoreType != "google" || store.Config["service_account"] != "sa@acme.iam.gserviceaccount.com" {
 		t.Errorf("decoded %+v", store)
 	}
 }
@@ -159,8 +159,7 @@ func TestGetSecretStoreReportsNotFound(t *testing.T) {
 
 // The update carries the config and nothing else: an empty config still
 // goes, so the server replaces what it has, and no name goes, since the
-// server refuses to rename a federated store and the resource replaces the
-// store on a rename instead.
+// resource replaces the store on a rename instead.
 func TestUpdateSecretStoreSendsTheConfig(t *testing.T) {
 	tests := []struct {
 		name string
@@ -189,7 +188,7 @@ func TestUpdateSecretStoreSendsTheConfig(t *testing.T) {
 }
 
 // A federated store carries the identity the user binds on the cloud side;
-// a store on default credentials carries none.
+// a store on the server's own credentials carries none.
 func TestGetSecretStoreDecodesTheIdentity(t *testing.T) {
 	tests := []struct {
 		name string
@@ -198,16 +197,16 @@ func TestGetSecretStoreDecodesTheIdentity(t *testing.T) {
 	}{
 		{"federated", `{
 			"id": "s1", "name": "gcp-prod", "store_type": "google",
-			"config": {"project": "acme", "auth": {"method": "federated", "workload_identity_provider": "projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot", "audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"}},
+			"config": {"workload_identity_provider": "projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot", "audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"},
 			"identity": {"issuer": "https://acme.cloud.marmotdata.io", "subject": "secretStore:gcp-prod", "audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"}
 		}`, &secretStoreIdentity{
 			Issuer:   "https://acme.cloud.marmotdata.io",
 			Subject:  "secretStore:gcp-prod",
 			Audience: "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot",
 		}},
-		{"default credentials", `{
+		{"own credentials", `{
 			"id": "s1", "name": "gcp-prod", "store_type": "google",
-			"config": {"project": "acme", "auth": {"method": "default"}}
+			"config": {}
 		}`, nil},
 	}
 	for _, tt := range tests {
@@ -234,7 +233,7 @@ func TestDeleteSecretStore(t *testing.T) {
 	}{
 		{"deleted", http.StatusNoContent, "", false, ""},
 		{"already gone", http.StatusNotFound, `{"error":"Secret store not found"}`, true, "Secret store not found"},
-		{"still referenced", http.StatusConflict, `{"error":"Secret store is referenced by a pipeline or a service account lease"}`, false, "referenced"},
+		{"still referenced", http.StatusConflict, `{"error":"Secret store has secrets referenced by a pipeline or a service account lease"}`, false, "referenced"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -278,16 +277,128 @@ func TestValidateSecretStoreReportsTheVerdict(t *testing.T) {
 	}
 }
 
+// A secret is registered under its store; the ref goes wrapped and comes
+// back as sent, non-string values included.
+func TestCreateSecretSendsTheRef(t *testing.T) {
+	handler, last := record(t, http.StatusCreated, `{
+		"id": "sec1", "secret_store_id": "s1",
+		"ref": {"mount": "secret", "name": "db", "version": 2},
+		"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"
+	}`)
+	c := newTestSecretStoreClient(t, handler)
+
+	secret, err := c.CreateSecret(t.Context(), "s1", map[string]any{"mount": "secret", "name": "db", "version": int64(2)})
+	if err != nil {
+		t.Fatalf("CreateSecret: %v", err)
+	}
+	if last.method != http.MethodPost || last.path != "/api/v1/secret-stores/s1/secrets" {
+		t.Errorf("sent %s %s, want POST /api/v1/secret-stores/s1/secrets", last.method, last.path)
+	}
+	if last.body != `{"ref":{"mount":"secret","name":"db","version":2}}` {
+		t.Errorf("body = %s", last.body)
+	}
+	if secret.ID != "sec1" || secret.SecretStoreID != "s1" || secret.Ref["name"] != "db" || secret.Ref["version"] != float64(2) {
+		t.Errorf("decoded %+v", secret)
+	}
+}
+
+// The server names what is wrong with a ref; that text is what the user
+// needs to see.
+func TestCreateSecretSurfacesTheServerMessage(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+		want   string
+	}{
+		{"invalid ref", http.StatusBadRequest, `{"error":"invalid input: ref (store aws-prod): region is required unless secret_id is an ARN"}`, "region is required"},
+		{"forbidden", http.StatusForbidden, `{"error":"Registering secrets requires secretStore:use"}`, "secretStore:use"},
+		{"store gone", http.StatusNotFound, `{"error":"Secret store not found"}`, "Secret store not found"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newTestSecretStoreClient(t, alwaysRespond(tt.status, tt.body))
+			_, err := c.CreateSecret(t.Context(), "s1", map[string]any{"secret_id": "db"})
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("got %v, want an error mentioning %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetSecretReportsNotFound(t *testing.T) {
+	c := newTestSecretStoreClient(t, alwaysRespond(http.StatusNotFound, `{"error":"Secret not found"}`))
+	if _, err := c.GetSecret(t.Context(), "s1", "sec1"); !errors.Is(err, errNotFound) {
+		t.Fatalf("got %v, want errNotFound", err)
+	}
+}
+
+func TestUpdateSecretSendsTheRef(t *testing.T) {
+	handler, last := record(t, http.StatusOK, `{"id":"sec1","secret_store_id":"s1","ref":{"project":"acme","secret_id":"db","version":"3"}}`)
+	c := newTestSecretStoreClient(t, handler)
+
+	secret, err := c.UpdateSecret(t.Context(), "s1", "sec1", map[string]any{"project": "acme", "secret_id": "db", "version": "3"})
+	if err != nil {
+		t.Fatalf("UpdateSecret: %v", err)
+	}
+	if last.method != http.MethodPatch || last.path != "/api/v1/secret-stores/s1/secrets/sec1" {
+		t.Errorf("sent %s %s, want PATCH /api/v1/secret-stores/s1/secrets/sec1", last.method, last.path)
+	}
+	if last.body != `{"ref":{"project":"acme","secret_id":"db","version":"3"}}` {
+		t.Errorf("body = %s", last.body)
+	}
+	if secret.Ref["version"] != "3" {
+		t.Errorf("decoded %+v", secret)
+	}
+}
+
+func TestDeleteSecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		body     string
+		notFound bool
+		wantErr  string
+	}{
+		{"deleted", http.StatusNoContent, "", false, ""},
+		{"already gone", http.StatusNotFound, `{"error":"Secret not found"}`, true, "Secret not found"},
+		{"still referenced", http.StatusConflict, `{"error":"Secret is referenced by a pipeline or a service account lease"}`, false, "referenced"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, last := record(t, tt.status, tt.body)
+			c := newTestSecretStoreClient(t, handler)
+
+			err := c.DeleteSecret(t.Context(), "s1", "sec1")
+			if last.method != http.MethodDelete || last.path != "/api/v1/secret-stores/s1/secrets/sec1" {
+				t.Errorf("sent %s %s, want DELETE /api/v1/secret-stores/s1/secrets/sec1", last.method, last.path)
+			}
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("got %v, want success", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("got %v, want an error mentioning %q", err, tt.wantErr)
+			}
+			if errors.Is(err, errNotFound) != tt.notFound {
+				t.Errorf("errors.Is(errNotFound) = %v, want %v", !tt.notFound, tt.notFound)
+			}
+		})
+	}
+}
+
 // On create the server treats absent and empty secrets alike, so an empty
-// list is left out of the body.
+// map is left out of the body.
 func TestCreateScheduleSendsSecretsOnlyWhenThereAreAny(t *testing.T) {
 	tests := []struct {
 		name    string
-		secrets []pipelineSecret
+		secrets map[string]string
 		want    bool
 	}{
-		{"none", []pipelineSecret{}, false},
-		{"one", []pipelineSecret{{Key: "password", SecretStoreID: "s1", Ref: map[string]any{"secret": "db"}}}, true},
+		{"none", map[string]string{}, false},
+		{"one", map[string]string{"password": "sec1"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -315,17 +426,17 @@ func TestCreateScheduleSendsSecretsOnlyWhenThereAreAny(t *testing.T) {
 	}
 }
 
-// On update an absent list keeps the registered secrets, so "none" has to go
-// on the wire as an empty list or a removed block would never clear them.
+// On update an absent map keeps the registered secrets, so "none" has to go
+// on the wire as an empty map or a removed attribute would never clear them.
 func TestUpdateScheduleAlwaysSendsSecrets(t *testing.T) {
 	tests := []struct {
 		name    string
-		secrets []pipelineSecret
+		secrets map[string]string
 		want    string
 	}{
-		{"nil", nil, `"secrets":[]`},
-		{"empty", []pipelineSecret{}, `"secrets":[]`},
-		{"one", []pipelineSecret{{Key: "password", SecretStoreID: "s1", Ref: map[string]any{"secret": "db"}}}, `"secrets":[{"key":"password","secret_store_id":"s1","ref":{"secret":"db"}}]`},
+		{"nil", nil, `"secrets":{}`},
+		{"empty", map[string]string{}, `"secrets":{}`},
+		{"one", map[string]string{"password": "sec1"}, `"secrets":{"password":"sec1"}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -346,13 +457,13 @@ func TestUpdateScheduleAlwaysSendsSecrets(t *testing.T) {
 }
 
 // The schedule decodes into the SDK's shape, so the existing mapping keeps
-// working, with the secrets alongside. Refs carry non-string values.
+// working, with the secrets alongside.
 func TestGetScheduleDecodesSecretsAlongsideTheSchedule(t *testing.T) {
 	c := newTestSecretStoreClient(t, alwaysRespond(http.StatusOK, `{
 		"id": "p1", "name": "orders", "plugin_id": "postgresql",
 		"config": {"host": "db"}, "cron_expression": "0 * * * *", "enabled": true,
 		"last_run_status": "success", "created_at": "2026-01-01T00:00:00Z",
-		"secrets": [{"key": "password", "secret_store_id": "s1", "ref": {"path": "db", "version": 2}}]
+		"secrets": {"password": "sec1", "credentials.private_key": "sec2"}
 	}`))
 
 	schedule, err := c.GetSchedule(t.Context(), "p1")
@@ -366,12 +477,9 @@ func TestGetScheduleDecodesSecretsAlongsideTheSchedule(t *testing.T) {
 	if !ok || config["host"] != "db" {
 		t.Errorf("config = %#v, want the object", schedule.Config)
 	}
-	if len(schedule.Secrets) != 1 {
-		t.Fatalf("secrets = %+v, want one", schedule.Secrets)
-	}
-	secret := schedule.Secrets[0]
-	if secret.Key != "password" || secret.SecretStoreID != "s1" || secret.Ref["version"] != float64(2) {
-		t.Errorf("secret = %+v", secret)
+	want := map[string]string{"password": "sec1", "credentials.private_key": "sec2"}
+	if !reflect.DeepEqual(schedule.Secrets, want) {
+		t.Errorf("secrets = %v, want %v", schedule.Secrets, want)
 	}
 }
 
@@ -384,30 +492,24 @@ func TestGetScheduleReportsNotFound(t *testing.T) {
 
 func TestSetLeaseSendsTheLeaseAndDecodesItsStatus(t *testing.T) {
 	handler, last := record(t, http.StatusOK, `{
-		"id": "l1", "service_account_id": "sa1", "secret_store_id": "s1",
-		"ref": {"path": "agents/analytics", "key": "api_key"}, "ttl_seconds": 3600,
+		"id": "l1", "service_account_id": "sa1", "secret_id": "sec1", "ttl_seconds": 3600,
 		"current_key_id": "k2", "previous_key_id": "k1",
 		"leased_at": "2026-01-01T00:00:00Z", "expires_at": "2026-01-01T01:00:00Z",
 		"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"
 	}`)
 	c := newTestSecretStoreClient(t, handler)
 
-	lease, err := c.SetLease(t.Context(), "sa1", setLeaseRequest{
-		SecretStoreID: "s1",
-		Ref:           map[string]any{"path": "agents/analytics", "key": "api_key"},
-		TTLSeconds:    3600,
-	})
+	lease, err := c.SetLease(t.Context(), "sa1", setLeaseRequest{SecretID: "sec1", TTLSeconds: 3600})
 	if err != nil {
 		t.Fatalf("SetLease: %v", err)
 	}
 	if last.method != http.MethodPut || last.path != "/api/v1/service-accounts/sa1/lease" {
 		t.Errorf("sent %s %s, want PUT /api/v1/service-accounts/sa1/lease", last.method, last.path)
 	}
-	body := bodyOf(t, last)
-	if body["secret_store_id"] != "s1" || body["ttl_seconds"] != float64(3600) {
-		t.Errorf("body = %v", body)
+	if last.body != `{"secret_id":"sec1","ttl_seconds":3600}` {
+		t.Errorf("body = %s", last.body)
 	}
-	if lease.ID != "l1" || lease.CurrentKeyID != "k2" || lease.PreviousKeyID != "k1" || lease.ExpiresAt != "2026-01-01T01:00:00Z" || lease.LastError != "" {
+	if lease.ID != "l1" || lease.SecretID != "sec1" || lease.CurrentKeyID != "k2" || lease.PreviousKeyID != "k1" || lease.ExpiresAt != "2026-01-01T01:00:00Z" || lease.LastError != "" {
 		t.Errorf("decoded %+v", lease)
 	}
 }
@@ -428,7 +530,7 @@ func TestSetLeaseSurfacesTheServerMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newTestSecretStoreClient(t, alwaysRespond(tt.status, tt.body))
-			_, err := c.SetLease(t.Context(), "sa1", setLeaseRequest{SecretStoreID: "s1"})
+			_, err := c.SetLease(t.Context(), "sa1", setLeaseRequest{SecretID: "sec1"})
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("got %v, want an error mentioning %q", err, tt.want)
 			}

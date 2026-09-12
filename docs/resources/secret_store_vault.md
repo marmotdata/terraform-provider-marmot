@@ -4,50 +4,41 @@ page_title: "marmot_secret_store_vault Resource - marmot"
 subcategory: ""
 description: |-
   ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
-  A HashiCorp Vault KV v2 store. A ref names a path and a key: {"mount": "secret", "path": "agents/analytics", "key": "api_key"}, with an optional integer version.
-  A store holds no secret values: pipelines reference them with a secret block on marmot_pipeline and marmot_service_account_lease writes short-lived keys through the store, both resolved at run time. Sensitive settings are encrypted at rest and never read back, so state keeps what was written.
-  Under federated auth the store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+  A HashiCorp Vault KV v2 store. Without role the server logs in with the token in its own VAULT_TOKEN; with it, Marmot presents an OIDC token for the subject secretStore:{name} to the JWT auth method.
+  A store holds no secret values. marmot_secret_store_vault_secret registers where a secret lives in it; a marmot_pipeline reads such a secret into its config before each run, and a marmot_service_account_lease writes short-lived keys to one.
+  A federated store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
 ---
 
 # marmot_secret_store_vault (Resource)
 
 ~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
 
-A HashiCorp Vault KV v2 store. A ref names a path and a key: `{"mount": "secret", "path": "agents/analytics", "key": "api_key"}`, with an optional integer `version`.
+A HashiCorp Vault KV v2 store. Without `role` the server logs in with the token in its own `VAULT_TOKEN`; with it, Marmot presents an OIDC token for the subject `secretStore:{name}` to the JWT auth method.
 
-A store holds no secret values: pipelines reference them with a `secret` block on `marmot_pipeline` and `marmot_service_account_lease` writes short-lived keys through the store, both resolved at run time. Sensitive settings are encrypted at rest and never read back, so state keeps what was written.
+A store holds no secret values. `marmot_secret_store_vault_secret` registers where a secret lives in it; a `marmot_pipeline` reads such a secret into its config before each run, and a `marmot_service_account_lease` writes short-lived keys to one.
 
-Under federated auth the store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
 
 ## Example Usage
 
 ```terraform
-# Kubernetes auth: the server presents its pod's service account token to
-# Vault and logs in as the role. A private CA is given as PEM.
+# A store using the server's own token (VAULT_TOKEN). A private CA is
+# given as PEM.
 resource "marmot_secret_store_vault" "prod" {
   name    = "vault-prod"
   address = "https://vault.acme.internal"
   ca_cert = file("${path.module}/vault-ca.pem")
-
-  auth {
-    method = "kubernetes"
-    role   = "marmot"
-  }
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:vault-prod`
-# to a JWT auth role with `bound_subject` and `bound_audiences` set. Unset,
-# the audience is the issuer URL.
+# Federated: Marmot presents an OIDC token for the subject `secretStore:vault-prod-federated`
+# to a JWT auth role with `bound_subject` and `bound_audiences` set. The
+# audience defaults to the Vault address.
 resource "marmot_secret_store_vault" "federated" {
   name      = "vault-prod-federated"
   address   = "https://vault.acme.internal"
   namespace = "platform"
-
-  auth {
-    method         = "federated"
-    role           = "marmot"
-    jwt_mount_path = "jwt"
-  }
+  role      = "marmot"
+  auth_path = "jwt"
 }
 
 # The JWT role trusts the store's issuer and binds its subject and audience.
@@ -67,36 +58,24 @@ resource "vault_jwt_auth_backend_role" "marmot_store" {
 
 ### Required
 
-- `address` (String) Vault server URL.
-- `name` (String) Name of the store, unique per instance. Under federated auth it is also the store's identity: the token subject is `store:{name}`. Changing it replaces the store, since bindings on the old subject would stop matching.
+- `address` (String) Vault server URL, stored without a trailing slash.
+- `name` (String) Name of the store, unique per instance. On a federated store it is also the store's identity: the token subject is `secretStore:{name}`. Changing it replaces the store, since bindings on the old subject would stop matching.
 
 ### Optional
 
-- `auth` (Block, Optional) How the store authenticates to HashiCorp Vault. Omit to use the server's own credentials. (see [below for nested schema](#nestedblock--auth))
+- `audience` (String) Audience the Marmot token carries, which the backend must expect. The JWT role's `bound_audiences`; the server sets the Vault address when unset. Only meaningful on a federated store.
+- `auth_path` (String) Mount path of the JWT auth method the Marmot token is presented to. Defaults to `jwt`.
 - `ca_cert` (String) PEM-encoded CA certificate to verify the Vault server's TLS certificate against. Omit to use the system roots.
 - `namespace` (String) Vault Enterprise namespace, sent as `X-Vault-Namespace`.
+- `role` (String) Role of the JWT auth method to log in as with the Marmot token. Setting it makes the store federate.
 
 ### Read-Only
 
-- `audience` (String) Audience the store's tokens carry, which the cloud identity provider must expect: `auth.audience`, or what the server derives when that is unset. Null unless `auth.method` is `federated`.
 - `created_at` (String) Creation timestamp
 - `id` (String) Secret store ID
-- `issuer` (String) Issuer URL of the tokens the store presents: the OIDC provider to register with the cloud identity provider, once per account. Null unless `auth.method` is `federated`.
-- `subject` (String) Subject of the tokens the store presents, `store:{name}`: the value to grant on the cloud side, such as the subject of a `principal://` member on Google Cloud or the `sub` condition of an AWS role trust policy. Null unless `auth.method` is `federated`.
+- `issuer` (String) Issuer URL of the tokens the store presents: the OIDC provider to register with the cloud identity provider, once per account. Null unless the store federates.
+- `subject` (String) Subject of the tokens the store presents, `secretStore:{name}`: the value to grant on the cloud side, such as the subject of a `principal://` member on Google Cloud or the `sub` condition of an AWS role trust policy. Null unless the store federates.
 - `updated_at` (String) Last update timestamp
-
-<a id="nestedblock--auth"></a>
-### Nested Schema for `auth`
-
-Optional:
-
-- `audience` (String) Audience the Marmot token must carry: the JWT role's `bound_audiences`. Unset, the token carries the issuer URL. Federated method only.
-- `jwt_mount_path` (String) Mount path of the JWT auth method the Marmot token is presented to. Defaults to `jwt`.
-- `method` (String) How the store authenticates. `kubernetes` presents the pod's service account token; `federated` presents a Marmot-issued OIDC token to the JWT auth method; `token` uses a static token. Defaults to `kubernetes`.
-- `mount_path` (String) Mount path of the Kubernetes auth method. Defaults to `kubernetes`.
-- `role` (String) Vault role to log in as with the kubernetes and federated methods.
-- `token` (String, Sensitive) Vault token, for development only. Token method only.
-- `token_path` (String) Path of the service account JWT presented to the Kubernetes auth method. Defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`.
 
 ## Import
 

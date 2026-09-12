@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -40,7 +39,8 @@ func typeName(t *testing.T, r resource.Resource) string {
 // required attribute, a computed block, a sensitive nested attribute in the
 // wrong place. Catching that here beats catching it on the first plan.
 func TestSecretStoreSchemasAreValid(t *testing.T) {
-	resources := append(SecretStoreResources(),
+	resources := append(SecretStoreResources(), SecretStoreSecretResources()...)
+	resources = append(resources,
 		NewServiceAccountLeaseResource,
 		NewPipelineResource,
 	)
@@ -60,19 +60,21 @@ func TestSecretStoreSchemasAreValid(t *testing.T) {
 	}
 }
 
-// Every store exposes its identity the same way, and the auth keys the
-// server fills in are computed so a plan can take the server's value.
+// Every store exposes its identity the same way. Config keys the server
+// fills in are computed so a plan can take the server's value: a constant
+// default is mirrored, a derived one has no default and follows its inputs.
 func TestSecretStoreSchemaShape(t *testing.T) {
-	derived := map[string][]string{
-		"google": {"audience"},
-		"aws":    {"audience", "session_name"},
-		"azure":  {"audience"},
-		"vault":  nil,
+	defaulted := map[string][]string{
+		"aws":   {"session_name"},
+		"vault": {"auth_path"},
 	}
 	for _, kind := range secretStoreKinds {
 		t.Run(kind.storeType, func(t *testing.T) {
 			s := schemaOf(t, &secretStoreResource{kind: kind})
-			for _, name := range []string{"issuer", "subject", "audience"} {
+			if len(s.Blocks) != 0 {
+				t.Errorf("blocks = %v, want none", s.Blocks)
+			}
+			for _, name := range []string{"issuer", "subject"} {
 				a, ok := s.Attributes[name].(schema.StringAttribute)
 				if !ok || !a.Computed || a.Optional || a.Required {
 					t.Errorf("%s = %#v, want a computed-only string", name, s.Attributes[name])
@@ -81,22 +83,26 @@ func TestSecretStoreSchemaShape(t *testing.T) {
 			if a, ok := s.Attributes["name"].(schema.StringAttribute); !ok || len(a.PlanModifiers) == 0 {
 				t.Errorf("name has no plan modifiers, want RequiresReplace")
 			}
-			auth, ok := s.Blocks["auth"].(schema.SingleNestedBlock)
-			if !ok {
-				t.Fatalf("auth = %#v, want a single nested block", s.Blocks["auth"])
+			for _, name := range kind.federation {
+				a, ok := s.Attributes[name].(schema.StringAttribute)
+				if !ok || !a.Optional || a.Computed {
+					t.Errorf("%s = %#v, want an optional string", name, s.Attributes[name])
+				}
 			}
-			for name, a := range auth.Attributes {
-				str, ok := a.(schema.StringAttribute)
+			for _, f := range kind.fields {
+				a, ok := s.Attributes[f.name].(schema.StringAttribute)
 				if !ok {
-					t.Fatalf("auth.%s = %#v, want a string", name, a)
+					t.Fatalf("%s = %#v, want a string", f.name, s.Attributes[f.name])
 				}
-				wantDerived := false
-				for _, d := range derived[kind.storeType] {
-					wantDerived = wantDerived || d == name
+				wantDefault := false
+				for _, d := range defaulted[kind.storeType] {
+					wantDefault = wantDefault || d == f.name
 				}
-				isDerived := str.Computed && str.Default == nil
-				if isDerived != wantDerived {
-					t.Errorf("auth.%s computed without default = %v, want %v", name, isDerived, wantDerived)
+				if hasDefault := a.Default != nil; hasDefault != wantDefault {
+					t.Errorf("%s has default = %v, want %v", f.name, hasDefault, wantDefault)
+				}
+				if f.name == "audience" && (!a.Optional || !a.Computed || a.Default != nil || len(a.PlanModifiers) != 1) {
+					t.Errorf("audience = %#v, want optional, computed, derived", a)
 				}
 			}
 		})
@@ -135,13 +141,12 @@ func str(s string) tftypes.Value {
 
 var unknown = tftypes.NewValue(tftypes.String, tftypes.UnknownValue)
 
-// storeFixture is one store type's resource with the tftypes shapes a test
+// storeFixture is one store type's resource with the tftypes shape a test
 // needs to build plans and states for it.
 type storeFixture struct {
-	r        *secretStoreResource
-	schema   schema.Schema
-	objType  tftypes.Object
-	authType tftypes.Object
+	r       *secretStoreResource
+	schema  schema.Schema
+	objType tftypes.Object
 }
 
 func newStoreFixture(t *testing.T, storeType string) storeFixture {
@@ -152,16 +157,7 @@ func newStoreFixture(t *testing.T, storeType string) storeFixture {
 	if !ok {
 		t.Fatalf("schema type is %T, want tftypes.Object", s.Type().TerraformType(t.Context()))
 	}
-	authType, ok := objType.AttributeTypes["auth"].(tftypes.Object)
-	if !ok {
-		t.Fatalf("auth type is %T, want tftypes.Object", objType.AttributeTypes["auth"])
-	}
-	return storeFixture{r: r, schema: s, objType: objType, authType: authType}
-}
-
-func (f storeFixture) auth(t *testing.T, attrs map[string]tftypes.Value) tftypes.Value {
-	t.Helper()
-	return objectOf(t, f.authType, attrs)
+	return storeFixture{r: r, schema: s, objType: objType}
 }
 
 func (f storeFixture) plan(t *testing.T, attrs map[string]tftypes.Value) tfsdk.Plan {
@@ -180,11 +176,11 @@ func (f storeFixture) nullState() tfsdk.State {
 }
 
 // persist runs persist against a fresh state and returns it.
-func (f storeFixture) persist(t *testing.T, prior attrGetter, store *secretStore) tfsdk.State {
+func (f storeFixture) persist(t *testing.T, store *secretStore) tfsdk.State {
 	t.Helper()
 	state := f.state(t, nil)
 	var diags diag.Diagnostics
-	f.r.persist(t.Context(), &state, prior, store, &diags)
+	f.r.persist(t.Context(), &state, store, &diags)
 	if diags.HasError() {
 		t.Fatalf("persist: %v", diags)
 	}
@@ -200,79 +196,54 @@ func stringAt(t *testing.T, state tfsdk.State, p path.Path) types.String {
 	return v
 }
 
-func authOf(t *testing.T, state tfsdk.State) types.Object {
-	t.Helper()
-	var auth types.Object
-	if diags := state.GetAttribute(t.Context(), path.Root("auth"), &auth); diags.HasError() {
-		t.Fatalf("reading auth: %v", diags)
-	}
-	return auth
-}
-
 // Only what is set and known goes on the wire, so the server applies its own
 // defaults and derivations and the config reads back with the keys written.
 func TestSecretStoreConfigSendsOnlyWhatIsSet(t *testing.T) {
 	tests := []struct {
 		name      string
 		storeType string
-		attrs     func(f storeFixture) map[string]tftypes.Value
+		attrs     map[string]tftypes.Value
 		want      map[string]any
 	}{
 		{
-			name:      "auth block",
+			name:      "federated vault",
 			storeType: "vault",
-			attrs: func(f storeFixture) map[string]tftypes.Value {
-				return map[string]tftypes.Value{
-					"name":    str("vault-prod"),
-					"address": str("https://vault.acme.internal"),
-					"ca_cert": str("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"),
-					"auth": f.auth(t, map[string]tftypes.Value{
-						"method": str("token"),
-						"token":  str("s3cr3t"),
-					}),
-				}
-			},
-			want: map[string]any{
-				"address": "https://vault.acme.internal",
-				"ca_cert": "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n",
-				"auth":    map[string]any{"method": "token", "token": "s3cr3t"},
-			},
-		},
-		{
-			name:      "no auth block",
-			storeType: "vault",
-			attrs: func(storeFixture) map[string]tftypes.Value {
-				return map[string]tftypes.Value{
-					"name":      str("vault-prod"),
-					"address":   str("https://vault.acme.internal"),
-					"namespace": str("platform"),
-				}
+			attrs: map[string]tftypes.Value{
+				"name":      str("vault-prod"),
+				"address":   str("https://vault.acme.internal"),
+				"ca_cert":   str("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"),
+				"role":      str("marmot"),
+				"auth_path": str("jwt"),
+				"audience":  unknown,
 			},
 			want: map[string]any{
 				"address":   "https://vault.acme.internal",
-				"namespace": "platform",
+				"ca_cert":   "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n",
+				"role":      "marmot",
+				"auth_path": "jwt",
+			},
+		},
+		{
+			name:      "own credentials",
+			storeType: "google",
+			attrs: map[string]tftypes.Value{
+				"name":            str("gcp-prod"),
+				"service_account": str("sa@acme.iam.gserviceaccount.com"),
+			},
+			want: map[string]any{
+				"service_account": "sa@acme.iam.gserviceaccount.com",
 			},
 		},
 		{
 			name:      "derived value left for the server",
 			storeType: "google",
-			attrs: func(f storeFixture) map[string]tftypes.Value {
-				return map[string]tftypes.Value{
-					"name":    str("gcp-prod"),
-					"project": str("acme"),
-					"auth": f.auth(t, map[string]tftypes.Value{
-						"method":                     str("federated"),
-						"workload_identity_provider": str("projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"),
-						"audience":                   unknown,
-					}),
-				}
+			attrs: map[string]tftypes.Value{
+				"name":                       str("gcp-prod"),
+				"workload_identity_provider": str("projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"),
+				"audience":                   unknown,
 			},
 			want: map[string]any{
-				"project": "acme",
-				"auth": map[string]any{
-					"method":                     "federated",
-					"workload_identity_provider": "projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot",
-				},
+				"workload_identity_provider": "projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot",
 			},
 		},
 	}
@@ -280,7 +251,7 @@ func TestSecretStoreConfigSendsOnlyWhatIsSet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newStoreFixture(t, tt.storeType)
 			var diags diag.Diagnostics
-			got := f.r.configFrom(t.Context(), f.plan(t, tt.attrs(f)), &diags)
+			got := f.r.configFrom(t.Context(), f.plan(t, tt.attrs), &diags)
 			if diags.HasError() {
 				t.Fatalf("configFrom: %v", diags)
 			}
@@ -291,106 +262,42 @@ func TestSecretStoreConfigSendsOnlyWhatIsSet(t *testing.T) {
 	}
 }
 
-// The server never returns a sensitive value, only a mask. State keeps what
-// was written, and the mask never lands in it.
-func TestSecretStoreReadKeepsTheSensitiveValue(t *testing.T) {
-	f := newStoreFixture(t, "vault")
+// A value the server filled in lands in state next to what was written, so
+// a plan that keeps it sees no drift; a key the server did not return is
+// null rather than empty.
+func TestSecretStoreReadTakesTheServersConfig(t *testing.T) {
+	f := newStoreFixture(t, "aws")
 
-	prior := f.state(t, map[string]tftypes.Value{
-		"id":      str("s1"),
-		"name":    str("vault-prod"),
-		"address": str("https://vault.acme.internal"),
-		"auth": f.auth(t, map[string]tftypes.Value{
-			"method": str("token"),
-			"token":  str("s3cr3t"),
-		}),
-	})
-	state := f.persist(t, prior, &secretStore{
-		ID: "s1", Name: "vault-prod", StoreType: "vault",
+	state := f.persist(t, &secretStore{
+		ID: "s1", Name: "aws-prod", StoreType: "aws",
 		Config: map[string]any{
-			"address": "https://vault.acme.internal",
-			"auth":    map[string]any{"method": "token", "token": sensitiveMask},
+			"role_arn":     "arn:aws:iam::123456789012:role/marmot",
+			"audience":     "sts.amazonaws.com",
+			"session_name": "marmot",
 		},
 		CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-02T00:00:00Z",
 	})
 
-	auth := authOf(t, state)
-	if got := objectString(auth, "token"); got.ValueString() != "s3cr3t" {
-		t.Errorf("token = %v, want the prior value kept", got)
+	for name, want := range map[string]string{
+		"role_arn":     "arn:aws:iam::123456789012:role/marmot",
+		"audience":     "sts.amazonaws.com",
+		"session_name": "marmot",
+		"updated_at":   "2026-01-02T00:00:00Z",
+	} {
+		if got := stringAt(t, state, path.Root(name)); got.ValueString() != want {
+			t.Errorf("%s = %v, want %q", name, got, want)
+		}
 	}
-	if got := objectString(auth, "method"); got.ValueString() != "token" {
-		t.Errorf("method = %v, want token", got)
-	}
-	if got := objectString(auth, "role"); !got.IsNull() {
-		t.Errorf("role = %v, want null for a key the server did not return", got)
-	}
-	if got := stringAt(t, state, path.Root("updated_at")); got.ValueString() != "2026-01-02T00:00:00Z" {
-		t.Errorf("updated_at = %v", got)
-	}
-}
 
-// A store written without an auth block reads back without one, whether the
-// server echoes nothing or the defaults it applied. A store whose method is
-// not the default was set up elsewhere, and an import shows it.
-func TestSecretStoreReadWithoutAuthBlock(t *testing.T) {
-	tests := []struct {
-		name     string
-		config   map[string]any
-		wantNull bool
-	}{
-		{"no auth returned", map[string]any{"address": "https://vault.acme.internal"}, true},
-		{"server defaults returned", map[string]any{
-			"address": "https://vault.acme.internal",
-			"auth":    map[string]any{"method": "kubernetes", "mount_path": "kubernetes"},
-		}, true},
-		{"another method returned", map[string]any{
-			"address": "https://vault.acme.internal",
-			"auth":    map[string]any{"method": "federated", "role": "marmot"},
-		}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := newStoreFixture(t, "vault")
-			state := f.persist(t, f.state(t, nil), &secretStore{
-				ID: "s1", Name: "vault-prod", StoreType: "vault", Config: tt.config,
-			})
-			if auth := authOf(t, state); auth.IsNull() != tt.wantNull {
-				t.Errorf("auth = %v, want null = %v", auth, tt.wantNull)
-			}
-		})
-	}
-}
-
-// A derived value the server filled in lands in state next to what was
-// written, so a plan that keeps it sees no drift.
-func TestSecretStoreReadTakesDerivedValues(t *testing.T) {
-	f := newStoreFixture(t, "aws")
-
-	prior := f.plan(t, map[string]tftypes.Value{
-		"name": str("aws-prod"),
-		"auth": f.auth(t, map[string]tftypes.Value{
-			"method":       str("federated"),
-			"role_arn":     str("arn:aws:iam::123456789012:role/marmot"),
-			"audience":     unknown,
-			"session_name": unknown,
-		}),
+	f = newStoreFixture(t, "vault")
+	state = f.persist(t, &secretStore{
+		ID: "s1", Name: "vault-prod", StoreType: "vault",
+		Config: map[string]any{"address": "https://vault.acme.internal", "auth_path": "jwt"},
 	})
-	state := f.persist(t, prior, &secretStore{
-		ID: "s1", Name: "aws-prod", StoreType: "aws",
-		Config: map[string]any{
-			"auth": map[string]any{
-				"method": "federated", "role_arn": "arn:aws:iam::123456789012:role/marmot",
-				"audience": "sts.amazonaws.com", "session_name": "marmot",
-			},
-		},
-	})
-
-	auth := authOf(t, state)
-	if got := objectString(auth, "audience"); got.ValueString() != "sts.amazonaws.com" {
-		t.Errorf("audience = %v, want the server's default", got)
-	}
-	if got := objectString(auth, "session_name"); got.ValueString() != "marmot" {
-		t.Errorf("session_name = %v, want the server's default", got)
+	for _, name := range []string{"role", "audience", "namespace"} {
+		if got := stringAt(t, state, path.Root(name)); !got.IsNull() {
+			t.Errorf("%s = %v, want null for a key the server did not return", name, got)
+		}
 	}
 }
 
@@ -408,25 +315,23 @@ func TestSecretStoreReadExposesTheIdentity(t *testing.T) {
 			Subject:  "secretStore:gcp-prod",
 			Audience: "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot",
 		}},
-		{"default credentials", nil},
+		{"own credentials", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := f.persist(t, f.state(t, nil), &secretStore{
+			state := f.persist(t, &secretStore{
 				ID: "s1", Name: "gcp-prod", StoreType: "google", Identity: tt.identity,
-				Config: map[string]any{"project": "acme"},
 			})
 			issuer := stringAt(t, state, path.Root("issuer"))
 			subject := stringAt(t, state, path.Root("subject"))
-			audience := stringAt(t, state, path.Root("audience"))
 			if tt.identity == nil {
-				if !issuer.IsNull() || !subject.IsNull() || !audience.IsNull() {
-					t.Errorf("identity = %v %v %v, want all null", issuer, subject, audience)
+				if !issuer.IsNull() || !subject.IsNull() {
+					t.Errorf("identity = %v %v, want both null", issuer, subject)
 				}
 				return
 			}
-			if issuer.ValueString() != tt.identity.Issuer || subject.ValueString() != tt.identity.Subject || audience.ValueString() != tt.identity.Audience {
-				t.Errorf("identity = %v %v %v, want %+v", issuer, subject, audience, tt.identity)
+			if issuer.ValueString() != tt.identity.Issuer || subject.ValueString() != tt.identity.Subject {
+				t.Errorf("identity = %v %v, want %+v", issuer, subject, tt.identity)
 			}
 		})
 	}
@@ -440,22 +345,22 @@ func TestKeepStateUnless(t *testing.T) {
 	derived := "//iam.googleapis.com/" + provider
 
 	stored := map[string]tftypes.Value{
-		"id":      str("s1"),
-		"name":    str("gcp-prod"),
-		"subject": str("secretStore:gcp-prod"),
-		"auth": f.auth(t, map[string]tftypes.Value{
-			"method":                     str("federated"),
-			"workload_identity_provider": str(provider),
-			"audience":                   str(derived),
-		}),
+		"id":                         str("s1"),
+		"name":                       str("gcp-prod"),
+		"subject":                    str("secretStore:gcp-prod"),
+		"workload_identity_provider": str(provider),
+		"audience":                   str(derived),
 	}
-	planned := func(auth map[string]tftypes.Value) map[string]tftypes.Value {
-		return map[string]tftypes.Value{
+	planned := func(attrs map[string]tftypes.Value) map[string]tftypes.Value {
+		out := map[string]tftypes.Value{
 			"id":      str("s1"),
 			"name":    str("gcp-prod"),
 			"subject": unknown,
-			"auth":    f.auth(t, auth),
 		}
+		for k, v := range attrs {
+			out[k] = v
+		}
+		return out
 	}
 
 	tests := []struct {
@@ -467,10 +372,9 @@ func TestKeepStateUnless(t *testing.T) {
 	}{
 		{
 			name:  "inputs unchanged",
-			attr:  path.Root("auth").AtName("audience"),
+			attr:  path.Root("audience"),
 			state: f.state(t, stored),
 			plan: f.plan(t, planned(map[string]tftypes.Value{
-				"method":                     str("federated"),
 				"workload_identity_provider": str(provider),
 				"audience":                   unknown,
 				"service_account":            str("sa@acme.iam.gserviceaccount.com"),
@@ -479,10 +383,9 @@ func TestKeepStateUnless(t *testing.T) {
 		},
 		{
 			name:  "input changed",
-			attr:  path.Root("auth").AtName("audience"),
+			attr:  path.Root("audience"),
 			state: f.state(t, stored),
 			plan: f.plan(t, planned(map[string]tftypes.Value{
-				"method":                     str("federated"),
 				"workload_identity_provider": str("projects/123/locations/global/workloadIdentityPools/marmot/providers/other"),
 				"audience":                   unknown,
 			})),
@@ -490,10 +393,9 @@ func TestKeepStateUnless(t *testing.T) {
 		},
 		{
 			name:  "input unknown",
-			attr:  path.Root("auth").AtName("audience"),
+			attr:  path.Root("audience"),
 			state: f.state(t, stored),
 			plan: f.plan(t, planned(map[string]tftypes.Value{
-				"method":                     str("federated"),
 				"workload_identity_provider": unknown,
 				"audience":                   unknown,
 			})),
@@ -501,34 +403,30 @@ func TestKeepStateUnless(t *testing.T) {
 		},
 		{
 			name:  "create",
-			attr:  path.Root("auth").AtName("audience"),
+			attr:  path.Root("audience"),
 			state: f.nullState(),
 			plan: f.plan(t, planned(map[string]tftypes.Value{
-				"method":                     str("federated"),
 				"workload_identity_provider": str(provider),
 				"audience":                   unknown,
 			})),
 			want: types.StringUnknown(),
 		},
 		{
-			name:  "identity follows the auth block",
+			name:  "identity follows the federation",
 			attr:  path.Root("subject"),
 			state: f.state(t, stored),
 			plan: f.plan(t, planned(map[string]tftypes.Value{
-				"method":                     str("federated"),
 				"workload_identity_provider": str(provider),
 				"audience":                   str(derived),
 			})),
 			want: types.StringValue("secretStore:gcp-prod"),
 		},
 		{
-			name:  "identity changes with the auth block",
+			name:  "identity changes with the federation",
 			attr:  path.Root("subject"),
 			state: f.state(t, stored),
-			plan: f.plan(t, planned(map[string]tftypes.Value{
-				"method": str("default"),
-			})),
-			want: types.StringUnknown(),
+			plan:  f.plan(t, planned(nil)),
+			want:  types.StringUnknown(),
 		},
 	}
 	for _, tt := range tests {
@@ -577,23 +475,21 @@ func TestKeepStateUnless(t *testing.T) {
 	}
 }
 
-// Blocks round-trip through the API shape, and "no blocks" is an empty set
-// rather than a null one, matching how Terraform sends an absent block.
+// The map round-trips through the API shape. "No secrets" goes on the wire
+// as an empty map, and reads back as whatever was written, null or `{}`,
+// since the API omits the field for both.
 func TestPipelineSecretsRoundTrip(t *testing.T) {
-	secrets := []pipelineSecret{
-		{Key: "password", SecretStoreID: "s1", Ref: map[string]any{"secret": "db-password", "version": "latest"}},
-		{Key: "credentials.private_key", SecretStoreID: "s2", Ref: map[string]any{"path": "agents", "version": float64(2)}},
-	}
+	secrets := map[string]string{"password": "sec1", "credentials.private_key": "sec2"}
 
-	set, diags := secretBlocks(t.Context(), secrets)
+	m, diags := secretsValue(t.Context(), secrets, types.MapNull(types.StringType))
 	if diags.HasError() {
-		t.Fatalf("secretBlocks: %v", diags)
+		t.Fatalf("secretsValue: %v", diags)
 	}
-	if set.IsNull() || len(set.Elements()) != 2 {
-		t.Fatalf("set = %v, want two elements", set)
+	if m.IsNull() || len(m.Elements()) != 2 {
+		t.Fatalf("map = %v, want two elements", m)
 	}
 
-	back, diags := scheduleSecrets(t.Context(), set)
+	back, diags := scheduleSecrets(t.Context(), m)
 	if diags.HasError() {
 		t.Fatalf("scheduleSecrets: %v", diags)
 	}
@@ -601,36 +497,32 @@ func TestPipelineSecretsRoundTrip(t *testing.T) {
 		t.Errorf("round trip = %#v, want %#v", back, secrets)
 	}
 
-	empty, diags := secretBlocks(t.Context(), nil)
-	if diags.HasError() {
-		t.Fatalf("secretBlocks(nil): %v", diags)
-	}
-	if empty.IsNull() || len(empty.Elements()) != 0 {
-		t.Errorf("no secrets = %v, want an empty set", empty)
-	}
-	none, diags := scheduleSecrets(t.Context(), types.SetNull(pipelineSecretType))
+	none, diags := scheduleSecrets(t.Context(), types.MapNull(types.StringType))
 	if diags.HasError() {
 		t.Fatalf("scheduleSecrets(null): %v", diags)
 	}
 	if none == nil || len(none) != 0 {
-		t.Errorf("null set = %#v, want an empty, non-nil list", none)
+		t.Errorf("null map = %#v, want an empty, non-nil map", none)
+	}
+
+	empty := types.MapValueMust(types.StringType, nil)
+	for _, prior := range []types.Map{types.MapNull(types.StringType), empty} {
+		got, diags := secretsValue(t.Context(), nil, prior)
+		if diags.HasError() {
+			t.Fatalf("secretsValue(nil): %v", diags)
+		}
+		if !got.Equal(prior) {
+			t.Errorf("no secrets with prior %v = %v, want the prior kept", prior, got)
+		}
 	}
 }
 
-func TestLeaseRequestCarriesTheRef(t *testing.T) {
-	in, diags := leaseRequest(&ServiceAccountLeaseResourceModel{
-		Store:      types.StringValue("s1"),
-		Ref:        jsontypes.NewNormalizedValue(`{"path": "agents/analytics", "key": "api_key"}`),
+func TestLeaseRequestCarriesTheSecret(t *testing.T) {
+	in := leaseRequest(&ServiceAccountLeaseResourceModel{
+		Secret:     types.StringValue("sec1"),
 		TTLSeconds: types.Int64Value(1800),
 	})
-	if diags.HasError() {
-		t.Fatalf("leaseRequest: %v", diags)
-	}
-	want := setLeaseRequest{
-		SecretStoreID: "s1",
-		Ref:           map[string]any{"path": "agents/analytics", "key": "api_key"},
-		TTLSeconds:    1800,
-	}
+	want := setLeaseRequest{SecretID: "sec1", TTLSeconds: 1800}
 	if !reflect.DeepEqual(in, want) {
 		t.Errorf("request = %#v, want %#v", in, want)
 	}

@@ -5,11 +5,9 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -37,16 +35,15 @@ type ServiceAccountLeaseResource struct {
 }
 
 type ServiceAccountLeaseResourceModel struct {
-	ServiceAccountID types.String         `tfsdk:"service_account_id"`
-	Store            types.String         `tfsdk:"store"`
-	Ref              jsontypes.Normalized `tfsdk:"ref"`
-	TTLSeconds       types.Int64          `tfsdk:"ttl_seconds"`
-	ID               types.String         `tfsdk:"id"`
-	CurrentKeyID     types.String         `tfsdk:"current_key_id"`
-	PreviousKeyID    types.String         `tfsdk:"previous_key_id"`
-	LeasedAt         types.String         `tfsdk:"leased_at"`
-	ExpiresAt        types.String         `tfsdk:"expires_at"`
-	LastError        types.String         `tfsdk:"last_error"`
+	ServiceAccountID types.String `tfsdk:"service_account_id"`
+	Secret           types.String `tfsdk:"secret"`
+	TTLSeconds       types.Int64  `tfsdk:"ttl_seconds"`
+	ID               types.String `tfsdk:"id"`
+	CurrentKeyID     types.String `tfsdk:"current_key_id"`
+	PreviousKeyID    types.String `tfsdk:"previous_key_id"`
+	LeasedAt         types.String `tfsdk:"leased_at"`
+	ExpiresAt        types.String `tfsdk:"expires_at"`
+	LastError        types.String `tfsdk:"last_error"`
 }
 
 func (r *ServiceAccountLeaseResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -56,11 +53,11 @@ func (r *ServiceAccountLeaseResource) Metadata(_ context.Context, req resource.M
 func (r *ServiceAccountLeaseResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: secretStoreCloudOnly + "A lease replaces a durable API key: Marmot mints " +
-			"a short-lived key for the service account, writes it to a secret store at `ref`, and " +
+			"a short-lived key for the service account, writes it to the registered `secret`, and " +
 			"renews it at half the TTL. The agent reads the key from the store with its own identity, " +
 			"so nothing long-lived is handed out and nothing secret enters Terraform state. An account " +
 			"holds at most one lease; the store must support writes (every built-in type does).\n\n" +
-			"The first key is written before the lease is created: a ref the store cannot write to " +
+			"The first key is written before the lease is created: a secret the store cannot write to " +
 			"fails the apply with the store's error, and no lease is left behind.",
 
 		Attributes: map[string]schema.Attribute{
@@ -71,19 +68,12 @@ func (r *ServiceAccountLeaseResource) Schema(_ context.Context, _ resource.Schem
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"store": schema.StringAttribute{
-				MarkdownDescription: "ID of the `marmot_secret_store_*` resource the key is written through",
+			"secret": schema.StringAttribute{
+				MarkdownDescription: "ID of the `marmot_secret_store_*_secret` the key is written to",
 				Required:            true,
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
-			},
-			"ref": schema.StringAttribute{
-				MarkdownDescription: "Where in the store the key is written, as a JSON object whose keys " +
-					"depend on the store type; see the store resource. Use `jsonencode()` to build it " +
-					"from HCL.",
-				Required:   true,
-				CustomType: jsontypes.NormalizedType{},
 			},
 			"ttl_seconds": schema.Int64Attribute{
 				MarkdownDescription: "Lifetime of each minted key, between 300 and 86400 seconds. " +
@@ -142,14 +132,11 @@ func (r *ServiceAccountLeaseResource) Configure(_ context.Context, req resource.
 }
 
 // leaseRequest turns the configured attributes into the body the API takes.
-func leaseRequest(data *ServiceAccountLeaseResourceModel) (setLeaseRequest, diag.Diagnostics) {
-	var ref map[string]any
-	diags := data.Ref.Unmarshal(&ref)
+func leaseRequest(data *ServiceAccountLeaseResourceModel) setLeaseRequest {
 	return setLeaseRequest{
-		SecretStoreID: data.Store.ValueString(),
-		Ref:           ref,
-		TTLSeconds:    data.TTLSeconds.ValueInt64(),
-	}, diags
+		SecretID:   data.Secret.ValueString(),
+		TTLSeconds: data.TTLSeconds.ValueInt64(),
+	}
 }
 
 // applyLeaseComputedFields copies the server-generated attributes onto the
@@ -165,13 +152,7 @@ func applyLeaseComputedFields(data *ServiceAccountLeaseResourceModel, lease *ser
 }
 
 func (r *ServiceAccountLeaseResource) apply(ctx context.Context, data *ServiceAccountLeaseResourceModel, diags *diag.Diagnostics) {
-	in, d := leaseRequest(data)
-	diags.Append(d...)
-	if diags.HasError() {
-		return
-	}
-
-	lease, err := r.client.SetLease(ctx, data.ServiceAccountID.ValueString(), in)
+	lease, err := r.client.SetLease(ctx, data.ServiceAccountID.ValueString(), leaseRequest(data))
 	if err != nil {
 		diags.AddError("Unable to Set Service Account Lease", err.Error())
 		return
@@ -182,7 +163,7 @@ func (r *ServiceAccountLeaseResource) apply(ctx context.Context, data *ServiceAc
 	tflog.Info(ctx, "Service account lease set", map[string]any{
 		"id":                 lease.ID,
 		"service_account_id": lease.ServiceAccountID,
-		"secret_store_id":    lease.SecretStoreID,
+		"secret_id":          lease.SecretID,
 	})
 }
 
@@ -217,20 +198,14 @@ func (r *ServiceAccountLeaseResource) Read(ctx context.Context, req resource.Rea
 		return
 	}
 
-	data.Store = types.StringValue(lease.SecretStoreID)
-	encoded, err := json.Marshal(lease.Ref)
-	if err != nil {
-		resp.Diagnostics.AddError("Ref Error", fmt.Sprintf("Unable to encode lease ref: %s", err))
-		return
-	}
-	data.Ref = jsontypes.NewNormalizedValue(string(encoded))
+	data.Secret = types.StringValue(lease.SecretID)
 	applyLeaseComputedFields(&data, lease)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 // Update repoints the one lease the account has: the server upserts on PUT,
-// so a changed store, ref or TTL is a new first renewal, not a new lease.
+// so a changed secret or TTL is a new first renewal, not a new lease.
 func (r *ServiceAccountLeaseResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data ServiceAccountLeaseResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)

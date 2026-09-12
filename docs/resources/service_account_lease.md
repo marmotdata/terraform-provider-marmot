@@ -4,17 +4,17 @@ page_title: "marmot_service_account_lease Resource - marmot"
 subcategory: ""
 description: |-
   ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
-  A lease replaces a durable API key: Marmot mints a short-lived key for the service account, writes it to a secret store at ref, and renews it at half the TTL. The agent reads the key from the store with its own identity, so nothing long-lived is handed out and nothing secret enters Terraform state. An account holds at most one lease; the store must support writes (every built-in type does).
-  The first key is written before the lease is created: a ref the store cannot write to fails the apply with the store's error, and no lease is left behind.
+  A lease replaces a durable API key: Marmot mints a short-lived key for the service account, writes it to the registered secret, and renews it at half the TTL. The agent reads the key from the store with its own identity, so nothing long-lived is handed out and nothing secret enters Terraform state. An account holds at most one lease; the store must support writes (every built-in type does).
+  The first key is written before the lease is created: a secret the store cannot write to fails the apply with the store's error, and no lease is left behind.
 ---
 
 # marmot_service_account_lease (Resource)
 
 ~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
 
-A lease replaces a durable API key: Marmot mints a short-lived key for the service account, writes it to a secret store at `ref`, and renews it at half the TTL. The agent reads the key from the store with its own identity, so nothing long-lived is handed out and nothing secret enters Terraform state. An account holds at most one lease; the store must support writes (every built-in type does).
+A lease replaces a durable API key: Marmot mints a short-lived key for the service account, writes it to the registered `secret`, and renews it at half the TTL. The agent reads the key from the store with its own identity, so nothing long-lived is handed out and nothing secret enters Terraform state. An account holds at most one lease; the store must support writes (every built-in type does).
 
-The first key is written before the lease is created: a ref the store cannot write to fails the apply with the store's error, and no lease is left behind.
+The first key is written before the lease is created: a secret the store cannot write to fails the apply with the store's error, and no lease is left behind.
 
 ## Example Usage
 
@@ -23,13 +23,19 @@ resource "marmot_service_account" "analytics_agent" {
   name = "analytics-agent"
 }
 
+# Where in Vault the key is written.
+resource "marmot_secret_store_vault_secret" "analytics_agent_key" {
+  store = marmot_secret_store_vault.prod.id
+  name  = "agents/analytics/marmot"
+  key   = "api_key"
+}
+
 # Marmot mints a short-lived API key for the account, writes it to Vault at
-# the ref, and renews it every half hour. The agent reads the key from Vault
-# with its own identity; no long-lived credential exists anywhere.
+# the secret, and renews it every half hour. The agent reads the key from
+# Vault with its own identity; no long-lived credential exists anywhere.
 resource "marmot_service_account_lease" "analytics_agent" {
   service_account_id = marmot_service_account.analytics_agent.id
-  store              = marmot_secret_store_vault.prod.id
-  ref                = jsonencode({ path = "agents/analytics/marmot", key = "api_key" })
+  secret             = marmot_secret_store_vault_secret.analytics_agent_key.id
   ttl_seconds        = 3600
 }
 ```
@@ -39,9 +45,8 @@ resource "marmot_service_account_lease" "analytics_agent" {
 
 ### Required
 
-- `ref` (String) Where in the store the key is written, as a JSON object whose keys depend on the store type; see the store resource. Use `jsonencode()` to build it from HCL.
+- `secret` (String) ID of the `marmot_secret_store_*_secret` the key is written to
 - `service_account_id` (String) ID of the service account the lease belongs to
-- `store` (String) ID of the `marmot_secret_store_*` resource the key is written through
 
 ### Optional
 

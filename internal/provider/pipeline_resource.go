@@ -10,8 +10,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -50,7 +50,7 @@ type PipelineResourceModel struct {
 	Config         jsontypes.Normalized `tfsdk:"config"`
 	CronExpression types.String         `tfsdk:"cron_expression"`
 	Enabled        types.Bool           `tfsdk:"enabled"`
-	Secrets        types.Set            `tfsdk:"secret"`
+	Secrets        types.Map            `tfsdk:"secrets"`
 	ID             types.String         `tfsdk:"id"`
 	ManagedBy      types.String         `tfsdk:"managed_by"`
 	LastRunStatus  types.String         `tfsdk:"last_run_status"`
@@ -58,21 +58,6 @@ type PipelineResourceModel struct {
 	NextRunAt      types.String         `tfsdk:"next_run_at"`
 	CreatedAt      types.String         `tfsdk:"created_at"`
 	UpdatedAt      types.String         `tfsdk:"updated_at"`
-}
-
-// pipelineSecretModel is one `secret` block.
-type pipelineSecretModel struct {
-	Key   types.String         `tfsdk:"key"`
-	Store types.String         `tfsdk:"store"`
-	Ref   jsontypes.Normalized `tfsdk:"ref"`
-}
-
-var pipelineSecretType = types.ObjectType{
-	AttrTypes: map[string]attr.Type{
-		"key":   types.StringType,
-		"store": types.StringType,
-		"ref":   jsontypes.NormalizedType{},
-	},
 }
 
 func (r *PipelineResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -84,9 +69,9 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 		MarkdownDescription: "A pipeline: a plugin pointed at a source that discovers and catalogs " +
 			"assets on a recurring schedule. Rather than declaring each asset by hand, point a plugin " +
 			"at a source and Marmot keeps the catalog in sync from what it finds there.\n\n" +
-			"Credentials the plugin needs can be kept out of `config` and out of state: a `secret` " +
-			"block names a value in a `marmot_secret_store_*` and the key in `config` to inject it " +
-			"at, and Marmot resolves it before each run.",
+			"Credentials the plugin needs can be kept out of `config` and out of state: `secrets` " +
+			"maps a key in `config` to a `marmot_secret_store_*_secret`, and Marmot injects the " +
+			"value there before each run.",
 
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
@@ -107,7 +92,7 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 			"config": schema.StringAttribute{
 				MarkdownDescription: "Plugin configuration as a JSON object. The accepted keys depend on " +
 					"the plugin; the server validates this against the plugin and rejects an invalid config. " +
-					"Use `jsonencode()` to build it from HCL. Leave out any key a `secret` block injects.",
+					"Use `jsonencode()` to build it from HCL. Leave out any key `secrets` injects.",
 				Required:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
@@ -125,6 +110,20 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 				Optional: true,
 				Computed: true,
 				Default:  booldefault.StaticBool(true),
+			},
+			"secrets": schema.MapAttribute{
+				MarkdownDescription: "Secrets to inject into the plugin config before each run, keyed by " +
+					"the dot path in `config` to inject at, for example `password` or " +
+					"`credentials.private_key`. Each value is the `id` of a `marmot_secret_store_*_secret`. " +
+					"Only the reference is stored; the value never enters Terraform state or the " +
+					"pipeline's stored config. Registering secrets requires the `secretStore:use` " +
+					"permission and Marmot Cloud or Marmot Enterprise.",
+				Optional:    true,
+				ElementType: types.StringType,
+				Validators: []validator.Map{
+					mapvalidator.KeysAre(stringvalidator.LengthAtLeast(1)),
+					mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1)),
+				},
 			},
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Pipeline ID",
@@ -160,41 +159,6 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 			"updated_at": schema.StringAttribute{
 				MarkdownDescription: "Last update timestamp",
 				Computed:            true,
-			},
-		},
-
-		Blocks: map[string]schema.Block{
-			"secret": schema.SetNestedBlock{
-				MarkdownDescription: "A value resolved from a secret store before each run and injected " +
-					"into the plugin config at `key`. Only the reference is stored; the value never " +
-					"enters Terraform state or the pipeline's stored config. Registering secrets requires " +
-					"the `secretStore:use` permission and Marmot Cloud or Marmot Enterprise.",
-				NestedObject: schema.NestedBlockObject{
-					Attributes: map[string]schema.Attribute{
-						"key": schema.StringAttribute{
-							MarkdownDescription: "Dot path in the plugin config to inject the value at, " +
-								"for example `password` or `credentials.private_key`. Unique per pipeline.",
-							Required: true,
-							Validators: []validator.String{
-								stringvalidator.LengthAtLeast(1),
-							},
-						},
-						"store": schema.StringAttribute{
-							MarkdownDescription: "ID of the `marmot_secret_store_*` resource holding the secret.",
-							Required:            true,
-							Validators: []validator.String{
-								stringvalidator.LengthAtLeast(1),
-							},
-						},
-						"ref": schema.StringAttribute{
-							MarkdownDescription: "Where the secret lives in the store, as a JSON object whose " +
-								"keys depend on the store type; see the store resource. Use `jsonencode()` " +
-								"to build it from HCL.",
-							Required:   true,
-							CustomType: jsontypes.NormalizedType{},
-						},
-					},
-				},
 			},
 		},
 	}
@@ -285,12 +249,12 @@ func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	blocks, diags := secretBlocks(ctx, schedule.Secrets)
+	secrets, diags := secretsValue(ctx, schedule.Secrets, data.Secrets)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	data.Secrets = blocks
+	data.Secrets = secrets
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -317,7 +281,7 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	// The full list goes every time, empty included: the server replaces
+	// The full map goes every time, empty included: the server replaces
 	// what it has with what is sent, and only an absent field keeps it.
 	schedule, err := r.secrets.UpdateSchedule(ctx, state.ID.ValueString(), updateScheduleRequest{
 		Name:           data.Name.ValueString(),
@@ -376,49 +340,29 @@ func scheduleConfig(config jsontypes.Normalized) (map[string]any, diag.Diagnosti
 	return out, diags
 }
 
-// scheduleSecrets turns the secret blocks into the list the API takes. The
-// result is never nil: on update an absent list keeps what the server has,
-// and only an empty one clears it.
-func scheduleSecrets(ctx context.Context, set types.Set) ([]pipelineSecret, diag.Diagnostics) {
-	out := []pipelineSecret{}
-	if set.IsNull() || set.IsUnknown() {
+// scheduleSecrets turns the secrets attribute into the map the API takes.
+// The result is never nil: on update an absent map keeps what the server
+// has, and only an empty one clears it.
+func scheduleSecrets(ctx context.Context, m types.Map) (map[string]string, diag.Diagnostics) {
+	out := map[string]string{}
+	if m.IsNull() || m.IsUnknown() {
 		return out, nil
 	}
-	var blocks []pipelineSecretModel
-	diags := set.ElementsAs(ctx, &blocks, false)
-	if diags.HasError() {
-		return nil, diags
-	}
-	for _, b := range blocks {
-		var ref map[string]any
-		diags.Append(b.Ref.Unmarshal(&ref)...)
-		out = append(out, pipelineSecret{
-			Key:           b.Key.ValueString(),
-			SecretStoreID: b.Store.ValueString(),
-			Ref:           ref,
-		})
-	}
+	diags := m.ElementsAs(ctx, &out, false)
 	return out, diags
 }
 
-// secretBlocks turns the API's secrets into the set of blocks. No secrets is
-// an empty set, which is how Terraform represents no blocks written.
-func secretBlocks(ctx context.Context, secrets []pipelineSecret) (types.Set, diag.Diagnostics) {
-	blocks := make([]pipelineSecretModel, 0, len(secrets))
-	for _, s := range secrets {
-		encoded, err := json.Marshal(s.Ref)
-		if err != nil {
-			var diags diag.Diagnostics
-			diags.AddError("Ref Error", fmt.Sprintf("Unable to encode ref for secret %q: %s", s.Key, err))
-			return types.SetNull(pipelineSecretType), diags
+// secretsValue turns the API's secrets into the attribute. The API omits
+// the field when there are none, which is null when nothing was written
+// and an empty map when `{}` was, so prior decides between the two.
+func secretsValue(ctx context.Context, secrets map[string]string, prior types.Map) (types.Map, diag.Diagnostics) {
+	if len(secrets) == 0 {
+		if prior.IsNull() {
+			return types.MapNull(types.StringType), nil
 		}
-		blocks = append(blocks, pipelineSecretModel{
-			Key:   types.StringValue(s.Key),
-			Store: types.StringValue(s.SecretStoreID),
-			Ref:   jsontypes.NewNormalizedValue(string(encoded)),
-		})
+		return types.MapValueMust(types.StringType, nil), nil
 	}
-	return types.SetValueFrom(ctx, pipelineSecretType, blocks)
+	return types.MapValueFrom(ctx, types.StringType, secrets)
 }
 
 // applyScheduleComputedFields copies the server-generated (read-only) attributes

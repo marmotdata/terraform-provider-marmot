@@ -139,8 +139,10 @@ func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resour
 	// Access grants: every hierarchy node crossed with the three authority
 	// levels, matching the google_*_iam_{policy,binding,member} pattern.
 	resources = append(resources, IAMResources()...)
-	// Secret stores: one resource per store type over the generic API.
-	return append(resources, SecretStoreResources()...)
+	// Secret stores and the secrets registered in them: one resource per
+	// store type over the generic API.
+	resources = append(resources, SecretStoreResources()...)
+	return append(resources, SecretStoreSecretResources()...)
 }
 
 func (p *MarmotProvider) DataSources(ctx context.Context) []func() datasource.DataSource {

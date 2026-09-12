@@ -19,10 +19,10 @@ import (
 )
 
 // secretStoreClient talks to the secret-store endpoints directly rather than
-// through the generated SDK, which does not cover them: the stores themselves,
-// the secrets registered on a pipeline, and service account leases. It reuses
-// the SDK client's resolved host and credential so the provider keeps one
-// authentication story.
+// through the generated SDK, which does not cover them: the stores, the
+// secrets registered in them, the secrets bound to a pipeline, and service
+// account leases. It reuses the SDK client's resolved host and credential so
+// the provider keeps one authentication story.
 type secretStoreClient struct {
 	host string
 	cred auth.Credential
@@ -37,19 +37,15 @@ func newSecretStoreClient(c *marmot.Client) *secretStoreClient {
 	}
 }
 
-// sensitiveMask is what the server returns in place of a sensitive config
-// value. Sending it back on an update keeps the stored value.
-const sensitiveMask = "********"
-
 // secretStore is a configured store: a type and how to reach its backend.
-// Config comes back with sensitive fields masked and with the values the
-// server derived or defaulted filled in.
+// Config comes back as the server normalised it, defaults and derived
+// values filled in.
 type secretStore struct {
 	ID        string         `json:"id"`
 	Name      string         `json:"name"`
 	StoreType string         `json:"store_type"`
 	Config    map[string]any `json:"config"`
-	// Identity is present only when the store uses federated auth.
+	// Identity is present only when the store federates.
 	Identity  *secretStoreIdentity `json:"identity,omitempty"`
 	CreatedAt string               `json:"created_at"`
 	UpdatedAt string               `json:"updated_at"`
@@ -70,8 +66,8 @@ type createSecretStoreRequest struct {
 }
 
 // updateSecretStoreRequest replaces the stored config. The name is not
-// sent: the server refuses to rename a federated store, and the resource
-// replaces the store on a name change instead.
+// sent: the resource replaces the store on a name change, since a
+// federated store's subject is derived from it.
 type updateSecretStoreRequest struct {
 	Config map[string]any `json:"config"`
 }
@@ -82,63 +78,69 @@ type secretStoreValidation struct {
 	Error string `json:"error,omitempty"`
 }
 
-// pipelineSecret registers one secret on a pipeline: Ref is resolved from the
-// store before each run and injected into the plugin config at Key.
-type pipelineSecret struct {
-	Key           string         `json:"key"`
+// secretStoreSecret is one secret registered in a store: where it lives, in
+// the store type's own terms. Pipelines and leases reference it by ID. The
+// ref comes back as it was sent.
+type secretStoreSecret struct {
+	ID            string         `json:"id"`
 	SecretStoreID string         `json:"secret_store_id"`
 	Ref           map[string]any `json:"ref"`
+	CreatedAt     string         `json:"created_at"`
+	UpdatedAt     string         `json:"updated_at"`
 }
 
-// pipelineSchedule is the SDK's schedule plus the secrets the SDK drops.
+type secretRequest struct {
+	Ref map[string]any `json:"ref"`
+}
+
+// pipelineSchedule is the SDK's schedule plus the secrets the SDK drops:
+// config key (a dot path) to secret id, absent when there are none.
 type pipelineSchedule struct {
 	marmot.Schedule
-	Secrets []pipelineSecret `json:"secrets,omitempty"`
+	Secrets map[string]string `json:"secrets,omitempty"`
 }
 
 // createScheduleRequest carries the same fields the SDK sends plus the
 // secrets. The server treats absent and empty secrets alike on create.
 type createScheduleRequest struct {
-	Name           string           `json:"name"`
-	PluginID       string           `json:"plugin_id"`
-	Config         map[string]any   `json:"config"`
-	CronExpression string           `json:"cron_expression"`
-	Enabled        bool             `json:"enabled"`
-	Secrets        []pipelineSecret `json:"secrets,omitempty"`
+	Name           string            `json:"name"`
+	PluginID       string            `json:"plugin_id"`
+	Config         map[string]any    `json:"config"`
+	CronExpression string            `json:"cron_expression"`
+	Enabled        bool              `json:"enabled"`
+	Secrets        map[string]string `json:"secrets,omitempty"`
 }
 
 // updateScheduleRequest always carries Secrets: the server keeps the
 // registered secrets when the field is absent, and only an explicit empty
-// list clears them. Callers pass an empty, non-nil slice for "none".
+// map clears them.
 type updateScheduleRequest struct {
-	Name           string           `json:"name"`
-	PluginID       string           `json:"plugin_id"`
-	Config         map[string]any   `json:"config"`
-	CronExpression string           `json:"cron_expression"`
-	Enabled        bool             `json:"enabled"`
-	Secrets        []pipelineSecret `json:"secrets"`
+	Name           string            `json:"name"`
+	PluginID       string            `json:"plugin_id"`
+	Config         map[string]any    `json:"config"`
+	CronExpression string            `json:"cron_expression"`
+	Enabled        bool              `json:"enabled"`
+	Secrets        map[string]string `json:"secrets"`
 }
 
-// serviceAccountLease binds a service account to a location in a store where
+// serviceAccountLease binds a service account to a registered secret where
 // Marmot keeps a short-lived API key for it. The key itself is never returned.
 type serviceAccountLease struct {
-	ID               string         `json:"id"`
-	ServiceAccountID string         `json:"service_account_id"`
-	SecretStoreID    string         `json:"secret_store_id"`
-	Ref              map[string]any `json:"ref"`
-	TTLSeconds       int64          `json:"ttl_seconds"`
-	CurrentKeyID     string         `json:"current_key_id,omitempty"`
-	PreviousKeyID    string         `json:"previous_key_id,omitempty"`
-	LeasedAt         string         `json:"leased_at,omitempty"`
-	ExpiresAt        string         `json:"expires_at,omitempty"`
-	LastError        string         `json:"last_error,omitempty"`
-	CreatedAt        string         `json:"created_at"`
-	UpdatedAt        string         `json:"updated_at"`
+	ID               string `json:"id"`
+	ServiceAccountID string `json:"service_account_id"`
+	SecretID         string `json:"secret_id"`
+	TTLSeconds       int64  `json:"ttl_seconds"`
+	CurrentKeyID     string `json:"current_key_id,omitempty"`
+	PreviousKeyID    string `json:"previous_key_id,omitempty"`
+	LeasedAt         string `json:"leased_at,omitempty"`
+	ExpiresAt        string `json:"expires_at,omitempty"`
+	LastError        string `json:"last_error,omitempty"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
 }
 
 type setLeaseRequest struct {
-	SecretStoreID string         `json:"secret_store_id"`
-	Ref           map[string]any `json:"ref"`
+	SecretID string `json:"secret_id"`
 	// TTLSeconds defaults to one hour on the server when zero.
 	TTLSeconds int64 `json:"ttl_seconds,omitempty"`
 }
@@ -188,7 +190,7 @@ func (e *errNoSecretStoreAPI) Error() string {
 		"Marmot Cloud or Marmot Enterprise (https://cloud.marmotdata.io). If this is not "+
 		"the instance you meant to reach, check the provider's host setting; otherwise "+
 		"remove the marmot_secret_store_* and marmot_service_account_lease resources and "+
-		"any pipeline secret blocks from this configuration", e.host, e.status)
+		"the secrets map from any marmot_pipeline in this configuration", e.host, e.status)
 }
 
 func (c *secretStoreClient) do(ctx context.Context, method, url string, body any) ([]byte, int, error) {
@@ -249,6 +251,10 @@ func (c *secretStoreClient) storeURL(id string) string {
 	return c.host + "/api/v1/secret-stores/" + id
 }
 
+func (c *secretStoreClient) secretURL(storeID, id string) string {
+	return c.storeURL(storeID) + "/secrets/" + id
+}
+
 func (c *secretStoreClient) scheduleURL(id string) string {
 	return c.host + "/api/v1/ingestion/schedules/" + id
 }
@@ -286,8 +292,8 @@ func (c *secretStoreClient) UpdateSecretStore(ctx context.Context, id string, in
 	return &store, nil
 }
 
-// DeleteSecretStore removes a store. The server refuses with 409 while a
-// pipeline secret or a lease still references it.
+// DeleteSecretStore removes a store and the secrets registered in it. The
+// server refuses with 409 while a pipeline or a lease references one of them.
 func (c *secretStoreClient) DeleteSecretStore(ctx context.Context, id string) error {
 	return c.call(ctx, http.MethodDelete, c.storeURL(id), nil, nil, http.StatusNoContent)
 }
@@ -301,6 +307,40 @@ func (c *secretStoreClient) ValidateSecretStore(ctx context.Context, id string) 
 		return nil, err
 	}
 	return &result, nil
+}
+
+// CreateSecret registers a secret in a store. The server validates the ref
+// against the store type and answers 400 with the reason otherwise.
+func (c *secretStoreClient) CreateSecret(ctx context.Context, storeID string, ref map[string]any) (*secretStoreSecret, error) {
+	var secret secretStoreSecret
+	if err := c.call(ctx, http.MethodPost, c.storeURL(storeID)+"/secrets", secretRequest{Ref: ref}, &secret, http.StatusCreated); err != nil {
+		return nil, err
+	}
+	return &secret, nil
+}
+
+func (c *secretStoreClient) GetSecret(ctx context.Context, storeID, id string) (*secretStoreSecret, error) {
+	var secret secretStoreSecret
+	if err := c.call(ctx, http.MethodGet, c.secretURL(storeID, id), nil, &secret, http.StatusOK); err != nil {
+		return nil, err
+	}
+	return &secret, nil
+}
+
+// UpdateSecret repoints a secret in place; pipelines and leases that
+// reference it follow.
+func (c *secretStoreClient) UpdateSecret(ctx context.Context, storeID, id string, ref map[string]any) (*secretStoreSecret, error) {
+	var secret secretStoreSecret
+	if err := c.call(ctx, http.MethodPatch, c.secretURL(storeID, id), secretRequest{Ref: ref}, &secret, http.StatusOK); err != nil {
+		return nil, err
+	}
+	return &secret, nil
+}
+
+// DeleteSecret removes a secret. The server refuses with 409 while a
+// pipeline or a lease references it.
+func (c *secretStoreClient) DeleteSecret(ctx context.Context, storeID, id string) error {
+	return c.call(ctx, http.MethodDelete, c.secretURL(storeID, id), nil, nil, http.StatusNoContent)
 }
 
 func (c *secretStoreClient) CreateSchedule(ctx context.Context, in createScheduleRequest) (*pipelineSchedule, error) {
@@ -321,7 +361,7 @@ func (c *secretStoreClient) GetSchedule(ctx context.Context, id string) (*pipeli
 
 func (c *secretStoreClient) UpdateSchedule(ctx context.Context, id string, in updateScheduleRequest) (*pipelineSchedule, error) {
 	if in.Secrets == nil {
-		in.Secrets = []pipelineSecret{}
+		in.Secrets = map[string]string{}
 	}
 	var schedule pipelineSchedule
 	if err := c.call(ctx, http.MethodPut, c.scheduleURL(id), in, &schedule, http.StatusOK); err != nil {
@@ -340,7 +380,7 @@ func (c *secretStoreClient) GetLease(ctx context.Context, serviceAccountID strin
 
 // SetLease creates or repoints the account's one lease. The server performs
 // the first renewal before answering and removes the lease again when that
-// fails, so a ref the store cannot write to is a 400 here, naming the
+// fails, so a secret the store cannot write to is a 400 here, naming the
 // cause, rather than a lease that never renews.
 func (c *secretStoreClient) SetLease(ctx context.Context, serviceAccountID string, in setLeaseRequest) (*serviceAccountLease, error) {
 	var lease serviceAccountLease

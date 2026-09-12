@@ -4,43 +4,37 @@ page_title: "marmot_secret_store_google Resource - marmot"
 subcategory: ""
 description: |-
   ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
-  A Google Secret Manager store. A ref names a secret and a version: {"secret": "db-password", "version": "latest"}, with an optional project overriding the store's.
-  A store holds no secret values: pipelines reference them with a secret block on marmot_pipeline and marmot_service_account_lease writes short-lived keys through the store, both resolved at run time. Sensitive settings are encrypted at rest and never read back, so state keeps what was written.
-  Under federated auth the store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+  A Google Secret Manager store. Without workload_identity_provider the server reads with its own Application Default Credentials; with it, Marmot presents an OIDC token for the subject secretStore:{name} that the provider exchanges for a credential granted only what this store may reach.
+  A store holds no secret values. marmot_secret_store_google_secret registers where a secret lives in it; a marmot_pipeline reads such a secret into its config before each run, and a marmot_service_account_lease writes short-lived keys to one.
+  A federated store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
 ---
 
 # marmot_secret_store_google (Resource)
 
 ~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
 
-A Google Secret Manager store. A ref names a secret and a version: `{"secret": "db-password", "version": "latest"}`, with an optional `project` overriding the store's.
+A Google Secret Manager store. Without `workload_identity_provider` the server reads with its own Application Default Credentials; with it, Marmot presents an OIDC token for the subject `secretStore:{name}` that the provider exchanges for a credential granted only what this store may reach.
 
-A store holds no secret values: pipelines reference them with a `secret` block on `marmot_pipeline` and `marmot_service_account_lease` writes short-lived keys through the store, both resolved at run time. Sensitive settings are encrypted at rest and never read back, so state keeps what was written.
+A store holds no secret values. `marmot_secret_store_google_secret` registers where a secret lives in it; a `marmot_pipeline` reads such a secret into its config before each run, and a `marmot_service_account_lease` writes short-lived keys to one.
 
-Under federated auth the store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
 
 ## Example Usage
 
 ```terraform
 # A store using the server's own credentials (Application Default
-# Credentials). Refs name a secret in this project unless they set their own.
+# Credentials).
 resource "marmot_secret_store_google" "prod" {
-  name    = "gcp-prod"
-  project = "acme-secrets"
+  name = "gcp-prod"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:gcp-prod`,
+# Federated: Marmot presents an OIDC token for the subject `secretStore:gcp-prod-federated`,
 # which a Workload Identity Federation provider trusting the Marmot issuer
 # exchanges for a credential granted only the secrets this store serves.
 # The audience is derived from the provider by the server.
 resource "marmot_secret_store_google" "federated" {
-  name    = "gcp-prod-federated"
-  project = "acme-secrets"
-
-  auth {
-    method                     = "federated"
-    workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
-  }
+  name                       = "gcp-prod-federated"
+  workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
 }
 
 # Grant the store's subject on each secret it may read. The pool and
@@ -57,31 +51,21 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
 
 ### Required
 
-- `name` (String) Name of the store, unique per instance. Under federated auth it is also the store's identity: the token subject is `store:{name}`. Changing it replaces the store, since bindings on the old subject would stop matching.
+- `name` (String) Name of the store, unique per instance. On a federated store it is also the store's identity: the token subject is `secretStore:{name}`. Changing it replaces the store, since bindings on the old subject would stop matching.
 
 ### Optional
 
-- `auth` (Block, Optional) How the store authenticates to Google Secret Manager. Omit to use the server's own credentials. (see [below for nested schema](#nestedblock--auth))
-- `project` (String) Default project for refs that do not name one.
+- `audience` (String) Audience the Marmot token carries, which the backend must expect. Derived from `workload_identity_provider` by the server (`https://iam.googleapis.com/{provider}`) when unset. Only meaningful on a federated store.
+- `service_account` (String) Service account email to impersonate after federation. Empty accesses Secret Manager directly as the federated principal.
+- `workload_identity_provider` (String) Workload Identity Federation provider the Marmot token is exchanged at, `projects/{number}/locations/global/workloadIdentityPools/{pool}/providers/{provider}` (the `name` of a `google_iam_workload_identity_pool_provider`). Setting it makes the store federate.
 
 ### Read-Only
 
-- `audience` (String) Audience the store's tokens carry, which the cloud identity provider must expect: `auth.audience`, or what the server derives when that is unset. Null unless `auth.method` is `federated`.
 - `created_at` (String) Creation timestamp
 - `id` (String) Secret store ID
-- `issuer` (String) Issuer URL of the tokens the store presents: the OIDC provider to register with the cloud identity provider, once per account. Null unless `auth.method` is `federated`.
-- `subject` (String) Subject of the tokens the store presents, `store:{name}`: the value to grant on the cloud side, such as the subject of a `principal://` member on Google Cloud or the `sub` condition of an AWS role trust policy. Null unless `auth.method` is `federated`.
+- `issuer` (String) Issuer URL of the tokens the store presents: the OIDC provider to register with the cloud identity provider, once per account. Null unless the store federates.
+- `subject` (String) Subject of the tokens the store presents, `secretStore:{name}`: the value to grant on the cloud side, such as the subject of a `principal://` member on Google Cloud or the `sub` condition of an AWS role trust policy. Null unless the store federates.
 - `updated_at` (String) Last update timestamp
-
-<a id="nestedblock--auth"></a>
-### Nested Schema for `auth`
-
-Optional:
-
-- `audience` (String) Audience the Marmot token carries at the exchange. Derived from `workload_identity_provider` by the server (`//iam.googleapis.com/{provider}`) when unset. Federated method only.
-- `method` (String) How the store authenticates. `default` uses the server's own credentials; `federated` presents a Marmot-issued OIDC token for the subject `store:{name}`, which the backend exchanges for a credential granted only what this store may reach. Defaults to `default`.
-- `service_account` (String) Service account email to impersonate after federation. Empty accesses Secret Manager directly as the federated principal.
-- `workload_identity_provider` (String) Workload Identity Federation provider the Marmot token is exchanged at, `projects/{number}/locations/global/workloadIdentityPools/{pool}/providers/{provider}` (the `name` of a `google_iam_workload_identity_pool_provider`). Required for the federated method.
 
 ## Import
 

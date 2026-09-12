@@ -1,22 +1,16 @@
 # A store using the server's own credentials (Application Default
-# Credentials). Refs name a secret in this project unless they set their own.
+# Credentials).
 resource "marmot_secret_store_google" "prod" {
-  name    = "gcp-prod"
-  project = "acme-secrets"
+  name = "gcp-prod"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:gcp-prod`,
+# Federated: Marmot presents an OIDC token for the subject `secretStore:gcp-prod-federated`,
 # which a Workload Identity Federation provider trusting the Marmot issuer
 # exchanges for a credential granted only the secrets this store serves.
 # The audience is derived from the provider by the server.
 resource "marmot_secret_store_google" "federated" {
-  name    = "gcp-prod-federated"
-  project = "acme-secrets"
-
-  auth {
-    method                     = "federated"
-    workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
-  }
+  name                       = "gcp-prod-federated"
+  workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
 }
 
 # Grant the store's subject on each secret it may read. The pool and
