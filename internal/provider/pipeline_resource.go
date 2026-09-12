@@ -6,10 +6,12 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -32,8 +34,13 @@ func NewPipelineResource() resource.Resource {
 }
 
 // PipelineResource defines the resource implementation.
+//
+// Create, Read and Update go through the hand-written client because the
+// generated SDK does not carry a schedule's secrets and would drop them on
+// the way through. Delete has nothing to drop and stays on the SDK.
 type PipelineResource struct {
-	client *marmot.Client
+	client  *marmot.Client
+	secrets *secretStoreClient
 }
 
 // PipelineResourceModel describes the pipeline resource data model.
@@ -43,6 +50,7 @@ type PipelineResourceModel struct {
 	Config         jsontypes.Normalized `tfsdk:"config"`
 	CronExpression types.String         `tfsdk:"cron_expression"`
 	Enabled        types.Bool           `tfsdk:"enabled"`
+	Secrets        types.Set            `tfsdk:"secret"`
 	ID             types.String         `tfsdk:"id"`
 	ManagedBy      types.String         `tfsdk:"managed_by"`
 	LastRunStatus  types.String         `tfsdk:"last_run_status"`
@@ -50,6 +58,21 @@ type PipelineResourceModel struct {
 	NextRunAt      types.String         `tfsdk:"next_run_at"`
 	CreatedAt      types.String         `tfsdk:"created_at"`
 	UpdatedAt      types.String         `tfsdk:"updated_at"`
+}
+
+// pipelineSecretModel is one `secret` block.
+type pipelineSecretModel struct {
+	Key   types.String         `tfsdk:"key"`
+	Store types.String         `tfsdk:"store"`
+	Ref   jsontypes.Normalized `tfsdk:"ref"`
+}
+
+var pipelineSecretType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"key":   types.StringType,
+		"store": types.StringType,
+		"ref":   jsontypes.NormalizedType{},
+	},
 }
 
 func (r *PipelineResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -60,7 +83,10 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A pipeline: a plugin pointed at a source that discovers and catalogs " +
 			"assets on a recurring schedule. Rather than declaring each asset by hand, point a plugin " +
-			"at a source and Marmot keeps the catalog in sync from what it finds there.",
+			"at a source and Marmot keeps the catalog in sync from what it finds there.\n\n" +
+			"Credentials the plugin needs can be kept out of `config` and out of state: a `secret` " +
+			"block names a value in a `marmot_secret_store_*` and the key in `config` to inject it " +
+			"at, and Marmot resolves it before each run.",
 
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
@@ -81,7 +107,7 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 			"config": schema.StringAttribute{
 				MarkdownDescription: "Plugin configuration as a JSON object. The accepted keys depend on " +
 					"the plugin; the server validates this against the plugin and rejects an invalid config. " +
-					"Use `jsonencode()` to build it from HCL.",
+					"Use `jsonencode()` to build it from HCL. Leave out any key a `secret` block injects.",
 				Required:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
@@ -136,6 +162,41 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 				Computed:            true,
 			},
 		},
+
+		Blocks: map[string]schema.Block{
+			"secret": schema.SetNestedBlock{
+				MarkdownDescription: "A value resolved from a secret store before each run and injected " +
+					"into the plugin config at `key`. Only the reference is stored; the value never " +
+					"enters Terraform state or the pipeline's stored config. Registering secrets requires " +
+					"the `secretStore:use` permission and Marmot Cloud or Marmot Enterprise.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"key": schema.StringAttribute{
+							MarkdownDescription: "Dot path in the plugin config to inject the value at, " +
+								"for example `password` or `credentials.private_key`. Unique per pipeline.",
+							Required: true,
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"store": schema.StringAttribute{
+							MarkdownDescription: "ID of the `marmot_secret_store_*` resource holding the secret.",
+							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"ref": schema.StringAttribute{
+							MarkdownDescription: "Where the secret lives in the store, as a JSON object whose " +
+								"keys depend on the store type; see the store resource. Use `jsonencode()` " +
+								"to build it from HCL.",
+							Required:   true,
+							CustomType: jsontypes.NormalizedType{},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -154,6 +215,7 @@ func (r *PipelineResource) Configure(ctx context.Context, req resource.Configure
 	}
 
 	r.client = client
+	r.secrets = newSecretStoreClient(client)
 }
 
 func (r *PipelineResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -166,16 +228,19 @@ func (r *PipelineResource) Create(ctx context.Context, req resource.CreateReques
 
 	config, diags := scheduleConfig(data.Config)
 	resp.Diagnostics.Append(diags...)
+	secrets, diags := scheduleSecrets(ctx, data.Secrets)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	schedule, err := r.client.Ingestion.CreateSchedule(ctx, marmot.CreateScheduleInput{
+	schedule, err := r.secrets.CreateSchedule(ctx, createScheduleRequest{
 		Name:           data.Name.ValueString(),
 		PluginID:       data.PluginID.ValueString(),
 		Config:         config,
 		CronExpression: data.CronExpression.ValueString(),
 		Enabled:        data.Enabled.ValueBool(),
+		Secrets:        secrets,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create pipeline: %s", err))
@@ -187,7 +252,7 @@ func (r *PipelineResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	applyScheduleComputedFields(&data, schedule)
+	applyScheduleComputedFields(&data, &schedule.Schedule)
 
 	tflog.Info(ctx, "Pipeline created", map[string]any{
 		"id":   data.ID.ValueString(),
@@ -205,9 +270,9 @@ func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	schedule, err := r.client.Ingestion.GetSchedule(ctx, data.ID.ValueString())
+	schedule, err := r.secrets.GetSchedule(ctx, data.ID.ValueString())
 	if err != nil {
-		if marmot.IsNotFound(err) {
+		if errors.Is(err, errNotFound) {
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -215,10 +280,17 @@ func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	resp.Diagnostics.Append(r.updateModelFromResponse(&data, schedule)...)
+	resp.Diagnostics.Append(r.updateModelFromResponse(&data, &schedule.Schedule)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	blocks, diags := secretBlocks(ctx, schedule.Secrets)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	data.Secrets = blocks
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -239,23 +311,28 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 
 	config, diags := scheduleConfig(data.Config)
 	resp.Diagnostics.Append(diags...)
+	secrets, diags := scheduleSecrets(ctx, data.Secrets)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	schedule, err := r.client.Ingestion.UpdateSchedule(ctx, state.ID.ValueString(), marmot.UpdateScheduleInput{
+	// The full list goes every time, empty included: the server replaces
+	// what it has with what is sent, and only an absent field keeps it.
+	schedule, err := r.secrets.UpdateSchedule(ctx, state.ID.ValueString(), updateScheduleRequest{
 		Name:           data.Name.ValueString(),
 		PluginID:       data.PluginID.ValueString(),
 		Config:         config,
 		CronExpression: data.CronExpression.ValueString(),
 		Enabled:        data.Enabled.ValueBool(),
+		Secrets:        secrets,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update pipeline: %s", err))
 		return
 	}
 
-	applyScheduleComputedFields(&data, schedule)
+	applyScheduleComputedFields(&data, &schedule.Schedule)
 
 	tflog.Info(ctx, "Pipeline updated", map[string]any{
 		"id":   data.ID.ValueString(),
@@ -297,6 +374,51 @@ func scheduleConfig(config jsontypes.Normalized) (map[string]any, diag.Diagnosti
 	var out map[string]any
 	diags := config.Unmarshal(&out)
 	return out, diags
+}
+
+// scheduleSecrets turns the secret blocks into the list the API takes. The
+// result is never nil: on update an absent list keeps what the server has,
+// and only an empty one clears it.
+func scheduleSecrets(ctx context.Context, set types.Set) ([]pipelineSecret, diag.Diagnostics) {
+	out := []pipelineSecret{}
+	if set.IsNull() || set.IsUnknown() {
+		return out, nil
+	}
+	var blocks []pipelineSecretModel
+	diags := set.ElementsAs(ctx, &blocks, false)
+	if diags.HasError() {
+		return nil, diags
+	}
+	for _, b := range blocks {
+		var ref map[string]any
+		diags.Append(b.Ref.Unmarshal(&ref)...)
+		out = append(out, pipelineSecret{
+			Key:           b.Key.ValueString(),
+			SecretStoreID: b.Store.ValueString(),
+			Ref:           ref,
+		})
+	}
+	return out, diags
+}
+
+// secretBlocks turns the API's secrets into the set of blocks. No secrets is
+// an empty set, which is how Terraform represents no blocks written.
+func secretBlocks(ctx context.Context, secrets []pipelineSecret) (types.Set, diag.Diagnostics) {
+	blocks := make([]pipelineSecretModel, 0, len(secrets))
+	for _, s := range secrets {
+		encoded, err := json.Marshal(s.Ref)
+		if err != nil {
+			var diags diag.Diagnostics
+			diags.AddError("Ref Error", fmt.Sprintf("Unable to encode ref for secret %q: %s", s.Key, err))
+			return types.SetNull(pipelineSecretType), diags
+		}
+		blocks = append(blocks, pipelineSecretModel{
+			Key:   types.StringValue(s.Key),
+			Store: types.StringValue(s.SecretStoreID),
+			Ref:   jsontypes.NewNormalizedValue(string(encoded)),
+		})
+	}
+	return types.SetValueFrom(ctx, pipelineSecretType, blocks)
 }
 
 // applyScheduleComputedFields copies the server-generated (read-only) attributes
