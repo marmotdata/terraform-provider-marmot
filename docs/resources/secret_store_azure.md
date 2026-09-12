@@ -29,7 +29,7 @@ resource "marmot_secret_store_azure" "prod" {
   vault_url = "https://acme-prod.vault.azure.net"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `store:azure-prod`
+# Federated: Marmot presents an OIDC token for the subject `secretStore:azure-prod`
 # to an app registration carrying a federated credential that trusts the
 # Marmot issuer. The audience defaults to `api://AzureADTokenExchange`.
 resource "marmot_secret_store_azure" "federated" {

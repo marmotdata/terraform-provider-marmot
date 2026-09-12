@@ -199,10 +199,10 @@ func TestGetSecretStoreDecodesTheIdentity(t *testing.T) {
 		{"federated", `{
 			"id": "s1", "name": "gcp-prod", "store_type": "google",
 			"config": {"project": "acme", "auth": {"method": "federated", "workload_identity_provider": "projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot", "audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"}},
-			"identity": {"issuer": "https://acme.cloud.marmotdata.io", "subject": "store:gcp-prod", "audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"}
+			"identity": {"issuer": "https://acme.cloud.marmotdata.io", "subject": "secretStore:gcp-prod", "audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"}
 		}`, &secretStoreIdentity{
 			Issuer:   "https://acme.cloud.marmotdata.io",
-			Subject:  "store:gcp-prod",
+			Subject:  "secretStore:gcp-prod",
 			Audience: "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot",
 		}},
 		{"default credentials", `{

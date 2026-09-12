@@ -35,7 +35,7 @@ resource "marmot_secret_store_vault" "prod" {
   }
 }
 
-# Federated: Marmot presents an OIDC token for the subject `store:vault-prod`
+# Federated: Marmot presents an OIDC token for the subject `secretStore:vault-prod`
 # to a JWT auth role with `bound_subject` and `bound_audiences` set. Unset,
 # the audience is the issuer URL.
 resource "marmot_secret_store_vault" "federated" {

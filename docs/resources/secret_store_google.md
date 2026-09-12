@@ -29,7 +29,7 @@ resource "marmot_secret_store_google" "prod" {
   project = "acme-secrets"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `store:gcp-prod`,
+# Federated: Marmot presents an OIDC token for the subject `secretStore:gcp-prod`,
 # which a Workload Identity Federation provider trusting the Marmot issuer
 # exchanges for a credential granted only the secrets this store serves.
 # The audience is derived from the provider by the server.

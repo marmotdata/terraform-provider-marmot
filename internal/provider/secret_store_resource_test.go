@@ -405,7 +405,7 @@ func TestSecretStoreReadExposesTheIdentity(t *testing.T) {
 	}{
 		{"federated", &secretStoreIdentity{
 			Issuer:   "https://acme.cloud.marmotdata.io",
-			Subject:  "store:gcp-prod",
+			Subject:  "secretStore:gcp-prod",
 			Audience: "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot",
 		}},
 		{"default credentials", nil},
@@ -442,7 +442,7 @@ func TestKeepStateUnless(t *testing.T) {
 	stored := map[string]tftypes.Value{
 		"id":      str("s1"),
 		"name":    str("gcp-prod"),
-		"subject": str("store:gcp-prod"),
+		"subject": str("secretStore:gcp-prod"),
 		"auth": f.auth(t, map[string]tftypes.Value{
 			"method":                     str("federated"),
 			"workload_identity_provider": str(provider),
@@ -519,7 +519,7 @@ func TestKeepStateUnless(t *testing.T) {
 				"workload_identity_provider": str(provider),
 				"audience":                   str(derived),
 			})),
-			want: types.StringValue("store:gcp-prod"),
+			want: types.StringValue("secretStore:gcp-prod"),
 		},
 		{
 			name:  "identity changes with the auth block",

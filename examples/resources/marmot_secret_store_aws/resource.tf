@@ -5,7 +5,7 @@ resource "marmot_secret_store_aws" "prod" {
   region = "eu-west-1"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `store:aws-prod`
+# Federated: Marmot presents an OIDC token for the subject `secretStore:aws-prod`
 # and assumes a role whose trust policy names the Marmot issuer as an OIDC
 # provider and conditions on that subject. The audience defaults to
 # `sts.amazonaws.com`, the client ID registered on the OIDC provider.
@@ -36,7 +36,7 @@ data "aws_iam_policy_document" "marmot_store_trust" {
     condition {
       test     = "StringEquals"
       variable = "${local.marmot_issuer_host}:sub"
-      values   = ["store:aws-prod-federated"]
+      values   = ["secretStore:aws-prod-federated"]
     }
     condition {
       test     = "StringEquals"
