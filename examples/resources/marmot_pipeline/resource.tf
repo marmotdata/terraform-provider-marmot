@@ -1,14 +1,24 @@
+# Keyless: the pipeline presents its own identity, exchanged at a Workload
+# Identity Federation provider that trusts the Marmot instance as an OIDC
+# issuer. Marmot Cloud or Marmot Enterprise. Grant the pipeline's subject
+# on the project; no service account key exists anywhere.
 resource "marmot_pipeline" "bigquery_analytics" {
   name      = "analytics"
   plugin_id = "bigquery"
 
   config = jsonencode({
-    project_id              = "acme-analytics-prod"
-    use_default_credentials = true
+    project_id                 = "acme-analytics-prod"
+    workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
   })
 
   cron_expression = "0 */6 * * *" # every six hours
   enabled         = true
+}
+
+resource "google_project_iam_member" "marmot_bigquery" {
+  project = "acme-analytics-prod"
+  role    = "roles/bigquery.metadataViewer"
+  member  = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.marmot.name}/subject/${marmot_pipeline.bigquery_analytics.subject}"
 }
 
 # Credentials come from a secret store. The value is injected into config

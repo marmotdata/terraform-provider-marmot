@@ -5,6 +5,7 @@ subcategory: ""
 description: |-
   A pipeline: a plugin pointed at a source that discovers and catalogs assets on a recurring schedule. Rather than declaring each asset by hand, point a plugin at a source and Marmot keeps the catalog in sync from what it finds there.
   secrets maps a key in config to a marmot_secret_store_*_secret. Marmot injects the value there before each run, so credentials stay out of config and out of state.
+  A pipeline can also carry no credential at all. On Marmot Cloud or Marmot Enterprise, a plugin config that names a Workload Identity Federation provider (Google), a role to assume with web identity (AWS), or an app registration with a federated credential (Azure) makes the pipeline present its own identity: Marmot mints a short-lived token for each run and the plugin exchanges it at the cloud. Trust issuer and grant subject on the cloud side.
 ---
 
 # marmot_pipeline (Resource)
@@ -13,20 +14,32 @@ A pipeline: a plugin pointed at a source that discovers and catalogs assets on a
 
 `secrets` maps a key in `config` to a `marmot_secret_store_*_secret`. Marmot injects the value there before each run, so credentials stay out of `config` and out of state.
 
+A pipeline can also carry no credential at all. On Marmot Cloud or Marmot Enterprise, a plugin config that names a Workload Identity Federation provider (Google), a role to assume with web identity (AWS), or an app registration with a federated credential (Azure) makes the pipeline present its own identity: Marmot mints a short-lived token for each run and the plugin exchanges it at the cloud. Trust `issuer` and grant `subject` on the cloud side.
+
 ## Example Usage
 
 ```terraform
+# Keyless: the pipeline presents its own identity, exchanged at a Workload
+# Identity Federation provider that trusts the Marmot instance as an OIDC
+# issuer. Marmot Cloud or Marmot Enterprise. Grant the pipeline's subject
+# on the project; no service account key exists anywhere.
 resource "marmot_pipeline" "bigquery_analytics" {
   name      = "analytics"
   plugin_id = "bigquery"
 
   config = jsonencode({
-    project_id              = "acme-analytics-prod"
-    use_default_credentials = true
+    project_id                 = "acme-analytics-prod"
+    workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
   })
 
   cron_expression = "0 */6 * * *" # every six hours
   enabled         = true
+}
+
+resource "google_project_iam_member" "marmot_bigquery" {
+  project = "acme-analytics-prod"
+  role    = "roles/bigquery.metadataViewer"
+  member  = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.marmot.name}/subject/${marmot_pipeline.bigquery_analytics.subject}"
 }
 
 # Credentials come from a secret store. The value is injected into config
@@ -86,10 +99,12 @@ resource "marmot_pipeline" "postgres_orders" {
 
 - `created_at` (String) Creation timestamp
 - `id` (String) Pipeline ID
+- `issuer` (String) Issuer URL of the tokens the pipeline presents when its plugin config federates. This is what to register as an OIDC provider on the cloud side. Null on a server without a workload identity issuer.
 - `last_run_at` (String) Timestamp of the most recent run
 - `last_run_status` (String) Status of the most recent run
 - `managed_by` (String) External controller that runs this pipeline, such as the Marmot Kubernetes operator. Empty for Terraform-managed pipelines, which the server runs on their cron.
 - `next_run_at` (String) Timestamp of the next scheduled run
+- `subject` (String) Subject of the tokens the pipeline presents, `pipeline:{name}`. This is what to grant on the cloud side; renaming the pipeline changes it. Null on a server without a workload identity issuer.
 - `updated_at` (String) Last update timestamp
 
 ## Import

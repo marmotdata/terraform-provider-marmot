@@ -52,6 +52,8 @@ type PipelineResourceModel struct {
 	Secrets        types.Map            `tfsdk:"secrets"`
 	ID             types.String         `tfsdk:"id"`
 	ManagedBy      types.String         `tfsdk:"managed_by"`
+	Issuer         types.String         `tfsdk:"issuer"`
+	Subject        types.String         `tfsdk:"subject"`
 	LastRunStatus  types.String         `tfsdk:"last_run_status"`
 	LastRunAt      types.String         `tfsdk:"last_run_at"`
 	NextRunAt      types.String         `tfsdk:"next_run_at"`
@@ -69,7 +71,12 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 			"assets on a recurring schedule. Rather than declaring each asset by hand, point a plugin " +
 			"at a source and Marmot keeps the catalog in sync from what it finds there.\n\n" +
 			"`secrets` maps a key in `config` to a `marmot_secret_store_*_secret`. Marmot injects " +
-			"the value there before each run, so credentials stay out of `config` and out of state.",
+			"the value there before each run, so credentials stay out of `config` and out of state.\n\n" +
+			"A pipeline can also carry no credential at all. On Marmot Cloud or Marmot Enterprise, a " +
+			"plugin config that names a Workload Identity Federation provider (Google), a role to assume " +
+			"with web identity (AWS), or an app registration with a federated credential (Azure) makes the " +
+			"pipeline present its own identity: Marmot mints a short-lived token for each run and the plugin " +
+			"exchanges it at the cloud. Trust `issuer` and grant `subject` on the cloud side.",
 
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
@@ -127,6 +134,18 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
+			},
+			"issuer": schema.StringAttribute{
+				MarkdownDescription: "Issuer URL of the tokens the pipeline presents when its plugin config " +
+					"federates. This is what to register as an OIDC provider on the cloud side. Null on a " +
+					"server without a workload identity issuer.",
+				Computed: true,
+			},
+			"subject": schema.StringAttribute{
+				MarkdownDescription: "Subject of the tokens the pipeline presents, `pipeline:{name}`. This is " +
+					"what to grant on the cloud side; renaming the pipeline changes it. Null on a server " +
+					"without a workload identity issuer.",
+				Computed: true,
 			},
 			"managed_by": schema.StringAttribute{
 				MarkdownDescription: "External controller that runs this pipeline, such as the Marmot " +
@@ -212,7 +231,7 @@ func (r *PipelineResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	applyScheduleComputedFields(&data, &schedule.Schedule)
+	applyScheduleComputedFields(&data, schedule)
 
 	tflog.Info(ctx, "Pipeline created", map[string]any{
 		"id":   data.ID.ValueString(),
@@ -240,7 +259,7 @@ func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	resp.Diagnostics.Append(r.updateModelFromResponse(&data, &schedule.Schedule)...)
+	resp.Diagnostics.Append(r.updateModelFromResponse(&data, schedule)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -292,7 +311,7 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	applyScheduleComputedFields(&data, &schedule.Schedule)
+	applyScheduleComputedFields(&data, schedule)
 
 	tflog.Info(ctx, "Pipeline updated", map[string]any{
 		"id":   data.ID.ValueString(),
@@ -363,8 +382,13 @@ func secretsValue(ctx context.Context, secrets map[string]string, prior types.Ma
 // from an API response onto the model, leaving every configured attribute
 // untouched. The configured `config` is kept as written so a plan-time equal
 // value never trips an inconsistent-result error after apply.
-func applyScheduleComputedFields(model *PipelineResourceModel, schedule *marmot.Schedule) {
+func applyScheduleComputedFields(model *PipelineResourceModel, schedule *pipelineSchedule) {
 	model.ID = types.StringValue(schedule.ID)
+	model.Issuer, model.Subject = types.StringNull(), types.StringNull()
+	if schedule.Identity != nil {
+		model.Issuer = types.StringValue(schedule.Identity.Issuer)
+		model.Subject = types.StringValue(schedule.Identity.Subject)
+	}
 	model.Enabled = types.BoolValue(schedule.Enabled)
 	model.ManagedBy = types.StringValue(schedule.ManagedBy)
 	model.LastRunStatus = types.StringValue(schedule.LastRunStatus)
@@ -376,7 +400,7 @@ func applyScheduleComputedFields(model *PipelineResourceModel, schedule *marmot.
 
 // updateModelFromResponse refreshes every attribute from the API, including the
 // configured ones, so a Read reflects drift made outside Terraform.
-func (r *PipelineResource) updateModelFromResponse(model *PipelineResourceModel, schedule *marmot.Schedule) diag.Diagnostics {
+func (r *PipelineResource) updateModelFromResponse(model *PipelineResourceModel, schedule *pipelineSchedule) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	model.Name = types.StringValue(schedule.Name)

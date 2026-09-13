@@ -87,11 +87,21 @@ type secretRequest struct {
 	Ref map[string]any `json:"ref"`
 }
 
-// pipelineSchedule is the SDK's schedule plus the secrets the SDK drops:
-// config key to secret id.
+// pipelineSchedule is the SDK's schedule plus what the SDK drops: the
+// secrets (config key to secret id) and the identity the pipeline
+// presents when its plugin config federates.
 type pipelineSchedule struct {
 	marmot.Schedule
-	Secrets map[string]string `json:"secrets,omitempty"`
+	Secrets  map[string]string `json:"secrets,omitempty"`
+	Identity *pipelineIdentity `json:"identity,omitempty"`
+}
+
+// pipelineIdentity is what a cloud must trust for the pipeline: the
+// issuer and the subject of the tokens Marmot mints for it. Absent on
+// servers without a workload identity issuer.
+type pipelineIdentity struct {
+	Issuer  string `json:"issuer"`
+	Subject string `json:"subject"`
 }
 
 // createScheduleRequest is what the SDK sends plus the secrets.
