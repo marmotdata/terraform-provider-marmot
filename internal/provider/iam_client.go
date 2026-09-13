@@ -13,6 +13,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -90,11 +91,13 @@ func (c *iamClient) noPolicyAPI(status int) (*errNoPolicyAPI, bool) {
 	return &errNoPolicyAPI{host: c.host, status: status}, true
 }
 
+// The resource id comes from configuration and from import ids, so it is
+// escaped: an unescaped one could address another resource's policy.
 func (c *iamClient) policyURL(resourceType, resourceID string) string {
 	if resourceID == "" {
 		resourceID = "-"
 	}
-	return fmt.Sprintf("%s/api/v1/iam/%s/%s/policy", c.host, resourceType, resourceID)
+	return fmt.Sprintf("%s/api/v1/iam/%s/%s/policy", c.host, resourceType, url.PathEscape(resourceID))
 }
 
 func (c *iamClient) do(ctx context.Context, method, url string, body any) ([]byte, int, error) {

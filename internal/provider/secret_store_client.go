@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -225,16 +226,20 @@ func (c *secretStoreClient) call(ctx context.Context, method, url string, body, 
 	return nil
 }
 
+// Ids reach these from configuration and from import ids, so they are
+// escaped: an id carrying "?" or ".." would otherwise address a
+// different resource than the one Terraform is managing, and a DELETE
+// would land somewhere else entirely.
 func (c *secretStoreClient) storeURL(id string) string {
-	return c.host + "/api/v1/secret-stores/" + id
+	return c.host + "/api/v1/secret-stores/" + url.PathEscape(id)
 }
 
 func (c *secretStoreClient) secretURL(storeID, id string) string {
-	return c.storeURL(storeID) + "/secrets/" + id
+	return c.storeURL(storeID) + "/secrets/" + url.PathEscape(id)
 }
 
 func (c *secretStoreClient) scheduleURL(id string) string {
-	return c.host + "/api/v1/ingestion/schedules/" + id
+	return c.host + "/api/v1/ingestion/schedules/" + url.PathEscape(id)
 }
 
 func (c *secretStoreClient) CreateSecretStore(ctx context.Context, in createSecretStoreRequest) (*secretStore, error) {

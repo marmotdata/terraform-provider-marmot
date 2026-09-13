@@ -489,3 +489,20 @@ func TestGetScheduleReportsNotFound(t *testing.T) {
 		t.Fatalf("got %v, want errNotFound", err)
 	}
 }
+
+// An id from configuration or an import must never be able to address a
+// different resource than the one Terraform manages.
+func TestURLsEscapeIDs(t *testing.T) {
+	c := &secretStoreClient{host: "https://marmot.test"}
+	got := c.secretURL("store-1?x=", "secret-1")
+	if strings.Contains(got, "?") {
+		t.Errorf("secretURL = %s, want the store id escaped", got)
+	}
+	if got := c.storeURL("../../users"); strings.Contains(got, "../") {
+		t.Errorf("storeURL = %s, want the id escaped", got)
+	}
+	iam := &iamClient{host: "https://marmot.test"}
+	if got := iam.policyURL("secretStore", "store-1?x="); strings.Contains(got, "?x=") {
+		t.Errorf("policyURL = %s, want the id escaped", got)
+	}
+}
