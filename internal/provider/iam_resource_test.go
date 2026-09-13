@@ -30,8 +30,8 @@ func targetNamed(t *testing.T, typePrefix string) iamTarget {
 	return iamTarget{}
 }
 
-// iamFixture is the secret store target at one authority level with the
-// tftypes shape a test needs to build plans and states for it.
+// iamFixture is the secret store target at one authority level and its
+// tftypes shape.
 type iamFixture struct {
 	r       *iamResource
 	schema  schema.Schema
@@ -59,8 +59,6 @@ func (f iamFixture) state(t *testing.T, attrs map[string]tftypes.Value) tfsdk.St
 	return tfsdk.State{Schema: f.schema, Raw: objectOf(t, f.objType, attrs)}
 }
 
-// Every target is crossed with the three authority levels, each type name
-// once, and every schema passes the framework's own checks.
 func TestIAMResourcesCoverEveryTargetAtEveryLevel(t *testing.T) {
 	var names []string
 	for _, newResource := range IAMResources() {
@@ -83,8 +81,6 @@ func TestIAMResourcesCoverEveryTargetAtEveryLevel(t *testing.T) {
 	}
 }
 
-// A store is addressed by its id, like every target below the root, and the
-// API path uses the server's own spelling of the type.
 func TestSecretStoreIAMTarget(t *testing.T) {
 	target := targetNamed(t, "secret_store")
 	if target.apiType != "secretStore" || target.idPrefix != "secret_store" || target.idAttr != "secret_store_id" {
@@ -103,8 +99,6 @@ func TestSecretStoreIAMTarget(t *testing.T) {
 	}
 }
 
-// A grant on a store goes to the store's policy, as one binding among any
-// the store already has.
 func TestSecretStoreIAMMemberWritesTheStorePolicy(t *testing.T) {
 	var written iamPolicy
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -149,14 +143,12 @@ func TestSecretStoreIAMMemberWritesTheStorePolicy(t *testing.T) {
 	if got, want := stringAt(t, state, path.Root("id")).ValueString(), "secret_store/s1/roles/secretStore.reader/serviceAccount:sa1"; got != want {
 		t.Errorf("id = %s, want %s", got, want)
 	}
-	// The role goes back as configured: normalisation is for the wire only.
+	// The role goes back as configured.
 	if got := stringAt(t, state, path.Root("role")).ValueString(); got != "roles/secretStore.reader" {
 		t.Errorf("role = %s, want it as configured", got)
 	}
 }
 
-// A member the store's policy no longer carries is gone from state; one it
-// does carry stays, with the etag it was read at.
 func TestSecretStoreIAMMemberReadFollowsThePolicy(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -194,7 +186,6 @@ func TestSecretStoreIAMMemberReadFollowsThePolicy(t *testing.T) {
 	}
 }
 
-// An import id is the id this resource writes, so the two round trip.
 func TestSecretStoreIAMImportRoundTrips(t *testing.T) {
 	tests := []struct {
 		kind iamKind
@@ -226,7 +217,6 @@ func TestSecretStoreIAMImportRoundTrips(t *testing.T) {
 	}
 }
 
-// An id for another target is refused rather than read as a store id.
 func TestSecretStoreIAMImportRejectsAnotherTarget(t *testing.T) {
 	f := newSecretStoreIAMFixture(t, iamKindPolicy, nil)
 	var resp resource.ImportStateResponse

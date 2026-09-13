@@ -3,58 +3,51 @@
 page_title: "marmot_secret_store_google_secret Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
-  A secret in a Google Secret Manager store: a secret and a version in a project.
-  Only the location is registered; the value is read from Google Secret Manager when a marmot_pipeline runs, or through the store's identity by a service account holding secretStore:read on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the secretStore:use permission.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no secret-store API, so this resource fails on apply. Marmot Cloud https://cloud.marmotdata.io includes it on every plan.
+  A secret in a Google Secret Manager store.
+  Only the location is registered. The value is read from Google Secret Manager when a marmot_pipeline runs, or by a service account holding secretStore.reader on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires secretStore:use on the store.
 ---
 
 # marmot_secret_store_google_secret (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no secret-store API, so this resource fails on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan.
 
-A secret in a Google Secret Manager store: a secret and a version in a project.
+A secret in a Google Secret Manager store.
 
-Only the location is registered; the value is read from Google Secret Manager when a `marmot_pipeline` runs, or through the store's identity by a service account holding `secretStore:read` on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the `secretStore:use` permission.
+Only the location is registered. The value is read from Google Secret Manager when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires `secretStore:use` on the store.
 
 ## Example Usage
 
 ```terraform
 resource "marmot_secret_store_google" "prod" {
-  name                       = "gcp-prod"
-  workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
+  name = "gcp-prod"
 }
 
-# The latest version of a global secret.
+resource "google_secret_manager_secret" "db_password" {
+  secret_id = "orders-db-password"
+
+  replication {
+    auto {}
+  }
+}
+
 resource "marmot_secret_store_google_secret" "db_password" {
   store     = marmot_secret_store_google.prod.id
-  project   = "acme-secrets"
-  secret_id = "orders-db-password"
+  project   = google_secret_manager_secret.db_password.project
+  secret_id = google_secret_manager_secret.db_password.secret_id
 }
 
-# A pinned version of a regional secret.
+# A regional secret.
+resource "google_secret_manager_regional_secret" "signing_key" {
+  secret_id = "signing-key"
+  location  = "europe-west1"
+}
+
 resource "marmot_secret_store_google_secret" "signing_key" {
   store     = marmot_secret_store_google.prod.id
-  project   = "acme-secrets"
-  location  = "europe-west1"
-  secret_id = "signing-key"
-  version   = "3"
-}
-
-resource "marmot_pipeline" "postgres_orders" {
-  name      = "orders"
-  plugin_id = "postgresql"
-
-  config = jsonencode({
-    host     = "orders-db.acme.internal"
-    database = "orders"
-    user     = "marmot"
-  })
-
-  secrets = {
-    password = marmot_secret_store_google_secret.db_password.id
-  }
-
-  cron_expression = "0 * * * *"
+  project   = google_secret_manager_regional_secret.signing_key.project
+  location  = google_secret_manager_regional_secret.signing_key.location
+  secret_id = google_secret_manager_regional_secret.signing_key.secret_id
 }
 ```
 
@@ -63,9 +56,9 @@ resource "marmot_pipeline" "postgres_orders" {
 
 ### Required
 
-- `project` (String) Project ID or number the secret lives in.
+- `project` (String) Project ID or number of the secret.
 - `secret_id` (String) Name of the secret.
-- `store` (String) ID of the `marmot_secret_store_google` the secret lives in. Changing it replaces the secret.
+- `store` (String) ID of the `marmot_secret_store_google`. Changing it replaces the secret.
 
 ### Optional
 
@@ -74,7 +67,7 @@ resource "marmot_pipeline" "postgres_orders" {
 
 ### Read-Only
 
-- `id` (String) Secret ID, what a `marmot_pipeline` references
+- `id` (String) Secret ID, referenced by `marmot_pipeline`
 
 ## Import
 

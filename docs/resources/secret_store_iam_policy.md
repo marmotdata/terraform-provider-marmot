@@ -3,30 +3,43 @@
 page_title: "marmot_secret_store_iam_policy Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
-  Authoritative. Sets the complete access policy on a secret store and the secrets registered in it, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource: they will fight.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
+  Authoritative. Sets the complete access policy on a secret store and the secrets registered in it, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_secret_store_iam_policy (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
-Authoritative. Sets the complete access policy on a secret store and the secrets registered in it, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource: they will fight.
+Authoritative. Sets the complete access policy on a secret store and the secrets registered in it, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource.
 
 Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 
 ## Example Usage
 
 ```terraform
-# Owns the store's policy outright: anything not listed here is revoked on the
-# next apply. Never point an _iam_binding or _iam_member at a store managed
-# this way, or the two will spend every apply undoing each other.
+resource "marmot_secret_store_vault" "prod" {
+  name    = "vault-prod"
+  address = "https://vault.acme.internal"
+}
+
+resource "marmot_service_account" "analytics_agent" {
+  name = "analytics-agent"
+}
+
+resource "marmot_team" "data_platform" {
+  name = "data-platform"
+}
+
+# Owns the whole policy. Anything not listed is revoked on the next apply,
+# so don't also point an _iam_binding or _iam_member at this store.
 data "marmot_iam_policy" "vault_prod" {
   binding {
     role    = "secretStore.reader"
     members = ["serviceAccount:${marmot_service_account.analytics_agent.id}"]
   }
+
   binding {
     role    = "secretStore.user"
     members = ["group:${marmot_team.data_platform.id}"]

@@ -14,10 +14,6 @@ import (
 	marmot "github.com/marmotdata/marmot/sdk/go"
 )
 
-// A key that lives for one Terraform operation: created on Open, revoked on
-// Close, never written to plan or state. The managed resource of the same name
-// handles durable keys.
-
 var _ ephemeral.EphemeralResource = &ServiceAccountAPIKeyEphemeralResource{}
 var _ ephemeral.EphemeralResourceWithClose = &ServiceAccountAPIKeyEphemeralResource{}
 var _ ephemeral.EphemeralResourceWithConfigure = &ServiceAccountAPIKeyEphemeralResource{}
@@ -50,9 +46,8 @@ func (r *ServiceAccountAPIKeyEphemeralResource) Metadata(_ context.Context, req 
 
 func (r *ServiceAccountAPIKeyEphemeralResource) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A service-account API key that lives for one Terraform operation: " +
-			"created on open, revoked on close, never stored in plan or state. Pass it to other " +
-			"providers or write-only attributes. For a durable key, use the managed " +
+		MarkdownDescription: "A service account API key that lives for one Terraform operation: " +
+			"created on open, revoked on close, never in plan or state. For a durable key use the " +
 			"`marmot_service_account_api_key` resource.",
 
 		Attributes: map[string]schema.Attribute{
@@ -61,14 +56,12 @@ func (r *ServiceAccountAPIKeyEphemeralResource) Schema(_ context.Context, _ ephe
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Key name. Defaults to `terraform-ephemeral`. Counts toward " +
-					"the account's 5-key limit while the run lasts.",
-				Optional: true,
+				MarkdownDescription: "Key name. Defaults to `terraform-ephemeral`.",
+				Optional:            true,
 			},
 			"expires_in_days": schema.Int64Attribute{
-				MarkdownDescription: "Days until the key expires server-side. Defaults to 1 so an " +
-					"orphaned key dies on its own.",
-				Optional: true,
+				MarkdownDescription: "Days until the key expires. Defaults to 1.",
+				Optional:            true,
 			},
 			"key": schema.StringAttribute{
 				MarkdownDescription: "The plaintext API key.",
@@ -99,7 +92,7 @@ func (r *ServiceAccountAPIKeyEphemeralResource) Configure(_ context.Context, req
 func (r *ServiceAccountAPIKeyEphemeralResource) Open(ctx context.Context, req ephemeral.OpenRequest, resp *ephemeral.OpenResponse) {
 	if r.client == nil {
 		resp.Diagnostics.AddError("Provider Not Configured",
-			"The Marmot client was not configured before Open; this is a bug in the provider.")
+			"The Marmot client was not configured before Open.")
 		return
 	}
 	var data serviceAccountAPIKeyEphemeralModel
@@ -157,7 +150,7 @@ func (r *ServiceAccountAPIKeyEphemeralResource) Close(ctx context.Context, req e
 	err := r.client.ServiceAccounts.DeleteAPIKey(ctx, cleanup.ServiceAccountID, cleanup.KeyID)
 	if err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Failed to revoke ephemeral API key",
-			fmt.Sprintf("Key %s on service account %s was not revoked; remove it by hand or wait "+
-				"for it to expire: %s", cleanup.KeyID, cleanup.ServiceAccountID, err.Error()))
+			fmt.Sprintf("Key %s on service account %s was not revoked, remove it by hand: %s",
+				cleanup.KeyID, cleanup.ServiceAccountID, err.Error()))
 	}
 }

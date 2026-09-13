@@ -24,12 +24,8 @@ import (
 	marmot "github.com/marmotdata/marmot/sdk/go"
 )
 
-// iamKind is how much of a resource's policy a Terraform resource owns.
-//
-// The three levels mirror the google_*_iam_* family, and for the same reason:
-// one team wanting to manage the whole policy and another wanting to add a
-// single member are different jobs, and conflating them makes one of them
-// destructive.
+// iamKind is how much of a resource's policy a Terraform resource owns. The
+// three levels mirror the google_*_iam_* family.
 type iamKind int
 
 const (
@@ -49,9 +45,7 @@ type iamTarget struct {
 	typePrefix string
 	// apiType is the path segment the API uses, in the API's own camelCase.
 	apiType string
-	// idPrefix is the first segment of a Terraform id and of an import id. It
-	// follows the resource type name, not apiType, so an import id reads like
-	// the resource it addresses.
+	// idPrefix is the first segment of a Terraform id and of an import id.
 	idPrefix string
 	// idAttr is the Terraform attribute naming the resource; empty for the
 	// organization, which is the root and has no id.
@@ -144,7 +138,7 @@ func (r *iamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	case iamKindPolicy:
 		description = "Authoritative. Sets the complete access policy on " + r.target.label +
 			", removing any binding not present in the configuration. Do not use alongside " +
-			"`_iam_binding` or `_iam_member` for the same resource: they will fight."
+			"`_iam_binding` or `_iam_member` for the same resource."
 		attrs["policy_data"] = schema.StringAttribute{
 			MarkdownDescription: "Policy JSON, normally taken from the `marmot_iam_policy` data source.",
 			Required:            true,
@@ -161,12 +155,12 @@ func (r *iamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 		attrs["members"] = schema.SetAttribute{
 			MarkdownDescription: "Members holding the role: `user:{id}`, `group:{team id}`, " +
 				"`serviceAccount:{id}`, or `allAuthenticated`. At least one is required; " +
-				"a role with no members is not a grant, so remove the resource instead.",
+				"remove the resource to grant the role to nobody.",
 			Required:    true,
 			ElementType: types.StringType,
 			Validators: []validator.Set{
-				// Marmot drops a binding that holds nobody, so an empty set
-				// would apply and then read back as absent, forever.
+				// Marmot drops a binding with no members, so an empty set
+				// would never read back.
 				setvalidator.SizeAtLeast(1),
 			},
 		}
@@ -196,15 +190,13 @@ func (r *iamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 }
 
-// iamCloudOnly heads every access-grant page. Configuring the provider makes no
-// request, and a resource being created is not read beforehand, so without this
-// the first clue is a failed apply.
+// iamCloudOnly heads every access-grant page.
 const iamCloudOnly = "~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot " +
-	"serves no access-policy API, so these resources fail on apply rather than at plan. " +
-	"[Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.\n\n"
+	"has no access-policy API, so these resources fail on apply. " +
+	"[Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.\n\n"
 
-// The framework requires a model struct matching the schema exactly, and the
-// schema differs per kind, so CRUD reads and writes attributes individually.
+// The schema differs per kind, so CRUD reads and writes attributes one by
+// one instead of through a model struct.
 
 func (r *iamResource) targetID(ctx context.Context, src attrGetter, diags *diag.Diagnostics) (string, bool) {
 	if r.target.idAttr == "" {
@@ -223,9 +215,8 @@ type attrGetter interface {
 	GetAttribute(ctx context.Context, p path.Path, target any) diag.Diagnostics
 }
 
-// stateID has to distinguish two resources managing different roles on one
-// catalog resource, so the role — and for a member resource the member — are
-// part of it.
+// stateID includes the role, and for a member resource the member, so two
+// resources on one target get distinct ids.
 func (r *iamResource) stateID(resourceID, role, member string) string {
 	parts := []string{r.target.idPrefix}
 	if resourceID != "" {
@@ -287,8 +278,8 @@ func (r *iamResource) apply(ctx context.Context, plan attrGetter, state *tfsdk.S
 		}
 	}
 
-	// Parsed before anything is written, so a malformed document is an error
-	// rather than a policy silently emptied by a failed decode.
+	// Parsed before anything is written, so a malformed document does not
+	// empty the policy.
 	var desired iamPolicy
 	if r.kind == iamKindPolicy {
 		if err := json.Unmarshal([]byte(policyData.ValueString()), &desired); err != nil {
@@ -327,12 +318,8 @@ func (r *iamResource) apply(ctx context.Context, plan attrGetter, state *tfsdk.S
 	r.persist(ctx, state, diags, resourceID, roleName, member.ValueString(), role, members, policyData, updated)
 }
 
-// persist writes the applied grant back to state.
-//
-// role and members go back exactly as configured, never normalised: Terraform
-// requires the state of a non-computed attribute to equal the plan, so
-// rewriting "roles/viewer" to "viewer" fails the apply with "provider produced
-// inconsistent result". Normalisation belongs on the wire, not in state.
+// persist writes the applied grant back to state. role and members go back
+// as configured, not normalised, or Terraform reports an inconsistent result.
 func (r *iamResource) persist(
 	ctx context.Context,
 	state *tfsdk.State,
@@ -392,8 +379,8 @@ func (r *iamResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	switch r.kind {
 	case iamKindPolicy:
 		remote := iamPolicy{Bindings: policy.Bindings}
-		// Keep the configured document while it still says what the server
-		// does, so formatting is not mistaken for a change in access.
+		// Keep the configured document while it matches the server, so
+		// formatting is not read as a change.
 		var stored iamPolicy
 		if err := json.Unmarshal([]byte(policyData.ValueString()), &stored); err == nil && sameBindings(stored, remote) {
 			break
@@ -408,8 +395,7 @@ func (r *iamResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	case iamKindBinding:
 		current := policy.bindingFor(roleName)
 		if len(current) == 0 {
-			// The role holds nobody, so this resource no longer describes
-			// anything that exists.
+			// The role holds nobody, so the binding is gone.
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -447,8 +433,7 @@ func (r *iamResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	err := r.client.modifyPolicy(ctx, r.target.apiType, resourceID, func(p *iamPolicy) {
 		switch r.kind {
 		case iamKindPolicy:
-			// Destroying an authoritative policy clears it, which is what
-			// "authoritative" means: this resource owned the whole thing.
+			// The resource owned the whole policy, so destroying it clears it.
 			p.Bindings = nil
 		case iamKindBinding:
 			p.setRole(roleName, nil)
@@ -457,9 +442,8 @@ func (r *iamResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		}
 	})
 	if err != nil {
-		// Deleting the target takes its policy with it, and the server then
-		// refuses every write addressed to it — including this revoke. Ask
-		// what the policy says now rather than matching on the error text.
+		// A deleted target refuses writes, this revoke included. Check what
+		// the policy says now instead of matching on the error text.
 		if current, readErr := r.client.GetPolicy(ctx, r.target.apiType, resourceID); readErr == nil && r.revoked(current, roleName, member.ValueString()) {
 			tflog.Info(ctx, "Marmot access grant was already gone", map[string]any{
 				"resource_type": r.target.apiType,
@@ -484,8 +468,8 @@ func (r *iamResource) revoked(policy *iamPolicy, roleName, member string) bool {
 	}
 }
 
-// ImportState accepts the same id this resource writes, so an import round
-// trips: "asset/{id}/roles/{role}" for a binding, plus "/{member}" for a member.
+// ImportState takes the id this resource writes: "asset/{id}/roles/{role}"
+// for a binding, plus "/{member}" for a member.
 func (r *iamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	parts := strings.Split(req.ID, "/")
 	if len(parts) < 1 || parts[0] != r.target.idPrefix {

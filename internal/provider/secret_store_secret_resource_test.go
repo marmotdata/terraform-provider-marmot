@@ -27,8 +27,7 @@ func secretKindNamed(t *testing.T, storeType string) secretKind {
 	return secretKind{}
 }
 
-// secretFixture is one store type's secret resource with the tftypes shape
-// a test needs to build plans and states for it.
+// secretFixture is one store type's secret resource and its tftypes shape.
 type secretFixture struct {
 	r       *secretResource
 	schema  schema.Schema
@@ -66,9 +65,8 @@ func num(n int64) tftypes.Value {
 	return tftypes.NewValue(tftypes.Number, n)
 }
 
-// Every secret resource is addressed by its store, and a default the server
-// would apply is mirrored so it always goes on the wire: the server stores
-// the ref as sent, so an absent key would read back as null.
+// A default the server would apply is mirrored so it always goes on the
+// wire; the server stores the ref as sent.
 func TestSecretSchemaShape(t *testing.T) {
 	defaulted := map[string]string{
 		"google": "version",
@@ -107,8 +105,7 @@ func TestSecretSchemaShape(t *testing.T) {
 	}
 }
 
-// Only what is set goes on the wire, and an integer attribute goes as a
-// number, which is what the store binary's ref schema expects.
+// Only what is set goes on the wire; an integer attribute goes as a number.
 func TestSecretRefSendsOnlyWhatIsSet(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -154,8 +151,7 @@ func TestSecretRefSendsOnlyWhatIsSet(t *testing.T) {
 	}
 }
 
-// The ref reads back as the server holds it: JSON numbers land in the
-// integer attribute, and a key not returned is null.
+// JSON numbers land in the integer attribute; a key not returned is null.
 func TestSecretReadTakesTheRef(t *testing.T) {
 	f := newSecretFixture(t, "vault")
 	state := f.persist(t, &secretStoreSecret{
@@ -188,8 +184,6 @@ func TestSecretReadTakesTheRef(t *testing.T) {
 	}
 }
 
-// A secret is addressed by its store and its own id, so the import id
-// carries both.
 func TestSecretImportID(t *testing.T) {
 	f := newSecretFixture(t, "aws")
 

@@ -3,14 +3,14 @@
 page_title: "marmot_asset_iam_member Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
   Non-authoritative. Grants one member one role on an asset, leaving every other member and role untouched.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_asset_iam_member (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
 Non-authoritative. Grants one member one role on an asset, leaving every other member and role untouched.
 
@@ -19,9 +19,7 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# Adds one member to one role and leaves every other grant on the asset alone.
-# Reach for this when more than one configuration grants access to the same
-# asset, because neither will quietly undo the other's work.
+# Adds one member to one role and leaves the rest of the policy alone.
 resource "marmot_asset_iam_member" "etl_reads_orders" {
   asset_id = marmot_asset.orders.id
   role     = "catalog.viewer"

@@ -19,11 +19,8 @@ import (
 	"github.com/marmotdata/marmot/sdk/go/auth"
 )
 
-// secretStoreClient talks to the secret-store endpoints directly rather than
-// through the generated SDK, which does not cover them: the stores, the
-// secrets registered in them, and the secrets bound to a pipeline. It reuses
-// the SDK client's resolved host and credential so the provider keeps one
-// authentication story.
+// secretStoreClient calls the secret-store endpoints, which the generated
+// SDK does not cover, with the SDK client's host and credential.
 type secretStoreClient struct {
 	host string
 	cred auth.Credential
@@ -38,22 +35,20 @@ func newSecretStoreClient(c *marmot.Client) *secretStoreClient {
 	}
 }
 
-// secretStore is a configured store: a type and how to reach its backend.
-// Config comes back as the server normalised it, defaults and derived
-// values filled in.
+// secretStore is a store as the server returns it, config normalised.
 type secretStore struct {
 	ID        string         `json:"id"`
 	Name      string         `json:"name"`
 	StoreType string         `json:"store_type"`
 	Config    map[string]any `json:"config"`
-	// Identity is present only when the store federates.
+	// Identity is set only when the store federates.
 	Identity  *secretStoreIdentity `json:"identity,omitempty"`
 	CreatedAt string               `json:"created_at"`
 	UpdatedAt string               `json:"updated_at"`
 }
 
 // secretStoreIdentity is the OIDC identity a federated store presents to
-// its backend: what the customer trusts and grants on their side.
+// its backend.
 type secretStoreIdentity struct {
 	Issuer   string `json:"issuer"`
 	Subject  string `json:"subject"`
@@ -66,22 +61,20 @@ type createSecretStoreRequest struct {
 	Config    map[string]any `json:"config"`
 }
 
-// updateSecretStoreRequest replaces the stored config. The name is not
-// sent: the resource replaces the store on a name change, since a
-// federated store's subject is derived from it.
+// updateSecretStoreRequest replaces the config. The name is not sent; the
+// resource replaces the store on a rename.
 type updateSecretStoreRequest struct {
 	Config map[string]any `json:"config"`
 }
 
-// secretStoreValidation is the store binary's verdict on the stored config.
+// secretStoreValidation is the store binary's verdict on the config.
 type secretStoreValidation struct {
 	Valid bool   `json:"valid"`
 	Error string `json:"error,omitempty"`
 }
 
-// secretStoreSecret is one secret registered in a store: where it lives, in
-// the store type's own terms. Pipelines reference it by ID. The ref comes
-// back as it was sent.
+// secretStoreSecret is a secret registered in a store. The ref comes back
+// as sent.
 type secretStoreSecret struct {
 	ID            string         `json:"id"`
 	SecretStoreID string         `json:"secret_store_id"`
@@ -95,14 +88,13 @@ type secretRequest struct {
 }
 
 // pipelineSchedule is the SDK's schedule plus the secrets the SDK drops:
-// config key (a dot path) to secret id, absent when there are none.
+// config key to secret id.
 type pipelineSchedule struct {
 	marmot.Schedule
 	Secrets map[string]string `json:"secrets,omitempty"`
 }
 
-// createScheduleRequest carries the same fields the SDK sends plus the
-// secrets. The server treats absent and empty secrets alike on create.
+// createScheduleRequest is what the SDK sends plus the secrets.
 type createScheduleRequest struct {
 	Name           string            `json:"name"`
 	PluginID       string            `json:"plugin_id"`
@@ -112,9 +104,8 @@ type createScheduleRequest struct {
 	Secrets        map[string]string `json:"secrets,omitempty"`
 }
 
-// updateScheduleRequest always carries Secrets: the server keeps the
-// registered secrets when the field is absent, and only an explicit empty
-// map clears them.
+// updateScheduleRequest always sends Secrets: the server keeps what it has
+// when the field is absent, and only an empty map clears it.
 type updateScheduleRequest struct {
 	Name           string            `json:"name"`
 	PluginID       string            `json:"plugin_id"`
@@ -124,12 +115,11 @@ type updateScheduleRequest struct {
 	Secrets        map[string]string `json:"secrets"`
 }
 
-// errNotFound means the server has nothing at the address asked for. A Read
-// treats it as the object having been removed outside Terraform.
+// errNotFound is a 404. Read treats it as the object having been removed.
 var errNotFound = errors.New("not found")
 
-// apiError is a response the server answered with an error status. Every
-// handled error carries its message as {"error": "..."}.
+// apiError is an error response. The server puts the message in
+// {"error": "..."}.
 type apiError struct {
 	status  int
 	message string
@@ -139,7 +129,7 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("%s: %s", http.StatusText(e.status), e.message)
 }
 
-// Is lets callers match a 404 with errors.Is(err, errNotFound).
+// Is matches a 404 against errNotFound.
 func (e *apiError) Is(target error) bool {
 	return target == errNotFound && e.status == http.StatusNotFound
 }
@@ -154,11 +144,10 @@ func newAPIError(status int, payload []byte) *apiError {
 	return &apiError{status: status, message: strings.TrimSpace(string(payload))}
 }
 
-// errNoSecretStoreAPI means the instance does not serve the secret-store
-// endpoints. Only a request without an object id in its path can tell: a 404
-// on POST /secret-stores is the route missing, whereas a 404 on
-// /secret-stores/{id} may be the store gone, and the server answers both with
-// the same body.
+// errNoSecretStoreAPI means the instance has no secret-store endpoints. Only
+// a request without an id in its path can tell: a 404 on POST /secret-stores
+// is the route missing, while a 404 on /secret-stores/{id} may be the store
+// gone.
 type errNoSecretStoreAPI struct {
 	host   string
 	status int
@@ -166,10 +155,9 @@ type errNoSecretStoreAPI struct {
 
 func (e *errNoSecretStoreAPI) Error() string {
 	return fmt.Sprintf("%s: no secret-store API (HTTP %d). Secret stores require "+
-		"Marmot Cloud or Marmot Enterprise (https://cloud.marmotdata.io). If this is not "+
-		"the instance you meant to reach, check the provider's host setting; otherwise "+
-		"remove the marmot_secret_store_* resources and the secrets map from any "+
-		"marmot_pipeline in this configuration", e.host, e.status)
+		"Marmot Cloud or Marmot Enterprise (https://cloud.marmotdata.io). Check the "+
+		"provider's host, or remove the marmot_secret_store_* resources and any secrets "+
+		"on marmot_pipeline", e.host, e.status)
 }
 
 func (c *secretStoreClient) do(ctx context.Context, method, url string, body any) ([]byte, int, error) {
@@ -207,8 +195,8 @@ func (c *secretStoreClient) do(ctx context.Context, method, url string, body any
 	return payload, resp.StatusCode, nil
 }
 
-// call performs a request and decodes the response into out when the status
-// is the one a success carries. Any other status is an *apiError.
+// call performs a request and decodes the response into out on the expected
+// status. Any other status is an *apiError.
 func (c *secretStoreClient) call(ctx context.Context, method, url string, body, out any, want int) error {
 	payload, status, err := c.do(ctx, method, url, body)
 	if err != nil {
@@ -226,10 +214,7 @@ func (c *secretStoreClient) call(ctx context.Context, method, url string, body, 
 	return nil
 }
 
-// Ids reach these from configuration and from import ids, so they are
-// escaped: an id carrying "?" or ".." would otherwise address a
-// different resource than the one Terraform is managing, and a DELETE
-// would land somewhere else entirely.
+// Ids come from configuration and import ids, so they are escaped.
 func (c *secretStoreClient) storeURL(id string) string {
 	return c.host + "/api/v1/secret-stores/" + url.PathEscape(id)
 }
@@ -271,15 +256,14 @@ func (c *secretStoreClient) UpdateSecretStore(ctx context.Context, id string, in
 	return &store, nil
 }
 
-// DeleteSecretStore removes a store and the secrets registered in it. The
-// server refuses with 409 while a pipeline references one of them.
+// DeleteSecretStore removes a store and its secrets. The server answers 409
+// while a pipeline references one of them.
 func (c *secretStoreClient) DeleteSecretStore(ctx context.Context, id string) error {
 	return c.call(ctx, http.MethodDelete, c.storeURL(id), nil, nil, http.StatusNoContent)
 }
 
 // ValidateSecretStore runs the store binary's Validate against the stored
-// config. A config the binary rejects is reported in the result, not as an
-// error.
+// config. A rejected config is reported in the result, not as an error.
 func (c *secretStoreClient) ValidateSecretStore(ctx context.Context, id string) (*secretStoreValidation, error) {
 	var result secretStoreValidation
 	if err := c.call(ctx, http.MethodPost, c.storeURL(id)+"/validate", nil, &result, http.StatusOK); err != nil {
@@ -289,7 +273,7 @@ func (c *secretStoreClient) ValidateSecretStore(ctx context.Context, id string) 
 }
 
 // CreateSecret registers a secret in a store. The server validates the ref
-// against the store type and answers 400 with the reason otherwise.
+// against the store type.
 func (c *secretStoreClient) CreateSecret(ctx context.Context, storeID string, ref map[string]any) (*secretStoreSecret, error) {
 	var secret secretStoreSecret
 	if err := c.call(ctx, http.MethodPost, c.storeURL(storeID)+"/secrets", secretRequest{Ref: ref}, &secret, http.StatusCreated); err != nil {
@@ -306,8 +290,7 @@ func (c *secretStoreClient) GetSecret(ctx context.Context, storeID, id string) (
 	return &secret, nil
 }
 
-// UpdateSecret repoints a secret in place; pipelines that reference it
-// follow.
+// UpdateSecret repoints a secret in place.
 func (c *secretStoreClient) UpdateSecret(ctx context.Context, storeID, id string, ref map[string]any) (*secretStoreSecret, error) {
 	var secret secretStoreSecret
 	if err := c.call(ctx, http.MethodPatch, c.secretURL(storeID, id), secretRequest{Ref: ref}, &secret, http.StatusOK); err != nil {
@@ -316,8 +299,8 @@ func (c *secretStoreClient) UpdateSecret(ctx context.Context, storeID, id string
 	return &secret, nil
 }
 
-// DeleteSecret removes a secret. The server refuses with 409 while a
-// pipeline references it.
+// DeleteSecret removes a secret. The server answers 409 while a pipeline
+// references it.
 func (c *secretStoreClient) DeleteSecret(ctx context.Context, storeID, id string) error {
 	return c.call(ctx, http.MethodDelete, c.secretURL(storeID, id), nil, nil, http.StatusNoContent)
 }

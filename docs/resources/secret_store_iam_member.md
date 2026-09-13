@@ -3,14 +3,14 @@
 page_title: "marmot_secret_store_iam_member Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
   Non-authoritative. Grants one member one role on a secret store and the secrets registered in it, leaving every other member and role untouched.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_secret_store_iam_member (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
 Non-authoritative. Grants one member one role on a secret store and the secrets registered in it, leaving every other member and role untouched.
 
@@ -19,9 +19,17 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# A service account reads a secret's value through the store's identity, and
-# needs secretStore.reader on that store to do so. Granting it per store keeps
-# the account's reach obvious: it sees nothing registered elsewhere.
+resource "marmot_secret_store_vault" "prod" {
+  name    = "vault-prod"
+  address = "https://vault.acme.internal"
+}
+
+resource "marmot_service_account" "analytics_agent" {
+  name = "analytics-agent"
+}
+
+# Adds one member to one role and leaves the rest of the policy alone.
+# secretStore.reader lets the account read secret values through this store.
 resource "marmot_secret_store_iam_member" "agent_reads_vault_prod" {
   secret_store_id = marmot_secret_store_vault.prod.id
   role            = "secretStore.reader"

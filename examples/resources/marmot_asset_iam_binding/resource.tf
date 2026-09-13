@@ -1,6 +1,5 @@
-# This resource decides who holds one particular role on the asset. Anyone left
-# out of the list loses that role on the next apply, but roles it does not
-# mention are untouched, so another team can keep managing its own.
+# Owns one role on the asset. Anyone left out loses it on the next apply;
+# other roles are untouched.
 resource "marmot_asset_iam_binding" "orders_readers" {
   asset_id = marmot_asset.orders.id
   role     = "catalog.viewer"

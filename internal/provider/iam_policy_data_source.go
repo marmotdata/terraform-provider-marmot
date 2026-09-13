@@ -17,8 +17,7 @@ var _ datasource.DataSource = &IAMPolicyDataSource{}
 func NewIAMPolicyDataSource() datasource.DataSource { return &IAMPolicyDataSource{} }
 
 // IAMPolicyDataSource renders binding blocks into the JSON document the
-// authoritative `_iam_policy` resources take. It makes no API calls: it exists
-// so a policy can be written as HCL blocks rather than as an inline JSON string.
+// `_iam_policy` resources take. It makes no API calls.
 type IAMPolicyDataSource struct{}
 
 type iamPolicyDataSourceModel struct {
@@ -38,8 +37,8 @@ func (d *IAMPolicyDataSource) Metadata(_ context.Context, req datasource.Metadat
 func (d *IAMPolicyDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: iamCloudOnly +
-			"Builds a policy document for the authoritative `*_iam_policy` resources. " +
-			"Purely local: it renders its blocks to JSON and contacts no server.",
+			"Builds a policy document for the `*_iam_policy` resources. Makes no request " +
+			"to Marmot.",
 		Attributes: map[string]schema.Attribute{
 			"policy_data": schema.StringAttribute{
 				MarkdownDescription: "The rendered policy, for a resource's `policy_data`.",
@@ -75,8 +74,7 @@ func (d *IAMPolicyDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	// Bindings are merged by role so two blocks naming the same role add up
-	// rather than one of them being silently dropped.
+	// Two blocks naming the same role are merged.
 	byRole := map[string][]string{}
 	var order []string
 	for _, b := range config.Binding {

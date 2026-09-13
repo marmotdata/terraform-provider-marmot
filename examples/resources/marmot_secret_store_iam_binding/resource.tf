@@ -1,6 +1,18 @@
-# Owns who holds secretStore.reader on the store. A service account left out
-# of the list loses it on the next apply; other roles on the store are left
-# alone, so a pipeline author's secretStore.user can be managed elsewhere.
+resource "marmot_secret_store_vault" "prod" {
+  name    = "vault-prod"
+  address = "https://vault.acme.internal"
+}
+
+resource "marmot_service_account" "analytics_agent" {
+  name = "analytics-agent"
+}
+
+resource "marmot_service_account" "ingest_agent" {
+  name = "ingest-agent"
+}
+
+# Owns one role on the store. Anyone left out loses it on the next apply;
+# other roles are untouched.
 resource "marmot_secret_store_iam_binding" "vault_prod_readers" {
   secret_store_id = marmot_secret_store_vault.prod.id
   role            = "secretStore.reader"

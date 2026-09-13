@@ -13,15 +13,13 @@ A machine principal. Give it API keys with `marmot_service_account_api_key`, and
 ## Example Usage
 
 ```terraform
-# A new service account can authenticate but reaches nothing until it is
-# granted something.
+# A new service account reaches nothing until it is granted something.
 resource "marmot_service_account" "ingest_agent" {
   name        = "orders-ingest-agent"
   description = "Ingestion agent for the orders pipeline"
 }
 
-# Give it exactly the one asset it needs rather than a role over the whole
-# catalog, so its reach stays obvious from the configuration.
+# Grant it the one asset it needs.
 resource "marmot_asset_iam_member" "agent_reads_orders" {
   asset_id = marmot_asset.orders.id
   role     = "catalog.viewer"

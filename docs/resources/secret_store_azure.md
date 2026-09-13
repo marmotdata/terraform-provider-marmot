@@ -3,47 +3,65 @@
 page_title: "marmot_secret_store_azure Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
-  An Azure Key Vault store. Without tenant_id and client_id the server reads with its own DefaultAzureCredential (a managed identity in a pod); with them, Marmot presents an OIDC token for the subject secretStore:{name} to the app registration's federated credential.
-  A store holds no secret values. marmot_secret_store_azure_secret registers where a secret lives in it; a marmot_pipeline reads such a secret into its config before each run, and a service account holding secretStore:read on the store reads it through the store's identity. marmot_secret_store_iam_member, marmot_secret_store_iam_binding and marmot_secret_store_iam_policy grant roles on the store: secretStore.reader reads secret values, secretStore.viewer sees the store and its secrets, secretStore.user registers secrets and attaches them to pipelines.
-  A federated store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no secret-store API, so this resource fails on apply. Marmot Cloud https://cloud.marmotdata.io includes it on every plan.
+  An Azure Key Vault store. Set tenant_id and client_id to federate; without them the server reads with its own DefaultAzureCredential.
+  A store holds no secret values. marmot_secret_store_azure_secret registers where a secret lives in it, and a marmot_pipeline reads that secret into its config before each run. Roles on the store are granted with marmot_secret_store_iam_member, marmot_secret_store_iam_binding and marmot_secret_store_iam_policy: secretStore.reader reads secret values, secretStore.viewer sees the store and its secrets, secretStore.user registers secrets and attaches them to pipelines.
+  A federated store presents an OIDC token to its backend. Trust issuer, subject and audience on the cloud side.
 ---
 
 # marmot_secret_store_azure (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no secret-store API, so this resource fails on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan.
 
-An Azure Key Vault store. Without `tenant_id` and `client_id` the server reads with its own `DefaultAzureCredential` (a managed identity in a pod); with them, Marmot presents an OIDC token for the subject `secretStore:{name}` to the app registration's federated credential.
+An Azure Key Vault store. Set `tenant_id` and `client_id` to federate; without them the server reads with its own `DefaultAzureCredential`.
 
-A store holds no secret values. `marmot_secret_store_azure_secret` registers where a secret lives in it; a `marmot_pipeline` reads such a secret into its config before each run, and a service account holding `secretStore:read` on the store reads it through the store's identity. `marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy` grant roles on the store: `secretStore.reader` reads secret values, `secretStore.viewer` sees the store and its secrets, `secretStore.user` registers secrets and attaches them to pipelines.
+A store holds no secret values. `marmot_secret_store_azure_secret` registers where a secret lives in it, and a `marmot_pipeline` reads that secret into its config before each run. Roles on the store are granted with `marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy`: `secretStore.reader` reads secret values, `secretStore.viewer` sees the store and its secrets, `secretStore.user` registers secrets and attaches them to pipelines.
 
-A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` and `audience` on the cloud side.
 
 ## Example Usage
 
 ```terraform
-# A store using the server's own credentials (DefaultAzureCredential, a
-# managed identity in a pod).
+# Reads with the server's own credentials.
 resource "marmot_secret_store_azure" "prod" {
   name = "azure-prod"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:azure-prod-federated`
-# to an app registration carrying a federated credential that trusts the
-# Marmot issuer. The audience defaults to `api://AzureADTokenExchange`.
+# Federated. An app registration whose federated credential trusts the
+# store's token.
+data "azurerm_client_config" "current" {}
+
+resource "azuread_application" "marmot" {
+  display_name = "marmot-azure-prod"
+}
+
 resource "marmot_secret_store_azure" "federated" {
   name      = "azure-prod-federated"
   tenant_id = data.azurerm_client_config.current.tenant_id
-  client_id = azuread_application.marmot_store.client_id
+  client_id = azuread_application.marmot.client_id
 }
 
-# The federated credential binds the store's issuer, subject and audience.
-resource "azuread_application_federated_identity_credential" "marmot_store" {
-  application_id = azuread_application.marmot_store.id
-  display_name   = "marmot-store-azure-prod"
+resource "azuread_application_federated_identity_credential" "marmot" {
+  application_id = azuread_application.marmot.id
+  display_name   = "marmot-azure-prod"
   issuer         = marmot_secret_store_azure.federated.issuer
   subject        = marmot_secret_store_azure.federated.subject
   audiences      = [marmot_secret_store_azure.federated.audience]
+}
+
+resource "azuread_service_principal" "marmot" {
+  client_id = azuread_application.marmot.client_id
+}
+
+data "azurerm_key_vault" "prod" {
+  name                = "acme-prod"
+  resource_group_name = "prod"
+}
+
+resource "azurerm_role_assignment" "marmot_reads_secrets" {
+  scope                = data.azurerm_key_vault.prod.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azuread_service_principal.marmot.object_id
 }
 ```
 
@@ -52,20 +70,20 @@ resource "azuread_application_federated_identity_credential" "marmot_store" {
 
 ### Required
 
-- `name` (String) Name of the store, unique per instance. On a federated store it is also the store's identity: the token subject is `secretStore:{name}`. Changing it replaces the store, since bindings on the old subject would stop matching.
+- `name` (String) Name of the store, unique per instance. A federated store's token subject is `secretStore:{name}`, so changing it replaces the store.
 
 ### Optional
 
-- `audience` (String) Audience the Marmot token carries, which the backend must expect. Matches the federated credential's audience; the server sets `api://AzureADTokenExchange` when unset. Only meaningful on a federated store.
-- `client_id` (String) App registration (client) ID carrying a federated credential that trusts the Marmot issuer. Set together with `tenant_id`.
-- `tenant_id` (String) Entra tenant of the app registration the Marmot token is exchanged for. Set together with `client_id` to make the store federate.
+- `audience` (String) Audience of the Marmot token. The federated credential's audience. The server sets `api://AzureADTokenExchange` when unset. Only used by a federated store.
+- `client_id` (String) App registration (client) ID whose federated credential trusts the Marmot issuer. Set with `tenant_id`.
+- `tenant_id` (String) Tenant of the app registration. Set with `client_id` to federate the store.
 
 ### Read-Only
 
 - `created_at` (String) Creation timestamp
 - `id` (String) Secret store ID
-- `issuer` (String) Issuer URL of the tokens the store presents: the OIDC provider to register with the cloud identity provider, once per account. Null unless the store federates.
-- `subject` (String) Subject of the tokens the store presents, `secretStore:{name}`: the value to grant on the cloud side, such as the subject of a `principal://` member on Google Cloud or the `sub` condition of an AWS role trust policy. Null unless the store federates.
+- `issuer` (String) Issuer URL of the tokens a federated store presents. This is what to register as an OIDC provider on the cloud side. Null unless the store federates.
+- `subject` (String) Subject of the tokens a federated store presents, `secretStore:{name}`. This is what to grant on the cloud side. Null unless the store federates.
 - `updated_at` (String) Last update timestamp
 
 ## Import

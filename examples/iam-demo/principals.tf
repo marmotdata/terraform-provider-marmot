@@ -1,7 +1,4 @@
-# Principals: the teams, users and service accounts that the access grants in
-# iam.tf refer to. Nothing here carries a broad organization role except the
-# platform lead, so every other capability in the catalog is granted per
-# resource.
+# The teams, users and service accounts iam.tf grants to.
 
 resource "marmot_team" "platform" {
   name        = "platform"
@@ -52,7 +49,7 @@ resource "marmot_team" "finance" {
   }
 }
 
-# The only human with a catalog-wide administrative role.
+# The only user with a catalog-wide admin role.
 resource "marmot_user" "platform_lead" {
   name                = "Dana Okafor"
   username            = "dana"
@@ -62,7 +59,7 @@ resource "marmot_user" "platform_lead" {
   role_names = ["admin"]
 }
 
-# Everyone else gets the read-only baseline role and is lifted per resource.
+# Everyone else is read-only at the root and granted per resource.
 resource "marmot_user" "analytics_lead" {
   name                = "Priya Raman"
   username            = "priya"
@@ -90,8 +87,7 @@ resource "marmot_user" "finance_analyst" {
   role_names = ["user"]
 }
 
-# Machine principals. None of them hold an organization-level role: everything
-# they can do comes from the grants in iam.tf, which is the point of the demo.
+# Service accounts hold no organization role; iam.tf grants them per resource.
 resource "marmot_service_account" "ingest_agent" {
   name        = "orders-ingest-agent"
   description = "Writes the orders and payments topics into the catalog"
@@ -107,7 +103,7 @@ resource "marmot_service_account" "finance_etl" {
   description = "Builds the recognised revenue tables"
 }
 
-# A durable key slot for the ingest agent. The plaintext key never enters state.
+# A key for CI. The plaintext is kept in state as the sensitive `key` attribute.
 resource "marmot_service_account_api_key" "ingest_agent_ci" {
   service_account_id = marmot_service_account.ingest_agent.id
   name               = "ci-runner"

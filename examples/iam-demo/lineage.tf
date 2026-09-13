@@ -1,5 +1,5 @@
-# How data moves: storefront topics into the lake and the OLTP store, then into
-# the warehouse, then into the dashboard and the model.
+# Storefront topics into the lake and the OLTP store, then the warehouse,
+# then the dashboard and the model.
 
 resource "marmot_lineage" "orders_to_processor" {
   source = marmot_asset.orders_events.mrn

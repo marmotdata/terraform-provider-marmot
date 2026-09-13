@@ -3,18 +3,17 @@
 page_title: "marmot_service_account_api_key Ephemeral Resource - marmot"
 subcategory: ""
 description: |-
-  A service-account API key that lives for one Terraform operation: created on open, revoked on close, never stored in plan or state. Pass it to other providers or write-only attributes. For a durable key, use the managed marmot_service_account_api_key resource.
+  A service account API key that lives for one Terraform operation: created on open, revoked on close, never in plan or state. For a durable key use the marmot_service_account_api_key resource.
 ---
 
 # marmot_service_account_api_key (Ephemeral Resource)
 
-A service-account API key that lives for one Terraform operation: created on open, revoked on close, never stored in plan or state. Pass it to other providers or write-only attributes. For a durable key, use the managed `marmot_service_account_api_key` resource.
+A service account API key that lives for one Terraform operation: created on open, revoked on close, never in plan or state. For a durable key use the `marmot_service_account_api_key` resource.
 
 ## Example Usage
 
 ```terraform
-# A key that lives for one run: created on open, revoked on close, never in
-# plan or state. Pass it to another provider or a write-only attribute.
+# Created on open, revoked on close, never in plan or state.
 ephemeral "marmot_service_account_api_key" "ingest_agent" {
   service_account_id = marmot_service_account.ingest_agent.id
 }
@@ -33,8 +32,8 @@ provider "someprovider" {
 
 ### Optional
 
-- `expires_in_days` (Number) Days until the key expires server-side. Defaults to 1 so an orphaned key dies on its own.
-- `name` (String) Key name. Defaults to `terraform-ephemeral`. Counts toward the account's 5-key limit while the run lasts.
+- `expires_in_days` (Number) Days until the key expires. Defaults to 1.
+- `name` (String) Key name. Defaults to `terraform-ephemeral`.
 
 ### Read-Only
 

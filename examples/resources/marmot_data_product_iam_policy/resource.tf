@@ -1,5 +1,4 @@
-# Owns the data product's policy outright, which makes this block the complete
-# and only answer to who can reach the product and everything inside it.
+# Owns the whole policy of the data product and everything it resolves.
 data "marmot_iam_policy" "finance" {
   binding {
     role    = "catalog.viewer"

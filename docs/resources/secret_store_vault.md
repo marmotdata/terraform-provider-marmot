@@ -3,53 +3,62 @@
 page_title: "marmot_secret_store_vault Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
-  A HashiCorp Vault KV v2 store. Without role the server logs in with the token in its own VAULT_TOKEN; with it, Marmot presents an OIDC token for the subject secretStore:{name} to the JWT auth method.
-  A store holds no secret values. marmot_secret_store_vault_secret registers where a secret lives in it; a marmot_pipeline reads such a secret into its config before each run, and a service account holding secretStore:read on the store reads it through the store's identity. marmot_secret_store_iam_member, marmot_secret_store_iam_binding and marmot_secret_store_iam_policy grant roles on the store: secretStore.reader reads secret values, secretStore.viewer sees the store and its secrets, secretStore.user registers secrets and attaches them to pipelines.
-  A federated store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no secret-store API, so this resource fails on apply. Marmot Cloud https://cloud.marmotdata.io includes it on every plan.
+  A HashiCorp Vault KV v2 store. Set role to federate; without it the server logs in with its own VAULT_TOKEN.
+  A store holds no secret values. marmot_secret_store_vault_secret registers where a secret lives in it, and a marmot_pipeline reads that secret into its config before each run. Roles on the store are granted with marmot_secret_store_iam_member, marmot_secret_store_iam_binding and marmot_secret_store_iam_policy: secretStore.reader reads secret values, secretStore.viewer sees the store and its secrets, secretStore.user registers secrets and attaches them to pipelines.
+  A federated store presents an OIDC token to its backend. Trust issuer, subject and audience on the cloud side.
 ---
 
 # marmot_secret_store_vault (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no secret-store API, so this resource fails on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan.
 
-A HashiCorp Vault KV v2 store. Without `role` the server logs in with the token in its own `VAULT_TOKEN`; with it, Marmot presents an OIDC token for the subject `secretStore:{name}` to the JWT auth method.
+A HashiCorp Vault KV v2 store. Set `role` to federate; without it the server logs in with its own `VAULT_TOKEN`.
 
-A store holds no secret values. `marmot_secret_store_vault_secret` registers where a secret lives in it; a `marmot_pipeline` reads such a secret into its config before each run, and a service account holding `secretStore:read` on the store reads it through the store's identity. `marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy` grant roles on the store: `secretStore.reader` reads secret values, `secretStore.viewer` sees the store and its secrets, `secretStore.user` registers secrets and attaches them to pipelines.
+A store holds no secret values. `marmot_secret_store_vault_secret` registers where a secret lives in it, and a `marmot_pipeline` reads that secret into its config before each run. Roles on the store are granted with `marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy`: `secretStore.reader` reads secret values, `secretStore.viewer` sees the store and its secrets, `secretStore.user` registers secrets and attaches them to pipelines.
 
-A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` and `audience` on the cloud side.
 
 ## Example Usage
 
 ```terraform
-# A store using the server's own token (VAULT_TOKEN). A private CA is
-# given as PEM.
+# Logs in with the server's own VAULT_TOKEN.
 resource "marmot_secret_store_vault" "prod" {
   name    = "vault-prod"
   address = "https://vault.acme.internal"
-  ca_cert = file("${path.module}/vault-ca.pem")
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:vault-prod-federated`
-# to a JWT auth role with `bound_subject` and `bound_audiences` set. The
-# audience defaults to the Vault address.
+# Federated. A JWT auth method trusts the Marmot instance and its role
+# binds the store's subject and audience.
 resource "marmot_secret_store_vault" "federated" {
-  name      = "vault-prod-federated"
-  address   = "https://vault.acme.internal"
-  namespace = "platform"
-  role      = "marmot"
-  auth_path = "jwt"
+  name    = "vault-prod-federated"
+  address = "https://vault.acme.internal"
+  role    = "marmot"
 }
 
-# The JWT role trusts the store's issuer and binds its subject and audience.
-resource "vault_jwt_auth_backend_role" "marmot_store" {
+resource "vault_jwt_auth_backend" "marmot" {
+  path               = "jwt"
+  oidc_discovery_url = marmot_secret_store_vault.federated.issuer
+}
+
+resource "vault_policy" "marmot" {
+  name = "marmot"
+
+  policy = <<-EOT
+    path "secret/data/orders/*" {
+      capabilities = ["read"]
+    }
+  EOT
+}
+
+resource "vault_jwt_auth_backend_role" "marmot" {
   backend         = vault_jwt_auth_backend.marmot.path
   role_name       = "marmot"
   role_type       = "jwt"
   user_claim      = "sub"
   bound_subject   = marmot_secret_store_vault.federated.subject
   bound_audiences = [marmot_secret_store_vault.federated.audience]
-  token_policies  = ["marmot-agents"]
+  token_policies  = [vault_policy.marmot.name]
 }
 ```
 
@@ -58,23 +67,23 @@ resource "vault_jwt_auth_backend_role" "marmot_store" {
 
 ### Required
 
-- `address` (String) Vault server URL, stored without a trailing slash.
-- `name` (String) Name of the store, unique per instance. On a federated store it is also the store's identity: the token subject is `secretStore:{name}`. Changing it replaces the store, since bindings on the old subject would stop matching.
+- `address` (String) Vault server URL.
+- `name` (String) Name of the store, unique per instance. A federated store's token subject is `secretStore:{name}`, so changing it replaces the store.
 
 ### Optional
 
-- `audience` (String) Audience the Marmot token carries, which the backend must expect. The JWT role's `bound_audiences`; the server sets the Vault address when unset. Only meaningful on a federated store.
-- `auth_path` (String) Mount path of the JWT auth method the Marmot token is presented to. Defaults to `jwt`.
-- `ca_cert` (String) PEM-encoded CA certificate to verify the Vault server's TLS certificate against. Omit to use the system roots.
-- `namespace` (String) Vault Enterprise namespace, sent as `X-Vault-Namespace`.
-- `role` (String) Role of the JWT auth method to log in as with the Marmot token. Setting it makes the store federate.
+- `audience` (String) Audience of the Marmot token. The JWT role's `bound_audiences`. The server sets the Vault address when unset. Only used by a federated store.
+- `auth_path` (String) Mount path of the JWT auth method. Defaults to `jwt`.
+- `ca_cert` (String) PEM CA certificate that signed the Vault server's TLS certificate. Omit to use the system roots.
+- `namespace` (String) Vault Enterprise namespace.
+- `role` (String) JWT auth role to log in as with the Marmot token. Setting it federates the store.
 
 ### Read-Only
 
 - `created_at` (String) Creation timestamp
 - `id` (String) Secret store ID
-- `issuer` (String) Issuer URL of the tokens the store presents: the OIDC provider to register with the cloud identity provider, once per account. Null unless the store federates.
-- `subject` (String) Subject of the tokens the store presents, `secretStore:{name}`: the value to grant on the cloud side, such as the subject of a `principal://` member on Google Cloud or the `sub` condition of an AWS role trust policy. Null unless the store federates.
+- `issuer` (String) Issuer URL of the tokens a federated store presents. This is what to register as an OIDC provider on the cloud side. Null unless the store federates.
+- `subject` (String) Subject of the tokens a federated store presents, `secretStore:{name}`. This is what to grant on the cloud side. Null unless the store federates.
 - `updated_at` (String) Last update timestamp
 
 ## Import

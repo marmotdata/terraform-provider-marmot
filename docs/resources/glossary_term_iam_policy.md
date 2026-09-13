@@ -3,24 +3,24 @@
 page_title: "marmot_glossary_term_iam_policy Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
-  Authoritative. Sets the complete access policy on a glossary term and its descendants, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource: they will fight.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
+  Authoritative. Sets the complete access policy on a glossary term and its descendants, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_glossary_term_iam_policy (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
-Authoritative. Sets the complete access policy on a glossary term and its descendants, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource: they will fight.
+Authoritative. Sets the complete access policy on a glossary term and its descendants, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource.
 
 Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 
 ## Example Usage
 
 ```terraform
-# Owns the term's policy outright. Anything not listed here is revoked, for the
-# term and for its descendants.
+# Owns the whole policy of the term and its descendants. Anything not
+# listed is revoked.
 data "marmot_iam_policy" "finance_vocabulary" {
   binding {
     role    = "catalog.viewer"

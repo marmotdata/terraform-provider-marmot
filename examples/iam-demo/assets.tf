@@ -1,5 +1,5 @@
-# The catalog: an event-driven commerce platform, from the topics the storefront
-# emits through to the dashboards and models built on top of them.
+# The catalog: a commerce platform, from storefront topics to dashboards and
+# models.
 
 resource "marmot_asset" "orders_events" {
   name        = "commerce.orders.events"

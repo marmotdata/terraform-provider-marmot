@@ -43,9 +43,7 @@ func readsEmptyPolicy(onWrite http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Marmot answers 501; older builds fall through to a bare 404. Both mean the
-// endpoints are absent, and reporting either as a plain "Not Found" reads as
-// though the asset were missing.
+// Marmot answers 501, older builds 404. Both mean the endpoints are absent.
 func TestPolicyRequestsReportAMissingAPI(t *testing.T) {
 	for _, status := range []int{http.StatusNotImplemented, http.StatusNotFound} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
@@ -58,9 +56,8 @@ func TestPolicyRequestsReportAMissingAPI(t *testing.T) {
 			if _, err := c.SetPolicy(t.Context(), "asset", "a1", iamPolicy{}); !errors.As(err, &unsupported) {
 				t.Fatalf("SetPolicy: got %v, want *errNoPolicyAPI", err)
 			}
-			// The host and the status are both named: a configuration aimed at
-			// the wrong instance is the other way to arrive here, and the code
-			// tells a 501 from a proxy swallowing the route.
+			// The host and status are named so a wrong instance is easy to
+			// spot.
 			for _, want := range []string{c.host, strconv.Itoa(status)} {
 				if !strings.Contains(unsupported.Error(), want) {
 					t.Errorf("error %q does not mention %q", unsupported.Error(), want)
@@ -78,7 +75,6 @@ func TestSetPolicyReportsAConflict(t *testing.T) {
 	}
 }
 
-// A write that lands on the second attempt is the case the retry exists for.
 func TestModifyPolicyRetriesUntilTheWriteLands(t *testing.T) {
 	var writes int
 	c := newTestClient(t, readsEmptyPolicy(func(w http.ResponseWriter, _ *http.Request) {
@@ -98,8 +94,7 @@ func TestModifyPolicyRetriesUntilTheWriteLands(t *testing.T) {
 	}
 }
 
-// Contention that never clears has to give up rather than spin, and the caller
-// has to be able to tell why it stopped.
+// Contention that never clears gives up with a conflict error.
 func TestModifyPolicyGivesUpOnEndlessConflicts(t *testing.T) {
 	var writes int
 	c := newTestClient(t, readsEmptyPolicy(func(w http.ResponseWriter, _ *http.Request) {
@@ -120,9 +115,8 @@ func TestModifyPolicyGivesUpOnEndlessConflicts(t *testing.T) {
 	}
 }
 
-// A missing API must not be mistaken for drift. Read used to match the word
-// "Not Found" in the error text and drop the resource from state, which on an
-// open-source instance silently discarded every access grant it managed.
+// A missing API must not be mistaken for drift and drop the resource from
+// state.
 func TestReadDoesNotTreatAMissingAPIAsDrift(t *testing.T) {
 	c := newTestClient(t, alwaysRespond(http.StatusNotFound, `{"error":"Not found"}`))
 	_, err := c.GetPolicy(t.Context(), "asset", "a1")

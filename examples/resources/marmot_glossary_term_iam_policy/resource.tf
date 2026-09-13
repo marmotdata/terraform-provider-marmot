@@ -1,5 +1,5 @@
-# Owns the term's policy outright. Anything not listed here is revoked, for the
-# term and for its descendants.
+# Owns the whole policy of the term and its descendants. Anything not
+# listed is revoked.
 data "marmot_iam_policy" "finance_vocabulary" {
   binding {
     role    = "catalog.viewer"

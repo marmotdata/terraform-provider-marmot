@@ -41,10 +41,9 @@ func (r *ServiceAccountAPIKeyResource) Metadata(ctx context.Context, req resourc
 
 func (r *ServiceAccountAPIKeyResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A durable API key on a service account. The plaintext is only " +
-			"disclosed at creation, so it is captured then and kept in state as the sensitive " +
-			"`key` attribute. Every attribute change replaces the key. Accounts are limited to " +
-			"5 keys.",
+		MarkdownDescription: "An API key on a service account. The plaintext is only returned at " +
+			"creation and is kept in state as the sensitive `key` attribute. Any change replaces " +
+			"the key. An account holds at most 5 keys.",
 
 		Attributes: map[string]schema.Attribute{
 			"service_account_id": schema.StringAttribute{
@@ -55,7 +54,7 @@ func (r *ServiceAccountAPIKeyResource) Schema(ctx context.Context, req resource.
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the key, e.g. what system holds it",
+				MarkdownDescription: "Name of the key",
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

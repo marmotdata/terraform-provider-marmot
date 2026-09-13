@@ -3,57 +3,47 @@
 page_title: "marmot_secret_store_aws_secret Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no secret-store API, so this resource fails on apply. Marmot Cloud https://cloud.marmotdata.io includes it on every plan.
   A secret in an AWS Secrets Manager store, by name or ARN.
-  Only the location is registered; the value is read from AWS Secrets Manager when a marmot_pipeline runs, or through the store's identity by a service account holding secretStore:read on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the secretStore:use permission.
+  Only the location is registered. The value is read from AWS Secrets Manager when a marmot_pipeline runs, or by a service account holding secretStore.reader on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires secretStore:use on the store.
 ---
 
 # marmot_secret_store_aws_secret (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no secret-store API, so this resource fails on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan.
 
 A secret in an AWS Secrets Manager store, by name or ARN.
 
-Only the location is registered; the value is read from AWS Secrets Manager when a `marmot_pipeline` runs, or through the store's identity by a service account holding `secretStore:read` on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the `secretStore:use` permission.
+Only the location is registered. The value is read from AWS Secrets Manager when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires `secretStore:use` on the store.
 
 ## Example Usage
 
 ```terraform
 resource "marmot_secret_store_aws" "prod" {
-  name     = "aws-prod"
-  role_arn = aws_iam_role.marmot_store.arn
+  name = "aws-prod"
 }
 
-# By name: the region is required.
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "prod/orders/db-password"
+}
+
+# By ARN. The region comes from the ARN.
 resource "marmot_secret_store_aws_secret" "db_password" {
   store     = marmot_secret_store_aws.prod.id
-  region    = "eu-west-1"
-  secret_id = "prod/orders/db-password"
+  secret_id = aws_secretsmanager_secret.db_password.arn
 }
 
-# By ARN: the region comes from the ARN. A staging label other than
-# AWSCURRENT, or a version id, pins what is read.
+# By name. The region is required, and a staging label or version id pins
+# what is read.
+resource "aws_secretsmanager_secret" "signing_key" {
+  name = "prod/orders/signing-key"
+}
+
 resource "marmot_secret_store_aws_secret" "signing_key" {
   store         = marmot_secret_store_aws.prod.id
-  secret_id     = aws_secretsmanager_secret.signing_key.arn
+  region        = "eu-west-1"
+  secret_id     = aws_secretsmanager_secret.signing_key.name
   version_stage = "AWSPREVIOUS"
-}
-
-resource "marmot_pipeline" "postgres_orders" {
-  name      = "orders"
-  plugin_id = "postgresql"
-
-  config = jsonencode({
-    host     = "orders-db.acme.internal"
-    database = "orders"
-    user     = "marmot"
-  })
-
-  secrets = {
-    password = marmot_secret_store_aws_secret.db_password.id
-  }
-
-  cron_expression = "0 * * * *"
 }
 ```
 
@@ -63,17 +53,17 @@ resource "marmot_pipeline" "postgres_orders" {
 ### Required
 
 - `secret_id` (String) Name or ARN of the secret.
-- `store` (String) ID of the `marmot_secret_store_aws` the secret lives in. Changing it replaces the secret.
+- `store` (String) ID of the `marmot_secret_store_aws`. Changing it replaces the secret.
 
 ### Optional
 
-- `region` (String) Region the secret lives in. Required unless `secret_id` is an ARN, which carries its own.
-- `version_id` (String) Version to read. Pins reads to that version.
+- `region` (String) Region of the secret. Required unless `secret_id` is an ARN.
+- `version_id` (String) Version to read instead of the staging label.
 - `version_stage` (String) Staging label to read. Defaults to `AWSCURRENT`.
 
 ### Read-Only
 
-- `id` (String) Secret ID, what a `marmot_pipeline` references
+- `id` (String) Secret ID, referenced by `marmot_pipeline`
 
 ## Import
 

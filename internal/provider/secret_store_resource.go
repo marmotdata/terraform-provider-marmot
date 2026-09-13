@@ -24,20 +24,15 @@ import (
 	marmot "github.com/marmotdata/marmot/sdk/go"
 )
 
-// secretStoreField is one key of a store's config, exposed as an attribute of
-// the same name. The provider sends the keys that are set and reads back the
-// config as the server validated and stored it, defaults and derived values
-// included.
+// secretStoreField is one key of a store's config, exposed as an attribute.
 type secretStoreField struct {
 	name        string
 	description string
 	required    bool
-	// serverDefault is a constant the server applies when the key is unset,
-	// mirrored as the attribute's default so the plan knows it.
+	// serverDefault mirrors the server's default so the plan knows it.
 	serverDefault string
-	// derivedFrom marks a value the server fills in when the key is unset,
-	// from the named sibling keys. The plan keeps the stored value until one
-	// of those changes.
+	// derivedFrom names the keys the server derives this value from when it
+	// is unset. The plan keeps the stored value until one of them changes.
 	derivedFrom []string
 }
 
@@ -59,9 +54,8 @@ func (f secretStoreField) attribute() schema.Attribute {
 	return a
 }
 
-// keepStateUnless plans the stored value of a computed attribute the server
-// fills in, as long as none of the attributes it is derived from change. A
-// changed or unknown input leaves it unknown for the server to set again.
+// keepStateUnless plans the stored value of a server-filled attribute as
+// long as none of the attributes it derives from change.
 type keepStateUnless []path.Path
 
 var _ planmodifier.String = keepStateUnless(nil)
@@ -99,8 +93,7 @@ func (m keepStateUnless) PlanModifyString(_ context.Context, req planmodifier.St
 	resp.PlanValue = req.StateValue
 }
 
-// valueAt reads the value at an attribute path of a raw plan or state. A
-// path into a null or unknown object has no value.
+// valueAt reads the value at an attribute path of a raw plan or state.
 func valueAt(root tftypes.Value, p path.Path) (tftypes.Value, bool) {
 	tfPath := tftypes.NewAttributePath()
 	for _, step := range p.Steps() {
@@ -118,25 +111,22 @@ func valueAt(root tftypes.Value, p path.Path) (tftypes.Value, bool) {
 	return value, ok
 }
 
-// secretStoreKind describes one store type as a Terraform resource. Every
-// type shares the CRUD below over the generic secret-store API; only the
-// schema differs.
+// secretStoreKind describes one store type. All types share the CRUD below;
+// only the schema differs.
 type secretStoreKind struct {
-	// storeType is the server's id for the type, and the resource name suffix.
+	// storeType is the server's id for the type and the resource name suffix.
 	storeType   string
 	label       string
 	description string
 	// federation names the keys that, when set, make the store federate.
-	// The store's identity follows them.
 	federation []string
 	fields     []secretStoreField
 }
 
 func audienceField(description string, derivedFrom ...string) secretStoreField {
 	return secretStoreField{
-		name: "audience",
-		description: "Audience the Marmot token carries, which the backend must expect. " +
-			description + " Only meaningful on a federated store.",
+		name:        "audience",
+		description: "Audience of the Marmot token. " + description + " Only used by a federated store.",
 		derivedFrom: derivedFrom,
 	}
 }
@@ -145,103 +135,96 @@ var secretStoreKinds = []secretStoreKind{
 	{
 		storeType: "google",
 		label:     "Google Secret Manager",
-		description: "A Google Secret Manager store. Without `workload_identity_provider` the " +
-			"server reads with its own Application Default Credentials; with it, Marmot presents " +
-			"an OIDC token for the subject `secretStore:{name}` that the provider exchanges for a " +
-			"credential granted only what this store may reach.",
+		description: "A Google Secret Manager store. Set `workload_identity_provider` to federate; " +
+			"without it the server reads with its own Application Default Credentials.",
 		federation: []string{"workload_identity_provider"},
 		fields: []secretStoreField{
 			{
 				name: "workload_identity_provider",
-				description: "Workload Identity Federation provider the Marmot token is exchanged at, " +
-					"`projects/{number}/locations/global/workloadIdentityPools/{pool}/providers/{provider}` " +
-					"(the `name` of a `google_iam_workload_identity_pool_provider`). Setting it makes " +
-					"the store federate.",
+				description: "Workload Identity Federation provider to exchange the Marmot token at, " +
+					"`projects/{number}/locations/global/workloadIdentityPools/{pool}/providers/{provider}`. " +
+					"Setting it federates the store.",
 			},
 			{
 				name: "service_account",
-				description: "Service account email to impersonate after federation. Empty " +
-					"accesses Secret Manager directly as the federated principal.",
+				description: "Service account to impersonate after the exchange. Empty reads as " +
+					"the federated principal.",
 			},
-			audienceField("Derived from `workload_identity_provider` by the server "+
-				"(`https://iam.googleapis.com/{provider}`) when unset.", "workload_identity_provider"),
+			audienceField("Derived from `workload_identity_provider` by the server when unset.",
+				"workload_identity_provider"),
 		},
 	},
 	{
 		storeType: "aws",
 		label:     "AWS Secrets Manager",
-		description: "An AWS Secrets Manager store. Without `role_arn` the server reads with its " +
-			"own credential chain (IRSA in a pod); with it, Marmot presents an OIDC token for the " +
-			"subject `secretStore:{name}` and assumes the role.",
+		description: "An AWS Secrets Manager store. Set `role_arn` to federate; without it the " +
+			"server reads with its own credential chain.",
 		federation: []string{"role_arn"},
 		fields: []secretStoreField{
 			{
 				name: "role_arn",
-				description: "IAM role to assume with the Marmot token. Its trust policy must name " +
-					"the Marmot issuer as an OIDC provider. Setting it makes the store federate.",
+				description: "Role to assume with the Marmot token. Its trust policy must name the " +
+					"Marmot issuer as an OIDC provider. Setting it federates the store.",
 			},
 			{
 				name:          "session_name",
-				description:   "Session name of the assumed role, visible in CloudTrail.",
+				description:   "Session name of the assumed role.",
 				serverDefault: "marmot",
 			},
-			audienceField("The OIDC provider's client ID, which the role's trust policy "+
-				"conditions `aud` on; the server sets `sts.amazonaws.com` when unset.", "role_arn"),
+			audienceField("The OIDC provider's client ID. The server sets `sts.amazonaws.com` "+
+				"when unset.", "role_arn"),
 		},
 	},
 	{
 		storeType: "azure",
 		label:     "Azure Key Vault",
-		description: "An Azure Key Vault store. Without `tenant_id` and `client_id` the server " +
-			"reads with its own `DefaultAzureCredential` (a managed identity in a pod); with them, " +
-			"Marmot presents an OIDC token for the subject `secretStore:{name}` to the app " +
-			"registration's federated credential.",
+		description: "An Azure Key Vault store. Set `tenant_id` and `client_id` to federate; " +
+			"without them the server reads with its own `DefaultAzureCredential`.",
 		federation: []string{"tenant_id", "client_id"},
 		fields: []secretStoreField{
 			{
 				name: "tenant_id",
-				description: "Entra tenant of the app registration the Marmot token is exchanged " +
-					"for. Set together with `client_id` to make the store federate.",
+				description: "Tenant of the app registration. Set with `client_id` to federate " +
+					"the store.",
 			},
 			{
 				name: "client_id",
-				description: "App registration (client) ID carrying a federated credential that " +
-					"trusts the Marmot issuer. Set together with `tenant_id`.",
+				description: "App registration (client) ID whose federated credential trusts the " +
+					"Marmot issuer. Set with `tenant_id`.",
 			},
-			audienceField("Matches the federated credential's audience; the server sets "+
+			audienceField("The federated credential's audience. The server sets "+
 				"`api://AzureADTokenExchange` when unset.", "tenant_id", "client_id"),
 		},
 	},
 	{
 		storeType: "vault",
 		label:     "HashiCorp Vault",
-		description: "A HashiCorp Vault KV v2 store. Without `role` the server logs in with the " +
-			"token in its own `VAULT_TOKEN`; with it, Marmot presents an OIDC token for the subject " +
-			"`secretStore:{name}` to the JWT auth method.",
+		description: "A HashiCorp Vault KV v2 store. Set `role` to federate; without it the " +
+			"server logs in with its own `VAULT_TOKEN`.",
 		federation: []string{"role"},
 		fields: []secretStoreField{
 			{
 				name:        "address",
-				description: "Vault server URL, stored without a trailing slash.",
+				description: "Vault server URL.",
 				required:    true,
 			},
-			{name: "namespace", description: "Vault Enterprise namespace, sent as `X-Vault-Namespace`."},
+			{name: "namespace", description: "Vault Enterprise namespace."},
 			{
 				name: "ca_cert",
-				description: "PEM-encoded CA certificate to verify the Vault server's TLS certificate " +
-					"against. Omit to use the system roots.",
+				description: "PEM CA certificate that signed the Vault server's TLS certificate. " +
+					"Omit to use the system roots.",
 			},
 			{
 				name: "role",
-				description: "Role of the JWT auth method to log in as with the Marmot token. " +
-					"Setting it makes the store federate.",
+				description: "JWT auth role to log in as with the Marmot token. Setting it " +
+					"federates the store.",
 			},
 			{
 				name:          "auth_path",
-				description:   "Mount path of the JWT auth method the Marmot token is presented to.",
+				description:   "Mount path of the JWT auth method.",
 				serverDefault: "jwt",
 			},
-			audienceField("The JWT role's `bound_audiences`; the server sets the Vault "+
+			audienceField("The JWT role's `bound_audiences`. The server sets the Vault "+
 				"address when unset.", "role", "address"),
 		},
 	},
@@ -266,12 +249,10 @@ type secretStoreResource struct {
 var _ resource.Resource = &secretStoreResource{}
 var _ resource.ResourceWithImportState = &secretStoreResource{}
 
-// secretStoreCloudOnly heads every store page. Configuring the provider makes
-// no request, and a resource being created is not read beforehand, so without
-// this the first clue is a failed apply.
+// secretStoreCloudOnly heads every secret store page.
 const secretStoreCloudOnly = "~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot " +
-	"serves no secret-store API, so this resource fails on apply rather than at plan. " +
-	"[Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.\n\n"
+	"has no secret-store API, so this resource fails on apply. " +
+	"[Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan.\n\n"
 
 func (r *secretStoreResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_secret_store_" + r.kind.storeType
@@ -291,14 +272,13 @@ func (r *secretStoreResource) Configure(_ context.Context, req resource.Configur
 }
 
 func (r *secretStoreResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	// The identity follows the name and whether the store federates.
+	// The identity depends on the name and on whether the store federates.
 	identityInputs := rootPaths(append([]string{"name"}, r.kind.federation...)...)
 
 	attrs := map[string]schema.Attribute{
 		"name": schema.StringAttribute{
-			MarkdownDescription: "Name of the store, unique per instance. On a federated store it is " +
-				"also the store's identity: the token subject is `secretStore:{name}`. Changing it " +
-				"replaces the store, since bindings on the old subject would stop matching.",
+			MarkdownDescription: "Name of the store, unique per instance. A federated store's token " +
+				"subject is `secretStore:{name}`, so changing it replaces the store.",
 			Required: true,
 			Validators: []validator.String{
 				stringvalidator.LengthBetween(1, 255),
@@ -315,17 +295,14 @@ func (r *secretStoreResource) Schema(_ context.Context, _ resource.SchemaRequest
 			},
 		},
 		"subject": schema.StringAttribute{
-			MarkdownDescription: "Subject of the tokens the store presents, `secretStore:{name}`: the " +
-				"value to grant on the cloud side, such as the subject of a `principal://` member on " +
-				"Google Cloud or the `sub` condition of an AWS role trust policy. Null unless the " +
-				"store federates.",
+			MarkdownDescription: "Subject of the tokens a federated store presents, `secretStore:{name}`. " +
+				"This is what to grant on the cloud side. Null unless the store federates.",
 			Computed:      true,
 			PlanModifiers: []planmodifier.String{identityInputs},
 		},
 		"issuer": schema.StringAttribute{
-			MarkdownDescription: "Issuer URL of the tokens the store presents: the OIDC provider to " +
-				"register with the cloud identity provider, once per account. Null unless the " +
-				"store federates.",
+			MarkdownDescription: "Issuer URL of the tokens a federated store presents. This is what " +
+				"to register as an OIDC provider on the cloud side. Null unless the store federates.",
 			Computed:      true,
 			PlanModifiers: []planmodifier.String{identityInputs},
 		},
@@ -348,24 +325,21 @@ func (r *secretStoreResource) Schema(_ context.Context, _ resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		MarkdownDescription: secretStoreCloudOnly + r.kind.description +
 			"\n\nA store holds no secret values. `marmot_secret_store_" + r.kind.storeType + "_secret` " +
-			"registers where a secret lives in it; a `marmot_pipeline` reads such a secret into " +
-			"its config before each run, and a service account holding `secretStore:read` on the " +
-			"store reads it through the store's identity. `marmot_secret_store_iam_member`, " +
-			"`marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy` grant roles on " +
-			"the store: `secretStore.reader` reads secret values, `secretStore.viewer` sees the " +
-			"store and its secrets, `secretStore.user` registers secrets and attaches them to " +
-			"pipelines.\n\n" +
-			"A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` " +
-			"are what to trust and grant on the cloud side, so the store reaches only the secrets " +
-			"bound to it.",
+			"registers where a secret lives in it, and a `marmot_pipeline` reads that secret into " +
+			"its config before each run. Roles on the store are granted with " +
+			"`marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and " +
+			"`marmot_secret_store_iam_policy`: `secretStore.reader` reads secret values, " +
+			"`secretStore.viewer` sees the store and its secrets, `secretStore.user` registers " +
+			"secrets and attaches them to pipelines.\n\n" +
+			"A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` " +
+			"and `audience` on the cloud side.",
 		Attributes: attrs,
 	}
 }
 
-// configFrom assembles the config the API takes from the planned attributes.
+// configFrom builds the config the API takes from the planned attributes.
 // Null and unknown attributes are left out so the server applies its own
-// defaults and derivations; a derived value the plan kept from state goes
-// back as is, which the server accepts since it is what it would derive.
+// defaults.
 func (r *secretStoreResource) configFrom(ctx context.Context, src attrGetter, diags *diag.Diagnostics) map[string]any {
 	config := make(map[string]any, len(r.kind.fields))
 	for _, f := range r.kind.fields {
@@ -378,8 +352,8 @@ func (r *secretStoreResource) configFrom(ctx context.Context, src attrGetter, di
 	return config
 }
 
-// fieldValue maps one config value onto its attribute. Absent or empty reads
-// as null so a key never written is not drift.
+// fieldValue maps a config value onto its attribute. Absent or empty reads
+// as null.
 func fieldValue(raw any) types.String {
 	if s, _ := raw.(string); s != "" {
 		return types.StringValue(s)
@@ -388,7 +362,7 @@ func fieldValue(raw any) types.String {
 }
 
 // identityValues maps the store's identity onto its attributes, null when
-// the store has none.
+// there is none.
 func identityValues(identity *secretStoreIdentity) (issuer, subject types.String) {
 	if identity == nil {
 		return types.StringNull(), types.StringNull()
@@ -396,7 +370,7 @@ func identityValues(identity *secretStoreIdentity) (issuer, subject types.String
 	return types.StringValue(identity.Issuer), types.StringValue(identity.Subject)
 }
 
-// persist writes a store back to state as the server holds it.
+// persist writes a store to state as the server holds it.
 func (r *secretStoreResource) persist(ctx context.Context, state *tfsdk.State, store *secretStore, diags *diag.Diagnostics) {
 	diags.Append(state.SetAttribute(ctx, path.Root("id"), store.ID)...)
 	diags.Append(state.SetAttribute(ctx, path.Root("name"), store.Name)...)
@@ -456,8 +430,8 @@ func (r *secretStoreResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	// Each type is its own resource, so a store of another type under this
-	// id is an import aimed at the wrong resource, not drift to reconcile.
+	// A store of another type under this id is an import into the wrong
+	// resource.
 	if store.StoreType != r.kind.storeType {
 		resp.Diagnostics.AddError("Secret Store Type Mismatch",
 			fmt.Sprintf("Secret store %s is a %s store; import it into marmot_secret_store_%s instead.",
@@ -476,9 +450,8 @@ func (r *secretStoreResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	// The whole config goes every time. The server replaces what it stores
-	// with what is sent, so a key removed from the configuration is removed
-	// from the store rather than lingering.
+	// The whole config goes every time; the server replaces what it has with
+	// what is sent.
 	store, err := r.client.UpdateSecretStore(ctx, id.ValueString(), updateSecretStoreRequest{Config: config})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to Update Secret Store", err.Error())
@@ -500,8 +473,8 @@ func (r *secretStoreResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	// A store already gone is the outcome Delete wanted. A store with a
-	// secret still referenced by a pipeline is refused, and stays.
+	// Already gone is fine. A store with a secret a pipeline still references
+	// is refused.
 	if err := r.client.DeleteSecretStore(ctx, id.ValueString()); err != nil && !errors.Is(err, errNotFound) {
 		resp.Diagnostics.AddError("Unable to Delete Secret Store", err.Error())
 		return

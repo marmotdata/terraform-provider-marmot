@@ -22,9 +22,8 @@ import (
 	"github.com/marmotdata/marmot/sdk/go/auth"
 )
 
-// iamClient talks to the access-policy endpoints directly rather than through
-// the generated SDK, which does not yet cover them. It reuses the SDK client's
-// resolved host and credential so the provider keeps one authentication story.
+// iamClient calls the access-policy endpoints, which the generated SDK does
+// not cover, with the SDK client's host and credential.
 type iamClient struct {
 	host string
 	cred auth.Credential
@@ -45,15 +44,10 @@ type iamBinding struct {
 	Members []string `json:"members"`
 }
 
-// iamPolicy is the complete set of bindings on a resource.
-//
-// Etag is what makes concurrent applies safe: the server rejects a write built
-// on a stale read, so two runs touching the same resource conflict loudly
-// instead of one silently discarding the other's bindings.
+// iamPolicy is the complete set of bindings on a resource. The server
+// rejects a write whose Etag is stale.
 type iamPolicy struct {
-	// omitempty so a rendered policy document carries no etag: the data source
-	// builds a document that has never been read from a server, and an empty
-	// etag in the output would read as a value rather than as its absence.
+	// omitempty so a document rendered by the data source carries no etag.
 	Etag     string       `json:"etag,omitempty"`
 	Bindings []iamBinding `json:"bindings"`
 }
@@ -65,12 +59,9 @@ type setPolicyRequest struct {
 // errPolicyConflict is returned when the policy changed between read and write.
 var errPolicyConflict = errors.New("iam policy changed since it was read")
 
-// errNoPolicyAPI means the instance does not serve the access-policy endpoints.
-//
-// Marmot answers 501; builds from before it had that case fall through to a
-// bare 404. Neither is ambiguous: the endpoints answer 400 for a resource type
-// they do not know and 200 with an empty policy even when the resource has been
-// deleted, so they never produce a 404 of their own.
+// errNoPolicyAPI means the instance has no access-policy endpoints. Marmot
+// answers 501, older builds 404. The endpoints themselves never answer 404:
+// an unknown resource type is a 400 and a deleted resource an empty policy.
 type errNoPolicyAPI struct {
 	host   string
 	status int
@@ -78,9 +69,8 @@ type errNoPolicyAPI struct {
 
 func (e *errNoPolicyAPI) Error() string {
 	return fmt.Sprintf("%s: no access-policy API (HTTP %d). Access grants require "+
-		"Marmot Cloud or Marmot Enterprise (https://cloud.marmotdata.io). If this is not "+
-		"the instance you meant to reach, check the provider's host setting; otherwise "+
-		"remove the marmot_*_iam_* resources from this configuration", e.host, e.status)
+		"Marmot Cloud or Marmot Enterprise (https://cloud.marmotdata.io). Check the "+
+		"provider's host, or remove the marmot_*_iam_* resources", e.host, e.status)
 }
 
 // noPolicyAPI reports whether a status means the endpoints are absent.
@@ -91,8 +81,7 @@ func (c *iamClient) noPolicyAPI(status int) (*errNoPolicyAPI, bool) {
 	return &errNoPolicyAPI{host: c.host, status: status}, true
 }
 
-// The resource id comes from configuration and from import ids, so it is
-// escaped: an unescaped one could address another resource's policy.
+// The id comes from configuration and import ids, so it is escaped.
 func (c *iamClient) policyURL(resourceType, resourceID string) string {
 	if resourceID == "" {
 		resourceID = "-"
@@ -175,13 +164,9 @@ func (c *iamClient) SetPolicy(ctx context.Context, resourceType, resourceID stri
 }
 
 // modifyPolicy applies a change as a read-modify-write against the current
-// etag, retrying when another writer got there first.
-//
-// The _binding and _member resources exist so that several configurations can
-// manage one resource, so conflicts are the normal path. One apply granting n
-// members produces n writers racing for a single etag, and each conflict costs
-// a writer its turn: the budget has to cover a queue draining one slot at a
-// time.
+// etag, retrying when another writer got there first. One apply granting n
+// members is n writers racing for one etag, so the retry budget covers a
+// queue draining one at a time.
 func (c *iamClient) modifyPolicy(
 	ctx context.Context,
 	resourceType, resourceID string,
@@ -214,8 +199,7 @@ func (c *iamClient) modifyPolicy(
 	return fmt.Errorf("policy kept changing under concurrent writes after %d attempts: %w", attempts, lastErr)
 }
 
-// backoff draws a wait uniformly from [0, min(ceiling, base*2^attempt)). The
-// jitter is what lets writers that collided at the same instant drain.
+// backoff draws a wait uniformly from [0, min(ceiling, base*2^attempt)).
 func backoff(attempt int, base, ceiling time.Duration) time.Duration {
 	window := min(base<<min(attempt, 16), ceiling)
 	return time.Duration(rand.Int64N(int64(window)))
@@ -242,9 +226,8 @@ func (p *iamPolicy) bindingFor(role string) []string {
 	return nil
 }
 
-// setRole replaces the members of one role, dropping the binding entirely when
-// no members remain — an empty binding and an absent one mean the same thing,
-// and keeping both representations would show a permanent diff.
+// setRole replaces the members of one role, dropping the binding when no
+// members remain.
 func (p *iamPolicy) setRole(role string, members []string) {
 	out := slices.DeleteFunc(slices.Clone(p.Bindings), func(b iamBinding) bool {
 		return b.Role == role
@@ -265,20 +248,17 @@ func (p *iamPolicy) removeMember(role, member string) {
 	}))
 }
 
-// normaliseMembers sorts and de-duplicates so a reordered list in the
-// configuration does not read as a change. Members themselves are left alone:
-// trimming one would make state differ from configuration, which Terraform
-// rejects.
+// normaliseMembers sorts and de-duplicates so a reordered list does not read
+// as a change. Members themselves are left as written.
 func normaliseMembers(members []string) []string {
 	out := slices.Clone(members)
 	slices.Sort(out)
 	return slices.Compact(out)
 }
 
-// sameBindings reports whether two documents grant the same thing. policy_data
-// is a string, so without a semantic comparison any document not byte-identical
-// to this provider's encoder — jsonencode output, say — plans an update on
-// every run and never converges.
+// sameBindings reports whether two documents grant the same thing, so a
+// policy_data string that is not byte-identical to ours does not plan an
+// update on every run.
 func sameBindings(a, b iamPolicy) bool {
 	canonicalisePolicy(&a)
 	canonicalisePolicy(&b)
@@ -287,10 +267,9 @@ func sameBindings(a, b iamPolicy) bool {
 	})
 }
 
-// canonicalisePolicy puts a policy into the one shape both the data source and
-// the policy resource encode: bindings sorted by role, members sorted and
-// de-duplicated, empty bindings dropped. Without it the server's ordering and
-// the configuration's read as a permanent diff.
+// canonicalisePolicy sorts bindings by role, sorts and de-duplicates members
+// and drops empty bindings, the shape both the data source and the policy
+// resource encode.
 func canonicalisePolicy(p *iamPolicy) {
 	out := make([]iamBinding, 0, len(p.Bindings))
 	for _, b := range p.Bindings {

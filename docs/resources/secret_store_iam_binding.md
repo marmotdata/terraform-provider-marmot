@@ -3,14 +3,14 @@
 page_title: "marmot_secret_store_iam_binding Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
   Authoritative for one role on a secret store and the secrets registered in it. Other roles are left alone, but any member of this role not in the configuration is removed.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_secret_store_iam_binding (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
 Authoritative for one role on a secret store and the secrets registered in it. Other roles are left alone, but any member of this role not in the configuration is removed.
 
@@ -19,9 +19,21 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# Owns who holds secretStore.reader on the store. A service account left out
-# of the list loses it on the next apply; other roles on the store are left
-# alone, so a pipeline author's secretStore.user can be managed elsewhere.
+resource "marmot_secret_store_vault" "prod" {
+  name    = "vault-prod"
+  address = "https://vault.acme.internal"
+}
+
+resource "marmot_service_account" "analytics_agent" {
+  name = "analytics-agent"
+}
+
+resource "marmot_service_account" "ingest_agent" {
+  name = "ingest-agent"
+}
+
+# Owns one role on the store. Anyone left out loses it on the next apply;
+# other roles are untouched.
 resource "marmot_secret_store_iam_binding" "vault_prod_readers" {
   secret_store_id = marmot_secret_store_vault.prod.id
   role            = "secretStore.reader"
@@ -37,7 +49,7 @@ resource "marmot_secret_store_iam_binding" "vault_prod_readers" {
 
 ### Required
 
-- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`. At least one is required; a role with no members is not a grant, so remove the resource instead.
+- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`. At least one is required; remove the resource to grant the role to nobody.
 - `role` (String) Marmot role name, for example `viewer`. A `roles/` prefix is accepted.
 - `secret_store_id` (String) ID of the resource the grant applies to.
 

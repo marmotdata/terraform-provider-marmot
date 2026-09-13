@@ -41,10 +41,9 @@ To keep the secret entirely out of state, you can inject it using a Terraform
 For example, with Google Secret Manager:
 
 ```terraform
-# Read the API key from Google Secret Manager as an ephemeral value: it never
-# lands in Terraform state or plan.
+# The key never lands in plan or state.
 ephemeral "google_secret_manager_secret_version" "marmot_api_key" {
-  secret  = "marmot-api-key" # secret name or full resource ID
+  secret  = "marmot-api-key"
   version = "latest"
 }
 

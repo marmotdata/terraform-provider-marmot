@@ -3,58 +3,46 @@
 page_title: "marmot_secret_store_azure_secret Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no secret-store API, so this resource fails on apply. Marmot Cloud https://cloud.marmotdata.io includes it on every plan.
   A secret in an Azure Key Vault store.
-  Only the location is registered; the value is read from Azure Key Vault when a marmot_pipeline runs, or through the store's identity by a service account holding secretStore:read on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the secretStore:use permission.
+  Only the location is registered. The value is read from Azure Key Vault when a marmot_pipeline runs, or by a service account holding secretStore.reader on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires secretStore:use on the store.
 ---
 
 # marmot_secret_store_azure_secret (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no secret-store API, so this resource fails on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan.
 
 A secret in an Azure Key Vault store.
 
-Only the location is registered; the value is read from Azure Key Vault when a `marmot_pipeline` runs, or through the store's identity by a service account holding `secretStore:read` on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the `secretStore:use` permission.
+Only the location is registered. The value is read from Azure Key Vault when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires `secretStore:use` on the store.
 
 ## Example Usage
 
 ```terraform
 resource "marmot_secret_store_azure" "prod" {
-  name      = "azure-prod"
-  tenant_id = data.azurerm_client_config.current.tenant_id
-  client_id = azuread_application.marmot_store.client_id
+  name = "azure-prod"
 }
 
-# The latest version of a secret.
+data "azurerm_key_vault" "prod" {
+  name                = "acme-prod"
+  resource_group_name = "prod"
+}
+
+variable "orders_db_password" {
+  type      = string
+  sensitive = true
+}
+
+resource "azurerm_key_vault_secret" "db_password" {
+  name         = "orders-db-password"
+  value        = var.orders_db_password
+  key_vault_id = data.azurerm_key_vault.prod.id
+}
+
 resource "marmot_secret_store_azure_secret" "db_password" {
   store     = marmot_secret_store_azure.prod.id
-  vault_uri = azurerm_key_vault.prod.vault_uri
-  name      = "orders-db-password"
-}
-
-# A pinned version.
-resource "marmot_secret_store_azure_secret" "signing_key" {
-  store     = marmot_secret_store_azure.prod.id
-  vault_uri = azurerm_key_vault.prod.vault_uri
-  name      = "signing-key"
-  version   = "6f2a1c9e8d4b4f1e9c3a7b5d2e8f0a1b"
-}
-
-resource "marmot_pipeline" "postgres_orders" {
-  name      = "orders"
-  plugin_id = "postgresql"
-
-  config = jsonencode({
-    host     = "orders-db.acme.internal"
-    database = "orders"
-    user     = "marmot"
-  })
-
-  secrets = {
-    password = marmot_secret_store_azure_secret.db_password.id
-  }
-
-  cron_expression = "0 * * * *"
+  vault_uri = data.azurerm_key_vault.prod.vault_uri
+  name      = azurerm_key_vault_secret.db_password.name
 }
 ```
 
@@ -64,7 +52,7 @@ resource "marmot_pipeline" "postgres_orders" {
 ### Required
 
 - `name` (String) Name of the secret.
-- `store` (String) ID of the `marmot_secret_store_azure` the secret lives in. Changing it replaces the secret.
+- `store` (String) ID of the `marmot_secret_store_azure`. Changing it replaces the secret.
 - `vault_uri` (String) Key Vault URI, for example `https://my-vault.vault.azure.net`.
 
 ### Optional
@@ -73,7 +61,7 @@ resource "marmot_pipeline" "postgres_orders" {
 
 ### Read-Only
 
-- `id` (String) Secret ID, what a `marmot_pipeline` references
+- `id` (String) Secret ID, referenced by `marmot_pipeline`
 
 ## Import
 

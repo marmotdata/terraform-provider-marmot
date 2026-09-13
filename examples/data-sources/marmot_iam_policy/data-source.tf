@@ -1,6 +1,5 @@
-# Builds the JSON document the authoritative *_iam_policy resources expect.
-# Nothing is sent to Marmot when it runs; it exists so a policy can be written
-# as ordinary HCL blocks instead of a hand-written JSON string.
+# Builds the policy document the *_iam_policy resources take. Makes no
+# request to Marmot.
 data "marmot_iam_policy" "catalog_readers" {
   binding {
     role = "catalog.viewer"

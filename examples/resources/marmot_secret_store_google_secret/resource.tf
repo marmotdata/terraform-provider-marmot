@@ -1,37 +1,30 @@
 resource "marmot_secret_store_google" "prod" {
-  name                       = "gcp-prod"
-  workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
+  name = "gcp-prod"
 }
 
-# The latest version of a global secret.
+resource "google_secret_manager_secret" "db_password" {
+  secret_id = "orders-db-password"
+
+  replication {
+    auto {}
+  }
+}
+
 resource "marmot_secret_store_google_secret" "db_password" {
   store     = marmot_secret_store_google.prod.id
-  project   = "acme-secrets"
-  secret_id = "orders-db-password"
+  project   = google_secret_manager_secret.db_password.project
+  secret_id = google_secret_manager_secret.db_password.secret_id
 }
 
-# A pinned version of a regional secret.
+# A regional secret.
+resource "google_secret_manager_regional_secret" "signing_key" {
+  secret_id = "signing-key"
+  location  = "europe-west1"
+}
+
 resource "marmot_secret_store_google_secret" "signing_key" {
   store     = marmot_secret_store_google.prod.id
-  project   = "acme-secrets"
-  location  = "europe-west1"
-  secret_id = "signing-key"
-  version   = "3"
-}
-
-resource "marmot_pipeline" "postgres_orders" {
-  name      = "orders"
-  plugin_id = "postgresql"
-
-  config = jsonencode({
-    host     = "orders-db.acme.internal"
-    database = "orders"
-    user     = "marmot"
-  })
-
-  secrets = {
-    password = marmot_secret_store_google_secret.db_password.id
-  }
-
-  cron_expression = "0 * * * *"
+  project   = google_secret_manager_regional_secret.signing_key.project
+  location  = google_secret_manager_regional_secret.signing_key.location
+  secret_id = google_secret_manager_regional_secret.signing_key.secret_id
 }

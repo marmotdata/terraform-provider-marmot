@@ -35,9 +35,8 @@ func NewPipelineResource() resource.Resource {
 
 // PipelineResource defines the resource implementation.
 //
-// Create, Read and Update go through the hand-written client because the
-// generated SDK does not carry a schedule's secrets and would drop them on
-// the way through. Delete has nothing to drop and stays on the SDK.
+// Create, Read and Update use the hand-written client because the generated
+// SDK drops a schedule's secrets. Delete stays on the SDK.
 type PipelineResource struct {
 	client  *marmot.Client
 	secrets *secretStoreClient
@@ -69,9 +68,8 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 		MarkdownDescription: "A pipeline: a plugin pointed at a source that discovers and catalogs " +
 			"assets on a recurring schedule. Rather than declaring each asset by hand, point a plugin " +
 			"at a source and Marmot keeps the catalog in sync from what it finds there.\n\n" +
-			"Credentials the plugin needs can be kept out of `config` and out of state: `secrets` " +
-			"maps a key in `config` to a `marmot_secret_store_*_secret`, and Marmot injects the " +
-			"value there before each run.",
+			"`secrets` maps a key in `config` to a `marmot_secret_store_*_secret`. Marmot injects " +
+			"the value there before each run, so credentials stay out of `config` and out of state.",
 
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
@@ -112,12 +110,10 @@ func (r *PipelineResource) Schema(ctx context.Context, req resource.SchemaReques
 				Default:  booldefault.StaticBool(true),
 			},
 			"secrets": schema.MapAttribute{
-				MarkdownDescription: "Secrets to inject into the plugin config before each run, keyed by " +
-					"the dot path in `config` to inject at, for example `password` or " +
-					"`credentials.private_key`. Each value is the `id` of a `marmot_secret_store_*_secret`. " +
-					"Only the reference is stored; the value never enters Terraform state or the " +
-					"pipeline's stored config. Registering secrets requires the `secretStore:use` " +
-					"permission and Marmot Cloud or Marmot Enterprise.",
+				MarkdownDescription: "Secrets to inject into `config` before each run, keyed by the dot " +
+					"path to inject at, for example `password` or `credentials.private_key`. Each value " +
+					"is the `id` of a `marmot_secret_store_*_secret`. Only the reference is stored. " +
+					"Requires `secretStore:use` on the store, and Marmot Cloud or Marmot Enterprise.",
 				Optional:    true,
 				ElementType: types.StringType,
 				Validators: []validator.Map{
@@ -281,8 +277,8 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	// The full map goes every time, empty included: the server replaces
-	// what it has with what is sent, and only an absent field keeps it.
+	// The full map goes every time, empty included; only an absent field
+	// keeps what the server has.
 	schedule, err := r.secrets.UpdateSchedule(ctx, state.ID.ValueString(), updateScheduleRequest{
 		Name:           data.Name.ValueString(),
 		PluginID:       data.PluginID.ValueString(),
@@ -314,8 +310,7 @@ func (r *PipelineResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	// An object already gone is the outcome Delete wanted, so a 404 here
-	// is success. Erroring instead wedges destroy behind a manual state rm.
+	// A 404 on delete is success: the object is already gone.
 	if err := r.client.Ingestion.DeleteSchedule(ctx, data.ID.ValueString()); err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete pipeline: %s", err))
 		return
@@ -341,8 +336,7 @@ func scheduleConfig(config jsontypes.Normalized) (map[string]any, diag.Diagnosti
 }
 
 // scheduleSecrets turns the secrets attribute into the map the API takes.
-// The result is never nil: on update an absent map keeps what the server
-// has, and only an empty one clears it.
+// Never nil: on update an absent map keeps what the server has.
 func scheduleSecrets(ctx context.Context, m types.Map) (map[string]string, diag.Diagnostics) {
 	out := map[string]string{}
 	if m.IsNull() || m.IsUnknown() {
@@ -353,8 +347,8 @@ func scheduleSecrets(ctx context.Context, m types.Map) (map[string]string, diag.
 }
 
 // secretsValue turns the API's secrets into the attribute. The API omits
-// the field when there are none, which is null when nothing was written
-// and an empty map when `{}` was, so prior decides between the two.
+// the field when there are none, so prior decides between null and an
+// empty map.
 func secretsValue(ctx context.Context, secrets map[string]string, prior types.Map) (types.Map, diag.Diagnostics) {
 	if len(secrets) == 0 {
 		if prior.IsNull() {

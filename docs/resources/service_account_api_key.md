@@ -3,17 +3,17 @@
 page_title: "marmot_service_account_api_key Resource - marmot"
 subcategory: ""
 description: |-
-  A durable API key on a service account. The plaintext is only disclosed at creation, so it is captured then and kept in state as the sensitive key attribute. Every attribute change replaces the key. Accounts are limited to 5 keys.
+  An API key on a service account. The plaintext is only returned at creation and is kept in state as the sensitive key attribute. Any change replaces the key. An account holds at most 5 keys.
 ---
 
 # marmot_service_account_api_key (Resource)
 
-A durable API key on a service account. The plaintext is only disclosed at creation, so it is captured then and kept in state as the sensitive `key` attribute. Every attribute change replaces the key. Accounts are limited to 5 keys.
+An API key on a service account. The plaintext is only returned at creation and is kept in state as the sensitive `key` attribute. Any change replaces the key. An account holds at most 5 keys.
 
 ## Example Usage
 
 ```terraform
-# A long-lived key. The plaintext is sensitive and kept in state.
+# The key is kept in state as the sensitive `key` attribute.
 resource "marmot_service_account_api_key" "ingest_agent" {
   service_account_id = marmot_service_account.ingest_agent.id
   name               = "ci-runner"
@@ -26,7 +26,7 @@ resource "marmot_service_account_api_key" "ingest_agent" {
 
 ### Required
 
-- `name` (String) Name of the key, e.g. what system holds it
+- `name` (String) Name of the key
 - `service_account_id` (String) ID of the service account the key belongs to
 
 ### Optional

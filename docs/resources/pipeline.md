@@ -4,14 +4,14 @@ page_title: "marmot_pipeline Resource - marmot"
 subcategory: ""
 description: |-
   A pipeline: a plugin pointed at a source that discovers and catalogs assets on a recurring schedule. Rather than declaring each asset by hand, point a plugin at a source and Marmot keeps the catalog in sync from what it finds there.
-  Credentials the plugin needs can be kept out of config and out of state: secrets maps a key in config to a marmot_secret_store_*_secret, and Marmot injects the value there before each run.
+  secrets maps a key in config to a marmot_secret_store_*_secret. Marmot injects the value there before each run, so credentials stay out of config and out of state.
 ---
 
 # marmot_pipeline (Resource)
 
 A pipeline: a plugin pointed at a source that discovers and catalogs assets on a recurring schedule. Rather than declaring each asset by hand, point a plugin at a source and Marmot keeps the catalog in sync from what it finds there.
 
-Credentials the plugin needs can be kept out of `config` and out of state: `secrets` maps a key in `config` to a `marmot_secret_store_*_secret`, and Marmot injects the value there before each run.
+`secrets` maps a key in `config` to a `marmot_secret_store_*_secret`. Marmot injects the value there before each run, so credentials stay out of `config` and out of state.
 
 ## Example Usage
 
@@ -29,12 +29,24 @@ resource "marmot_pipeline" "bigquery_analytics" {
   enabled         = true
 }
 
-# Credentials stay out of config and out of state: the secret is read from
-# the store before each run and injected into config at the key.
-resource "marmot_secret_store_google_secret" "orders_db_password" {
-  store     = marmot_secret_store_google.prod.id
-  project   = "acme-secrets"
+# Credentials come from a secret store. The value is injected into config
+# at the key before each run and never enters state.
+resource "marmot_secret_store_google" "prod" {
+  name = "gcp-prod"
+}
+
+resource "google_secret_manager_secret" "db_password" {
   secret_id = "orders-db-password"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "marmot_secret_store_google_secret" "db_password" {
+  store     = marmot_secret_store_google.prod.id
+  project   = google_secret_manager_secret.db_password.project
+  secret_id = google_secret_manager_secret.db_password.secret_id
 }
 
 resource "marmot_pipeline" "postgres_orders" {
@@ -48,7 +60,7 @@ resource "marmot_pipeline" "postgres_orders" {
   })
 
   secrets = {
-    password = marmot_secret_store_google_secret.orders_db_password.id
+    password = marmot_secret_store_google_secret.db_password.id
   }
 
   cron_expression = "0 * * * *"
@@ -68,7 +80,7 @@ resource "marmot_pipeline" "postgres_orders" {
 ### Optional
 
 - `enabled` (Boolean) Whether the pipeline runs on its cron. Defaults to `true`. Set to `false` to keep the pipeline but pause automatic runs.
-- `secrets` (Map of String) Secrets to inject into the plugin config before each run, keyed by the dot path in `config` to inject at, for example `password` or `credentials.private_key`. Each value is the `id` of a `marmot_secret_store_*_secret`. Only the reference is stored; the value never enters Terraform state or the pipeline's stored config. Registering secrets requires the `secretStore:use` permission and Marmot Cloud or Marmot Enterprise.
+- `secrets` (Map of String) Secrets to inject into `config` before each run, keyed by the dot path to inject at, for example `password` or `credentials.private_key`. Each value is the `id` of a `marmot_secret_store_*_secret`. Only the reference is stored. Requires `secretStore:use` on the store, and Marmot Cloud or Marmot Enterprise.
 
 ### Read-Only
 

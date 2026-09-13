@@ -35,9 +35,8 @@ func typeName(t *testing.T, r resource.Resource) string {
 	return resp.TypeName
 }
 
-// The framework checks what the protocol will reject: a default on a
-// required attribute, a computed block, a sensitive nested attribute in the
-// wrong place. Catching that here beats catching it on the first plan.
+// The framework rejects what the protocol would, such as a default on a
+// required attribute.
 func TestSecretStoreSchemasAreValid(t *testing.T) {
 	resources := append(SecretStoreResources(), SecretStoreSecretResources()...)
 	resources = append(resources,
@@ -59,9 +58,8 @@ func TestSecretStoreSchemasAreValid(t *testing.T) {
 	}
 }
 
-// Every store exposes its identity the same way. Config keys the server
-// fills in are computed so a plan can take the server's value: a constant
-// default is mirrored, a derived one has no default and follows its inputs.
+// Config keys the server fills in are computed: a constant default is
+// mirrored, a derived one follows its inputs.
 func TestSecretStoreSchemaShape(t *testing.T) {
 	defaulted := map[string][]string{
 		"aws":   {"session_name"},
@@ -119,8 +117,7 @@ func kindNamed(t *testing.T, storeType string) secretStoreKind {
 	return secretStoreKind{}
 }
 
-// objectOf builds a fully populated object of typ, null for any attribute
-// not given, which is how Terraform hands a plan or state over.
+// objectOf builds an object of typ, null for any attribute not given.
 func objectOf(t *testing.T, typ tftypes.Object, attrs map[string]tftypes.Value) tftypes.Value {
 	t.Helper()
 	values := make(map[string]tftypes.Value, len(typ.AttributeTypes))
@@ -140,8 +137,7 @@ func str(s string) tftypes.Value {
 
 var unknown = tftypes.NewValue(tftypes.String, tftypes.UnknownValue)
 
-// storeFixture is one store type's resource with the tftypes shape a test
-// needs to build plans and states for it.
+// storeFixture is one store type's resource and its tftypes shape.
 type storeFixture struct {
 	r       *secretStoreResource
 	schema  schema.Schema
@@ -195,8 +191,7 @@ func stringAt(t *testing.T, state tfsdk.State, p path.Path) types.String {
 	return v
 }
 
-// Only what is set and known goes on the wire, so the server applies its own
-// defaults and derivations and the config reads back with the keys written.
+// Only what is set and known goes on the wire.
 func TestSecretStoreConfigSendsOnlyWhatIsSet(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -261,9 +256,8 @@ func TestSecretStoreConfigSendsOnlyWhatIsSet(t *testing.T) {
 	}
 }
 
-// A value the server filled in lands in state next to what was written, so
-// a plan that keeps it sees no drift; a key the server did not return is
-// null rather than empty.
+// Server-filled values land in state; a key the server did not return is
+// null.
 func TestSecretStoreReadTakesTheServersConfig(t *testing.T) {
 	f := newStoreFixture(t, "aws")
 
@@ -300,8 +294,6 @@ func TestSecretStoreReadTakesTheServersConfig(t *testing.T) {
 	}
 }
 
-// A federated store's identity is what the user binds on the cloud side, so
-// it is exposed as is; a store without one reads as null.
 func TestSecretStoreReadExposesTheIdentity(t *testing.T) {
 	f := newStoreFixture(t, "google")
 
@@ -336,8 +328,7 @@ func TestSecretStoreReadExposesTheIdentity(t *testing.T) {
 	}
 }
 
-// A value the server derives is planned from state while what it derives
-// from stands still, and left to the server otherwise.
+// A derived value is planned from state while its inputs stand still.
 func TestKeepStateUnless(t *testing.T) {
 	f := newStoreFixture(t, "google")
 	provider := "projects/123/locations/global/workloadIdentityPools/marmot/providers/marmot"
@@ -474,9 +465,8 @@ func TestKeepStateUnless(t *testing.T) {
 	}
 }
 
-// The map round-trips through the API shape. "No secrets" goes on the wire
-// as an empty map, and reads back as whatever was written, null or `{}`,
-// since the API omits the field for both.
+// "No secrets" goes as an empty map and reads back as whatever was written,
+// null or `{}`, since the API omits the field for both.
 func TestPipelineSecretsRoundTrip(t *testing.T) {
 	secrets := map[string]string{"password": "sec1", "credentials.private_key": "sec2"}
 

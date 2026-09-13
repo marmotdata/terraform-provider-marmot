@@ -1,29 +1,38 @@
-# A store using the server's own token (VAULT_TOKEN). A private CA is
-# given as PEM.
+# Logs in with the server's own VAULT_TOKEN.
 resource "marmot_secret_store_vault" "prod" {
   name    = "vault-prod"
   address = "https://vault.acme.internal"
-  ca_cert = file("${path.module}/vault-ca.pem")
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:vault-prod-federated`
-# to a JWT auth role with `bound_subject` and `bound_audiences` set. The
-# audience defaults to the Vault address.
+# Federated. A JWT auth method trusts the Marmot instance and its role
+# binds the store's subject and audience.
 resource "marmot_secret_store_vault" "federated" {
-  name      = "vault-prod-federated"
-  address   = "https://vault.acme.internal"
-  namespace = "platform"
-  role      = "marmot"
-  auth_path = "jwt"
+  name    = "vault-prod-federated"
+  address = "https://vault.acme.internal"
+  role    = "marmot"
 }
 
-# The JWT role trusts the store's issuer and binds its subject and audience.
-resource "vault_jwt_auth_backend_role" "marmot_store" {
+resource "vault_jwt_auth_backend" "marmot" {
+  path               = "jwt"
+  oidc_discovery_url = marmot_secret_store_vault.federated.issuer
+}
+
+resource "vault_policy" "marmot" {
+  name = "marmot"
+
+  policy = <<-EOT
+    path "secret/data/orders/*" {
+      capabilities = ["read"]
+    }
+  EOT
+}
+
+resource "vault_jwt_auth_backend_role" "marmot" {
   backend         = vault_jwt_auth_backend.marmot.path
   role_name       = "marmot"
   role_type       = "jwt"
   user_claim      = "sub"
   bound_subject   = marmot_secret_store_vault.federated.subject
   bound_audiences = [marmot_secret_store_vault.federated.audience]
-  token_policies  = ["marmot-agents"]
+  token_policies  = [vault_policy.marmot.name]
 }

@@ -1,5 +1,4 @@
-# Business terms. A grant on a term covers its descendants, so the hierarchy
-# below is also an access hierarchy.
+# Business terms. A grant on a term covers its descendants.
 
 resource "marmot_glossary_term" "customer" {
   name       = "Customer"

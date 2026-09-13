@@ -3,22 +3,21 @@
 page_title: "marmot_iam_policy Data Source - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
-  Builds a policy document for the authoritative *_iam_policy resources. Purely local: it renders its blocks to JSON and contacts no server.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
+  Builds a policy document for the *_iam_policy resources. Makes no request to Marmot.
 ---
 
 # marmot_iam_policy (Data Source)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
-Builds a policy document for the authoritative `*_iam_policy` resources. Purely local: it renders its blocks to JSON and contacts no server.
+Builds a policy document for the `*_iam_policy` resources. Makes no request to Marmot.
 
 ## Example Usage
 
 ```terraform
-# Builds the JSON document the authoritative *_iam_policy resources expect.
-# Nothing is sent to Marmot when it runs; it exists so a policy can be written
-# as ordinary HCL blocks instead of a hand-written JSON string.
+# Builds the policy document the *_iam_policy resources take. Makes no
+# request to Marmot.
 data "marmot_iam_policy" "catalog_readers" {
   binding {
     role = "catalog.viewer"

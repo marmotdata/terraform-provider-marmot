@@ -1,6 +1,4 @@
-# Data products group the assets above into things a consumer asks for by name.
-# They are also a grant target: a binding on a data product covers every asset
-# it resolves, so access follows the product rather than a list of tables.
+# Data products. A grant on a product covers every asset it resolves.
 
 resource "marmot_data_product" "orders" {
   name        = "orders"
@@ -29,7 +27,7 @@ resource "marmot_data_product_asset" "orders_fact" {
   asset_id        = marmot_asset.orders_fact.id
 }
 
-# Anything tagged orders joins the product without being listed by hand.
+# Anything tagged orders joins the product.
 resource "marmot_data_product_rule" "orders_by_tag" {
   data_product_id = marmot_data_product.orders.id
 
@@ -76,7 +74,7 @@ resource "marmot_data_product_rule" "customer_domain" {
   priority       = 10
 }
 
-# The restricted one. Its policy is owned outright in iam.tf.
+# Its policy is owned outright in iam.tf.
 resource "marmot_data_product" "finance_reporting" {
   name        = "finance-reporting"
   description = "Recognised revenue and the pipeline behind it. Need-to-know."

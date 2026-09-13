@@ -3,24 +3,23 @@
 page_title: "marmot_data_product_iam_policy Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
-  Authoritative. Sets the complete access policy on a data product and every asset it resolves, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource: they will fight.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
+  Authoritative. Sets the complete access policy on a data product and every asset it resolves, removing any binding not present in the configuration. Do not use alongside _iam_binding or _iam_member for the same resource.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_data_product_iam_policy (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
-Authoritative. Sets the complete access policy on a data product and every asset it resolves, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource: they will fight.
+Authoritative. Sets the complete access policy on a data product and every asset it resolves, removing any binding not present in the configuration. Do not use alongside `_iam_binding` or `_iam_member` for the same resource.
 
 Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 
 ## Example Usage
 
 ```terraform
-# Owns the data product's policy outright, which makes this block the complete
-# and only answer to who can reach the product and everything inside it.
+# Owns the whole policy of the data product and everything it resolves.
 data "marmot_iam_policy" "finance" {
   binding {
     role    = "catalog.viewer"

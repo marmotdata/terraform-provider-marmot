@@ -420,8 +420,7 @@ func (r *AssetResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	// An object already gone is the outcome Delete wanted, so a 404 here
-	// is success. Erroring instead wedges destroy behind a manual state rm.
+	// A 404 on delete is success: the object is already gone.
 	if err := r.client.Assets.Delete(ctx, data.ID.ValueString()); err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete asset: %s", err))
 		return
@@ -656,7 +655,7 @@ func normalizeTimestamp(timestamp string) string {
 // applyComputedFields copies the server-generated (read-only) attributes from an
 // API response onto the model, leaving every configured attribute untouched.
 // Create and Update use this so plan values, including nulls, are saved to state
-// exactly as written — only unknown (computed) values may change after apply.
+// exactly as written; only unknown (computed) values may change after apply.
 func applyComputedFields(model *AssetResourceModel, asset *marmot.Asset) {
 	model.ID = types.StringValue(asset.ID)
 	model.CreatedAt = types.StringValue(normalizeTimestamp(asset.CreatedAt))

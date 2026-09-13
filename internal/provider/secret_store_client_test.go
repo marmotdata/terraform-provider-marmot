@@ -95,10 +95,8 @@ func TestCreateSecretStoreSendsTypeAndConfig(t *testing.T) {
 	}
 }
 
-// A POST carries no id, so a 404 there can only be the route missing. Marmot
-// Cloud answers 501 when a feature is off; open-source answers 404 with the
-// same body a missing store would, and reporting it as "Not Found" would read
-// as though the store had vanished.
+// A 404 on POST can only be the route missing; Marmot Cloud answers 501
+// when the feature is off.
 func TestCreateSecretStoreReportsAMissingAPI(t *testing.T) {
 	for _, status := range []int{http.StatusNotImplemented, http.StatusNotFound} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
@@ -121,8 +119,6 @@ func TestCreateSecretStoreReportsAMissingAPI(t *testing.T) {
 	}
 }
 
-// The server explains a rejected config in the body; that text is what the
-// user needs to see.
 func TestCreateSecretStoreSurfacesTheServerMessage(t *testing.T) {
 	tests := []struct {
 		status int
@@ -144,8 +140,6 @@ func TestCreateSecretStoreSurfacesTheServerMessage(t *testing.T) {
 	}
 }
 
-// A 404 on a store's own URL is the store being gone, which Read turns into
-// removing it from state.
 func TestGetSecretStoreReportsNotFound(t *testing.T) {
 	c := newTestSecretStoreClient(t, alwaysRespond(http.StatusNotFound, `{"error":"Secret store not found"}`))
 	_, err := c.GetSecretStore(t.Context(), "s1")
@@ -157,9 +151,7 @@ func TestGetSecretStoreReportsNotFound(t *testing.T) {
 	}
 }
 
-// The update carries the config and nothing else: an empty config still
-// goes, so the server replaces what it has, and no name goes, since the
-// resource replaces the store on a rename instead.
+// An empty config still goes; the name never does.
 func TestUpdateSecretStoreSendsTheConfig(t *testing.T) {
 	tests := []struct {
 		name string
@@ -187,8 +179,6 @@ func TestUpdateSecretStoreSendsTheConfig(t *testing.T) {
 	}
 }
 
-// A federated store carries the identity the user binds on the cloud side;
-// a store on the server's own credentials carries none.
 func TestGetSecretStoreDecodesTheIdentity(t *testing.T) {
 	tests := []struct {
 		name string
@@ -260,7 +250,7 @@ func TestDeleteSecretStore(t *testing.T) {
 	}
 }
 
-// A config the binary rejects is a verdict, not a failed request.
+// A rejected config is a result, not an error.
 func TestValidateSecretStoreReportsTheVerdict(t *testing.T) {
 	handler, last := record(t, http.StatusOK, `{"valid":false,"error":"store vault-prod: dial tcp: refused"}`)
 	c := newTestSecretStoreClient(t, handler)
@@ -277,8 +267,6 @@ func TestValidateSecretStoreReportsTheVerdict(t *testing.T) {
 	}
 }
 
-// A secret is registered under its store; the ref goes wrapped and comes
-// back as sent, non-string values included.
 func TestCreateSecretSendsTheRef(t *testing.T) {
 	handler, last := record(t, http.StatusCreated, `{
 		"id": "sec1", "secret_store_id": "s1",
@@ -302,8 +290,6 @@ func TestCreateSecretSendsTheRef(t *testing.T) {
 	}
 }
 
-// The server names what is wrong with a ref; that text is what the user
-// needs to see.
 func TestCreateSecretSurfacesTheServerMessage(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -389,8 +375,6 @@ func TestDeleteSecret(t *testing.T) {
 	}
 }
 
-// On create the server treats absent and empty secrets alike, so an empty
-// map is left out of the body.
 func TestCreateScheduleSendsSecretsOnlyWhenThereAreAny(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -426,8 +410,8 @@ func TestCreateScheduleSendsSecretsOnlyWhenThereAreAny(t *testing.T) {
 	}
 }
 
-// On update an absent map keeps the registered secrets, so "none" has to go
-// on the wire as an empty map or a removed attribute would never clear them.
+// On update an absent map keeps the server's secrets, so "none" goes as an
+// empty map.
 func TestUpdateScheduleAlwaysSendsSecrets(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -456,8 +440,6 @@ func TestUpdateScheduleAlwaysSendsSecrets(t *testing.T) {
 	}
 }
 
-// The schedule decodes into the SDK's shape, so the existing mapping keeps
-// working, with the secrets alongside.
 func TestGetScheduleDecodesSecretsAlongsideTheSchedule(t *testing.T) {
 	c := newTestSecretStoreClient(t, alwaysRespond(http.StatusOK, `{
 		"id": "p1", "name": "orders", "plugin_id": "postgresql",
@@ -490,8 +472,6 @@ func TestGetScheduleReportsNotFound(t *testing.T) {
 	}
 }
 
-// An id from configuration or an import must never be able to address a
-// different resource than the one Terraform manages.
 func TestURLsEscapeIDs(t *testing.T) {
 	c := &secretStoreClient{host: "https://marmot.test"}
 	got := c.secretURL("store-1?x=", "secret-1")

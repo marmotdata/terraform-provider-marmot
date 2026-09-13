@@ -3,14 +3,14 @@
 page_title: "marmot_organization_iam_binding Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes them on every plan, Free included.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no access-policy API, so these resources fail on apply. Marmot Cloud https://cloud.marmotdata.io includes them on every plan.
   Authoritative for one role on the whole catalog. Other roles are left alone, but any member of this role not in the configuration is removed.
   Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 ---
 
 # marmot_organization_iam_binding (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no access-policy API, so these resources fail on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no access-policy API, so these resources fail on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes them on every plan.
 
 Authoritative for one role on the whole catalog. Other roles are left alone, but any member of this role not in the configuration is removed.
 
@@ -19,8 +19,7 @@ Grants are additive and there are no denies, so a member also holding the permis
 ## Example Usage
 
 ```terraform
-# The organization is the top of the hierarchy, so this role reaches the whole
-# catalog. Members left out of the list lose it everywhere.
+# Owns one role on the whole catalog. Anyone left out loses it everywhere.
 resource "marmot_organization_iam_binding" "platform_admins" {
   role    = "admin"
   members = ["group:${marmot_team.platform.id}"]
@@ -32,7 +31,7 @@ resource "marmot_organization_iam_binding" "platform_admins" {
 
 ### Required
 
-- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`. At least one is required; a role with no members is not a grant, so remove the resource instead.
+- `members` (Set of String) Members holding the role: `user:{id}`, `group:{team id}`, `serviceAccount:{id}`, or `allAuthenticated`. At least one is required; remove the resource to grant the role to nobody.
 - `role` (String) Marmot role name, for example `viewer`. A `roles/` prefix is accepted.
 
 ### Read-Only

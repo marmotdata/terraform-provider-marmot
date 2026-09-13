@@ -25,7 +25,7 @@ output "data_products" {
   }
 }
 
-# The etags show that every grant was read back from the server after writing.
+# Etag of each policy as last read.
 output "policy_etags" {
   description = "Etag of each managed policy as last read."
   value = {

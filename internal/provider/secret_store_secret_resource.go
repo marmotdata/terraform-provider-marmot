@@ -24,10 +24,9 @@ import (
 	marmot "github.com/marmotdata/marmot/sdk/go"
 )
 
-// secretRefField is one key of a secret's ref, exposed as an attribute of
-// the same name. The server validates the ref against the store type and
-// stores it as sent, so a default the server would apply is mirrored here
-// and always goes on the wire.
+// secretRefField is one key of a secret's ref, exposed as an attribute. The
+// server stores the ref as sent, so a default it would apply is mirrored
+// here and always goes on the wire.
 type secretRefField struct {
 	name          string
 	description   string
@@ -61,9 +60,8 @@ func (f secretRefField) attribute() schema.Attribute {
 	return a
 }
 
-// secretKind describes one store type's secrets as a Terraform resource.
-// Every type shares the CRUD below over the generic secrets API; only the
-// ref's shape differs.
+// secretKind describes one store type's secrets. All types share the CRUD
+// below; only the ref differs.
 type secretKind struct {
 	storeType   string
 	label       string
@@ -75,9 +73,9 @@ var secretKinds = []secretKind{
 	{
 		storeType:   "google",
 		label:       "Google Secret Manager",
-		description: "A secret in a Google Secret Manager store: a secret and a version in a project.",
+		description: "A secret in a Google Secret Manager store.",
 		fields: []secretRefField{
-			{name: "project", description: "Project ID or number the secret lives in.", required: true},
+			{name: "project", description: "Project ID or number of the secret.", required: true},
 			{name: "location", description: "Region of a regional secret, for example `europe-west1`. Omit for a global secret."},
 			{name: "secret_id", description: "Name of the secret.", required: true},
 			{name: "version", description: "Version to read.", serverDefault: "latest"},
@@ -88,10 +86,10 @@ var secretKinds = []secretKind{
 		label:       "AWS Secrets Manager",
 		description: "A secret in an AWS Secrets Manager store, by name or ARN.",
 		fields: []secretRefField{
-			{name: "region", description: "Region the secret lives in. Required unless `secret_id` is an ARN, which carries its own."},
+			{name: "region", description: "Region of the secret. Required unless `secret_id` is an ARN."},
 			{name: "secret_id", description: "Name or ARN of the secret.", required: true},
 			{name: "version_stage", description: "Staging label to read.", serverDefault: "AWSCURRENT"},
-			{name: "version_id", description: "Version to read. Pins reads to that version."},
+			{name: "version_id", description: "Version to read instead of the staging label."},
 		},
 	},
 	{
@@ -107,7 +105,7 @@ var secretKinds = []secretKind{
 	{
 		storeType:   "vault",
 		label:       "HashiCorp Vault",
-		description: "A secret in a HashiCorp Vault KV v2 store: a key of a secret under a mount.",
+		description: "A secret in a HashiCorp Vault KV v2 store.",
 		fields: []secretRefField{
 			{name: "mount", description: "KV v2 mount path.", serverDefault: "secret"},
 			{name: "name", description: "Path of the secret under the mount.", required: true},
@@ -156,8 +154,8 @@ func (r *secretResource) Configure(_ context.Context, req resource.ConfigureRequ
 func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	attrs := map[string]schema.Attribute{
 		"store": schema.StringAttribute{
-			MarkdownDescription: "ID of the `marmot_secret_store_" + r.kind.storeType + "` the secret lives in. " +
-				"Changing it replaces the secret.",
+			MarkdownDescription: "ID of the `marmot_secret_store_" + r.kind.storeType + "`. Changing it " +
+				"replaces the secret.",
 			Required: true,
 			Validators: []validator.String{
 				stringvalidator.LengthAtLeast(1),
@@ -167,7 +165,7 @@ func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			},
 		},
 		"id": schema.StringAttribute{
-			MarkdownDescription: "Secret ID, what a `marmot_pipeline` references",
+			MarkdownDescription: "Secret ID, referenced by `marmot_pipeline`",
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
@@ -180,16 +178,15 @@ func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: secretStoreCloudOnly + r.kind.description +
-			"\n\nOnly the location is registered; the value is read from " + r.kind.label +
-			" when a `marmot_pipeline` runs, or through the store's identity by a service account " +
-			"holding `secretStore:read` on the store, and never enters Terraform state. Repointing " +
-			"the secret updates it in place and every pipeline that references it follows. " +
-			"Registering secrets requires the `secretStore:use` permission.",
+			"\n\nOnly the location is registered. The value is read from " + r.kind.label +
+			" when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` " +
+			"on the store, and never enters Terraform state. Repointing the secret updates it in " +
+			"place; pipelines that reference it follow. Requires `secretStore:use` on the store.",
 		Attributes: attrs,
 	}
 }
 
-// refFrom assembles the ref the API takes from the planned attributes. Null
+// refFrom builds the ref the API takes from the planned attributes. Null
 // attributes are left out.
 func (r *secretResource) refFrom(ctx context.Context, src attrGetter, diags *diag.Diagnostics) map[string]any {
 	ref := make(map[string]any, len(r.kind.fields))
@@ -211,7 +208,7 @@ func (r *secretResource) refFrom(ctx context.Context, src attrGetter, diags *dia
 	return ref
 }
 
-// persist writes a secret back to state as the server holds it.
+// persist writes a secret to state as the server holds it.
 func (r *secretResource) persist(ctx context.Context, state *tfsdk.State, secret *secretStoreSecret, diags *diag.Diagnostics) {
 	diags.Append(state.SetAttribute(ctx, path.Root("id"), secret.ID)...)
 	diags.Append(state.SetAttribute(ctx, path.Root("store"), secret.SecretStoreID)...)
@@ -304,8 +301,7 @@ func (r *secretResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		return
 	}
 
-	// A secret already gone is the outcome Delete wanted. One still
-	// referenced by a pipeline is refused, and stays.
+	// Already gone is fine. A secret a pipeline still references is refused.
 	if err := r.client.DeleteSecret(ctx, store.ValueString(), id.ValueString()); err != nil && !errors.Is(err, errNotFound) {
 		resp.Diagnostics.AddError("Unable to Delete Secret", err.Error())
 		return
@@ -317,8 +313,7 @@ func (r *secretResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	})
 }
 
-// ImportState takes "<store id>/<secret id>": the secret endpoints are
-// addressed by both.
+// ImportState takes "<store id>/<secret id>".
 func (r *secretResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	store, id, ok := strings.Cut(req.ID, "/")
 	if !ok || store == "" || id == "" {

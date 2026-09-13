@@ -3,65 +3,84 @@
 page_title: "marmot_secret_store_aws Resource - marmot"
 subcategory: ""
 description: |-
-  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
-  An AWS Secrets Manager store. Without role_arn the server reads with its own credential chain (IRSA in a pod); with it, Marmot presents an OIDC token for the subject secretStore:{name} and assumes the role.
-  A store holds no secret values. marmot_secret_store_aws_secret registers where a secret lives in it; a marmot_pipeline reads such a secret into its config before each run, and a service account holding secretStore:read on the store reads it through the store's identity. marmot_secret_store_iam_member, marmot_secret_store_iam_binding and marmot_secret_store_iam_policy grant roles on the store: secretStore.reader reads secret values, secretStore.viewer sees the store and its secrets, secretStore.user registers secrets and attaches them to pipelines.
-  A federated store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+  ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot has no secret-store API, so this resource fails on apply. Marmot Cloud https://cloud.marmotdata.io includes it on every plan.
+  An AWS Secrets Manager store. Set role_arn to federate; without it the server reads with its own credential chain.
+  A store holds no secret values. marmot_secret_store_aws_secret registers where a secret lives in it, and a marmot_pipeline reads that secret into its config before each run. Roles on the store are granted with marmot_secret_store_iam_member, marmot_secret_store_iam_binding and marmot_secret_store_iam_policy: secretStore.reader reads secret values, secretStore.viewer sees the store and its secrets, secretStore.user registers secrets and attaches them to pipelines.
+  A federated store presents an OIDC token to its backend. Trust issuer, subject and audience on the cloud side.
 ---
 
 # marmot_secret_store_aws (Resource)
 
-~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan, Free included.
+~> **Requires Marmot Cloud or Marmot Enterprise.** Open-source Marmot has no secret-store API, so this resource fails on apply. [Marmot Cloud](https://cloud.marmotdata.io) includes it on every plan.
 
-An AWS Secrets Manager store. Without `role_arn` the server reads with its own credential chain (IRSA in a pod); with it, Marmot presents an OIDC token for the subject `secretStore:{name}` and assumes the role.
+An AWS Secrets Manager store. Set `role_arn` to federate; without it the server reads with its own credential chain.
 
-A store holds no secret values. `marmot_secret_store_aws_secret` registers where a secret lives in it; a `marmot_pipeline` reads such a secret into its config before each run, and a service account holding `secretStore:read` on the store reads it through the store's identity. `marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy` grant roles on the store: `secretStore.reader` reads secret values, `secretStore.viewer` sees the store and its secrets, `secretStore.user` registers secrets and attaches them to pipelines.
+A store holds no secret values. `marmot_secret_store_aws_secret` registers where a secret lives in it, and a `marmot_pipeline` reads that secret into its config before each run. Roles on the store are granted with `marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy`: `secretStore.reader` reads secret values, `secretStore.viewer` sees the store and its secrets, `secretStore.user` registers secrets and attaches them to pipelines.
 
-A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
+A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` and `audience` on the cloud side.
 
 ## Example Usage
 
 ```terraform
-# A store using the server's own credentials (the default AWS credential
-# chain, IRSA in a pod).
+# Reads with the server's own credentials.
 resource "marmot_secret_store_aws" "prod" {
   name = "aws-prod"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:aws-prod-federated`
-# and assumes a role whose trust policy names the Marmot issuer as an OIDC
-# provider and conditions on that subject. The audience defaults to
-# `sts.amazonaws.com`, the client ID registered on the OIDC provider.
-resource "marmot_secret_store_aws" "federated" {
-  name     = "aws-prod-federated"
-  role_arn = aws_iam_role.marmot_store.arn
+# Federated. The Marmot instance is registered as an OIDC provider and the
+# role trusts the store's subject.
+resource "aws_iam_openid_connect_provider" "marmot" {
+  url            = "https://acme.marmotdata.cloud"
+  client_id_list = ["sts.amazonaws.com"]
 }
 
-# The role trusts the store's subject and audience at the Marmot issuer. The
-# subject is `secretStore:{name}`, spelled out because the role must exist
-# before the store that assumes it.
-locals {
-  marmot_issuer_host = trimprefix(aws_iam_openid_connect_provider.marmot.url, "https://")
-}
-
-data "aws_iam_policy_document" "marmot_store_trust" {
+data "aws_iam_policy_document" "marmot_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
+
     principals {
       type        = "Federated"
       identifiers = [aws_iam_openid_connect_provider.marmot.arn]
     }
+
     condition {
       test     = "StringEquals"
-      variable = "${local.marmot_issuer_host}:sub"
+      variable = "acme.marmotdata.cloud:sub"
       values   = ["secretStore:aws-prod-federated"]
     }
+
     condition {
       test     = "StringEquals"
-      variable = "${local.marmot_issuer_host}:aud"
+      variable = "acme.marmotdata.cloud:aud"
       values   = ["sts.amazonaws.com"]
     }
   }
+}
+
+resource "aws_iam_role" "marmot" {
+  name               = "marmot-aws-prod"
+  assume_role_policy = data.aws_iam_policy_document.marmot_trust.json
+}
+
+resource "marmot_secret_store_aws" "federated" {
+  name     = "aws-prod-federated"
+  role_arn = aws_iam_role.marmot.arn
+}
+
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "prod/orders/db-password"
+}
+
+data "aws_iam_policy_document" "marmot_read" {
+  statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.db_password.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "marmot_read" {
+  role   = aws_iam_role.marmot.name
+  policy = data.aws_iam_policy_document.marmot_read.json
 }
 ```
 
@@ -70,20 +89,20 @@ data "aws_iam_policy_document" "marmot_store_trust" {
 
 ### Required
 
-- `name` (String) Name of the store, unique per instance. On a federated store it is also the store's identity: the token subject is `secretStore:{name}`. Changing it replaces the store, since bindings on the old subject would stop matching.
+- `name` (String) Name of the store, unique per instance. A federated store's token subject is `secretStore:{name}`, so changing it replaces the store.
 
 ### Optional
 
-- `audience` (String) Audience the Marmot token carries, which the backend must expect. The OIDC provider's client ID, which the role's trust policy conditions `aud` on; the server sets `sts.amazonaws.com` when unset. Only meaningful on a federated store.
-- `role_arn` (String) IAM role to assume with the Marmot token. Its trust policy must name the Marmot issuer as an OIDC provider. Setting it makes the store federate.
-- `session_name` (String) Session name of the assumed role, visible in CloudTrail. Defaults to `marmot`.
+- `audience` (String) Audience of the Marmot token. The OIDC provider's client ID. The server sets `sts.amazonaws.com` when unset. Only used by a federated store.
+- `role_arn` (String) Role to assume with the Marmot token. Its trust policy must name the Marmot issuer as an OIDC provider. Setting it federates the store.
+- `session_name` (String) Session name of the assumed role. Defaults to `marmot`.
 
 ### Read-Only
 
 - `created_at` (String) Creation timestamp
 - `id` (String) Secret store ID
-- `issuer` (String) Issuer URL of the tokens the store presents: the OIDC provider to register with the cloud identity provider, once per account. Null unless the store federates.
-- `subject` (String) Subject of the tokens the store presents, `secretStore:{name}`: the value to grant on the cloud side, such as the subject of a `principal://` member on Google Cloud or the `sub` condition of an AWS role trust policy. Null unless the store federates.
+- `issuer` (String) Issuer URL of the tokens a federated store presents. This is what to register as an OIDC provider on the cloud side. Null unless the store federates.
+- `subject` (String) Subject of the tokens a federated store presents, `secretStore:{name}`. This is what to grant on the cloud side. Null unless the store federates.
 - `updated_at` (String) Last update timestamp
 
 ## Import

@@ -1,41 +1,60 @@
-# A store using the server's own credentials (the default AWS credential
-# chain, IRSA in a pod).
+# Reads with the server's own credentials.
 resource "marmot_secret_store_aws" "prod" {
   name = "aws-prod"
 }
 
-# Federated: Marmot presents an OIDC token for the subject `secretStore:aws-prod-federated`
-# and assumes a role whose trust policy names the Marmot issuer as an OIDC
-# provider and conditions on that subject. The audience defaults to
-# `sts.amazonaws.com`, the client ID registered on the OIDC provider.
-resource "marmot_secret_store_aws" "federated" {
-  name     = "aws-prod-federated"
-  role_arn = aws_iam_role.marmot_store.arn
+# Federated. The Marmot instance is registered as an OIDC provider and the
+# role trusts the store's subject.
+resource "aws_iam_openid_connect_provider" "marmot" {
+  url            = "https://acme.marmotdata.cloud"
+  client_id_list = ["sts.amazonaws.com"]
 }
 
-# The role trusts the store's subject and audience at the Marmot issuer. The
-# subject is `secretStore:{name}`, spelled out because the role must exist
-# before the store that assumes it.
-locals {
-  marmot_issuer_host = trimprefix(aws_iam_openid_connect_provider.marmot.url, "https://")
-}
-
-data "aws_iam_policy_document" "marmot_store_trust" {
+data "aws_iam_policy_document" "marmot_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
+
     principals {
       type        = "Federated"
       identifiers = [aws_iam_openid_connect_provider.marmot.arn]
     }
+
     condition {
       test     = "StringEquals"
-      variable = "${local.marmot_issuer_host}:sub"
+      variable = "acme.marmotdata.cloud:sub"
       values   = ["secretStore:aws-prod-federated"]
     }
+
     condition {
       test     = "StringEquals"
-      variable = "${local.marmot_issuer_host}:aud"
+      variable = "acme.marmotdata.cloud:aud"
       values   = ["sts.amazonaws.com"]
     }
   }
+}
+
+resource "aws_iam_role" "marmot" {
+  name               = "marmot-aws-prod"
+  assume_role_policy = data.aws_iam_policy_document.marmot_trust.json
+}
+
+resource "marmot_secret_store_aws" "federated" {
+  name     = "aws-prod-federated"
+  role_arn = aws_iam_role.marmot.arn
+}
+
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "prod/orders/db-password"
+}
+
+data "aws_iam_policy_document" "marmot_read" {
+  statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.db_password.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "marmot_read" {
+  role   = aws_iam_role.marmot.name
+  policy = data.aws_iam_policy_document.marmot_read.json
 }

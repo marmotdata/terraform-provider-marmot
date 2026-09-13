@@ -245,8 +245,7 @@ func (r *DataProductResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	// An object already gone is the outcome Delete wanted, so a 404 here
-	// is success. Erroring instead wedges destroy behind a manual state rm.
+	// A 404 on delete is success: the object is already gone.
 	if err := r.client.DataProducts.Delete(ctx, data.ID.ValueString()); err != nil && !marmot.IsNotFound(err) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete data product: %s", err))
 		return
