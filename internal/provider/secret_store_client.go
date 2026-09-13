@@ -20,9 +20,9 @@ import (
 
 // secretStoreClient talks to the secret-store endpoints directly rather than
 // through the generated SDK, which does not cover them: the stores, the
-// secrets registered in them, the secrets bound to a pipeline, and service
-// account leases. It reuses the SDK client's resolved host and credential so
-// the provider keeps one authentication story.
+// secrets registered in them, and the secrets bound to a pipeline. It reuses
+// the SDK client's resolved host and credential so the provider keeps one
+// authentication story.
 type secretStoreClient struct {
 	host string
 	cred auth.Credential
@@ -79,8 +79,8 @@ type secretStoreValidation struct {
 }
 
 // secretStoreSecret is one secret registered in a store: where it lives, in
-// the store type's own terms. Pipelines and leases reference it by ID. The
-// ref comes back as it was sent.
+// the store type's own terms. Pipelines reference it by ID. The ref comes
+// back as it was sent.
 type secretStoreSecret struct {
 	ID            string         `json:"id"`
 	SecretStoreID string         `json:"secret_store_id"`
@@ -121,28 +121,6 @@ type updateScheduleRequest struct {
 	CronExpression string            `json:"cron_expression"`
 	Enabled        bool              `json:"enabled"`
 	Secrets        map[string]string `json:"secrets"`
-}
-
-// serviceAccountLease binds a service account to a registered secret where
-// Marmot keeps a short-lived API key for it. The key itself is never returned.
-type serviceAccountLease struct {
-	ID               string `json:"id"`
-	ServiceAccountID string `json:"service_account_id"`
-	SecretID         string `json:"secret_id"`
-	TTLSeconds       int64  `json:"ttl_seconds"`
-	CurrentKeyID     string `json:"current_key_id,omitempty"`
-	PreviousKeyID    string `json:"previous_key_id,omitempty"`
-	LeasedAt         string `json:"leased_at,omitempty"`
-	ExpiresAt        string `json:"expires_at,omitempty"`
-	LastError        string `json:"last_error,omitempty"`
-	CreatedAt        string `json:"created_at"`
-	UpdatedAt        string `json:"updated_at"`
-}
-
-type setLeaseRequest struct {
-	SecretID string `json:"secret_id"`
-	// TTLSeconds defaults to one hour on the server when zero.
-	TTLSeconds int64 `json:"ttl_seconds,omitempty"`
 }
 
 // errNotFound means the server has nothing at the address asked for. A Read
@@ -189,8 +167,8 @@ func (e *errNoSecretStoreAPI) Error() string {
 	return fmt.Sprintf("%s: no secret-store API (HTTP %d). Secret stores require "+
 		"Marmot Cloud or Marmot Enterprise (https://cloud.marmotdata.io). If this is not "+
 		"the instance you meant to reach, check the provider's host setting; otherwise "+
-		"remove the marmot_secret_store_* and marmot_service_account_lease resources and "+
-		"the secrets map from any marmot_pipeline in this configuration", e.host, e.status)
+		"remove the marmot_secret_store_* resources and the secrets map from any "+
+		"marmot_pipeline in this configuration", e.host, e.status)
 }
 
 func (c *secretStoreClient) do(ctx context.Context, method, url string, body any) ([]byte, int, error) {
@@ -259,10 +237,6 @@ func (c *secretStoreClient) scheduleURL(id string) string {
 	return c.host + "/api/v1/ingestion/schedules/" + id
 }
 
-func (c *secretStoreClient) leaseURL(serviceAccountID string) string {
-	return c.host + "/api/v1/service-accounts/" + serviceAccountID + "/lease"
-}
-
 func (c *secretStoreClient) CreateSecretStore(ctx context.Context, in createSecretStoreRequest) (*secretStore, error) {
 	var store secretStore
 	err := c.call(ctx, http.MethodPost, c.host+"/api/v1/secret-stores", in, &store, http.StatusCreated)
@@ -293,7 +267,7 @@ func (c *secretStoreClient) UpdateSecretStore(ctx context.Context, id string, in
 }
 
 // DeleteSecretStore removes a store and the secrets registered in it. The
-// server refuses with 409 while a pipeline or a lease references one of them.
+// server refuses with 409 while a pipeline references one of them.
 func (c *secretStoreClient) DeleteSecretStore(ctx context.Context, id string) error {
 	return c.call(ctx, http.MethodDelete, c.storeURL(id), nil, nil, http.StatusNoContent)
 }
@@ -327,8 +301,8 @@ func (c *secretStoreClient) GetSecret(ctx context.Context, storeID, id string) (
 	return &secret, nil
 }
 
-// UpdateSecret repoints a secret in place; pipelines and leases that
-// reference it follow.
+// UpdateSecret repoints a secret in place; pipelines that reference it
+// follow.
 func (c *secretStoreClient) UpdateSecret(ctx context.Context, storeID, id string, ref map[string]any) (*secretStoreSecret, error) {
 	var secret secretStoreSecret
 	if err := c.call(ctx, http.MethodPatch, c.secretURL(storeID, id), secretRequest{Ref: ref}, &secret, http.StatusOK); err != nil {
@@ -338,7 +312,7 @@ func (c *secretStoreClient) UpdateSecret(ctx context.Context, storeID, id string
 }
 
 // DeleteSecret removes a secret. The server refuses with 409 while a
-// pipeline or a lease references it.
+// pipeline references it.
 func (c *secretStoreClient) DeleteSecret(ctx context.Context, storeID, id string) error {
 	return c.call(ctx, http.MethodDelete, c.secretURL(storeID, id), nil, nil, http.StatusNoContent)
 }
@@ -368,28 +342,4 @@ func (c *secretStoreClient) UpdateSchedule(ctx context.Context, id string, in up
 		return nil, err
 	}
 	return &schedule, nil
-}
-
-func (c *secretStoreClient) GetLease(ctx context.Context, serviceAccountID string) (*serviceAccountLease, error) {
-	var lease serviceAccountLease
-	if err := c.call(ctx, http.MethodGet, c.leaseURL(serviceAccountID), nil, &lease, http.StatusOK); err != nil {
-		return nil, err
-	}
-	return &lease, nil
-}
-
-// SetLease creates or repoints the account's one lease. The server performs
-// the first renewal before answering and removes the lease again when that
-// fails, so a secret the store cannot write to is a 400 here, naming the
-// cause, rather than a lease that never renews.
-func (c *secretStoreClient) SetLease(ctx context.Context, serviceAccountID string, in setLeaseRequest) (*serviceAccountLease, error) {
-	var lease serviceAccountLease
-	if err := c.call(ctx, http.MethodPut, c.leaseURL(serviceAccountID), in, &lease, http.StatusOK); err != nil {
-		return nil, err
-	}
-	return &lease, nil
-}
-
-func (c *secretStoreClient) DeleteLease(ctx context.Context, serviceAccountID string) error {
-	return c.call(ctx, http.MethodDelete, c.leaseURL(serviceAccountID), nil, nil, http.StatusNoContent)
 }

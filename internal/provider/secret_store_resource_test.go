@@ -41,7 +41,6 @@ func typeName(t *testing.T, r resource.Resource) string {
 func TestSecretStoreSchemasAreValid(t *testing.T) {
 	resources := append(SecretStoreResources(), SecretStoreSecretResources()...)
 	resources = append(resources,
-		NewServiceAccountLeaseResource,
 		NewPipelineResource,
 	)
 	seen := map[string]bool{}
@@ -514,16 +513,5 @@ func TestPipelineSecretsRoundTrip(t *testing.T) {
 		if !got.Equal(prior) {
 			t.Errorf("no secrets with prior %v = %v, want the prior kept", prior, got)
 		}
-	}
-}
-
-func TestLeaseRequestCarriesTheSecret(t *testing.T) {
-	in := leaseRequest(&ServiceAccountLeaseResourceModel{
-		Secret:     types.StringValue("sec1"),
-		TTLSeconds: types.Int64Value(1800),
-	})
-	want := setLeaseRequest{SecretID: "sec1", TTLSeconds: 1800}
-	if !reflect.DeepEqual(in, want) {
-		t.Errorf("request = %#v, want %#v", in, want)
 	}
 }

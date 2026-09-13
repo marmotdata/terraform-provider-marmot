@@ -134,7 +134,6 @@ func (p *MarmotProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewDataProductAssetResource,
 		NewServiceAccountResource,
 		NewServiceAccountAPIKeyResource,
-		NewServiceAccountLeaseResource,
 	}
 	// Access grants: every hierarchy node crossed with the three authority
 	// levels, matching the google_*_iam_{policy,binding,member} pattern.

@@ -65,6 +65,7 @@ var iamTargets = []iamTarget{
 	{typePrefix: "asset", apiType: "asset", idPrefix: "asset", idAttr: "asset_id", label: "an asset"},
 	{typePrefix: "data_product", apiType: "dataProduct", idPrefix: "data_product", idAttr: "data_product_id", label: "a data product and every asset it resolves"},
 	{typePrefix: "glossary_term", apiType: "glossaryTerm", idPrefix: "glossary_term", idAttr: "glossary_term_id", label: "a glossary term and its descendants"},
+	{typePrefix: "secret_store", apiType: "secretStore", idPrefix: "secret_store", idAttr: "secret_store_id", label: "a secret store and the secrets registered in it"},
 }
 
 // IAMResources returns every combination of hierarchy node and authority level.

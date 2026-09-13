@@ -349,8 +349,12 @@ func (r *secretStoreResource) Schema(_ context.Context, _ resource.SchemaRequest
 		MarkdownDescription: secretStoreCloudOnly + r.kind.description +
 			"\n\nA store holds no secret values. `marmot_secret_store_" + r.kind.storeType + "_secret` " +
 			"registers where a secret lives in it; a `marmot_pipeline` reads such a secret into " +
-			"its config before each run, and a `marmot_service_account_lease` writes short-lived " +
-			"keys to one.\n\n" +
+			"its config before each run, and a service account holding `secretStore:read` on the " +
+			"store reads it through the store's identity. `marmot_secret_store_iam_member`, " +
+			"`marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy` grant roles on " +
+			"the store: `secretStore.reader` reads secret values, `secretStore.viewer` sees the " +
+			"store and its secrets, `secretStore.user` registers secrets and attaches them to " +
+			"pipelines.\n\n" +
 			"A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` " +
 			"are what to trust and grant on the cloud side, so the store reaches only the secrets " +
 			"bound to it.",
@@ -497,7 +501,7 @@ func (r *secretStoreResource) Delete(ctx context.Context, req resource.DeleteReq
 	}
 
 	// A store already gone is the outcome Delete wanted. A store with a
-	// secret still referenced by a pipeline or a lease is refused, and stays.
+	// secret still referenced by a pipeline is refused, and stays.
 	if err := r.client.DeleteSecretStore(ctx, id.ValueString()); err != nil && !errors.Is(err, errNotFound) {
 		resp.Diagnostics.AddError("Unable to Delete Secret Store", err.Error())
 		return

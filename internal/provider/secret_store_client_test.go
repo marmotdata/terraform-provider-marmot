@@ -233,7 +233,7 @@ func TestDeleteSecretStore(t *testing.T) {
 	}{
 		{"deleted", http.StatusNoContent, "", false, ""},
 		{"already gone", http.StatusNotFound, `{"error":"Secret store not found"}`, true, "Secret store not found"},
-		{"still referenced", http.StatusConflict, `{"error":"Secret store has secrets referenced by a pipeline or a service account lease"}`, false, "referenced"},
+		{"still referenced", http.StatusConflict, `{"error":"Secret store has secrets referenced by a pipeline"}`, false, "referenced"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -362,7 +362,7 @@ func TestDeleteSecret(t *testing.T) {
 	}{
 		{"deleted", http.StatusNoContent, "", false, ""},
 		{"already gone", http.StatusNotFound, `{"error":"Secret not found"}`, true, "Secret not found"},
-		{"still referenced", http.StatusConflict, `{"error":"Secret is referenced by a pipeline or a service account lease"}`, false, "referenced"},
+		{"still referenced", http.StatusConflict, `{"error":"Secret is referenced by a pipeline"}`, false, "referenced"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -487,78 +487,5 @@ func TestGetScheduleReportsNotFound(t *testing.T) {
 	c := newTestSecretStoreClient(t, alwaysRespond(http.StatusNotFound, `{"error":"Schedule not found"}`))
 	if _, err := c.GetSchedule(t.Context(), "p1"); !errors.Is(err, errNotFound) {
 		t.Fatalf("got %v, want errNotFound", err)
-	}
-}
-
-func TestSetLeaseSendsTheLeaseAndDecodesItsStatus(t *testing.T) {
-	handler, last := record(t, http.StatusOK, `{
-		"id": "l1", "service_account_id": "sa1", "secret_id": "sec1", "ttl_seconds": 3600,
-		"current_key_id": "k2", "previous_key_id": "k1",
-		"leased_at": "2026-01-01T00:00:00Z", "expires_at": "2026-01-01T01:00:00Z",
-		"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"
-	}`)
-	c := newTestSecretStoreClient(t, handler)
-
-	lease, err := c.SetLease(t.Context(), "sa1", setLeaseRequest{SecretID: "sec1", TTLSeconds: 3600})
-	if err != nil {
-		t.Fatalf("SetLease: %v", err)
-	}
-	if last.method != http.MethodPut || last.path != "/api/v1/service-accounts/sa1/lease" {
-		t.Errorf("sent %s %s, want PUT /api/v1/service-accounts/sa1/lease", last.method, last.path)
-	}
-	if last.body != `{"secret_id":"sec1","ttl_seconds":3600}` {
-		t.Errorf("body = %s", last.body)
-	}
-	if lease.ID != "l1" || lease.SecretID != "sec1" || lease.CurrentKeyID != "k2" || lease.PreviousKeyID != "k1" || lease.ExpiresAt != "2026-01-01T01:00:00Z" || lease.LastError != "" {
-		t.Errorf("decoded %+v", lease)
-	}
-}
-
-// The server's refusal is what the user needs to see: the permission it
-// lacks, or why the first write to the store failed. The latter also
-// removes the lease, and must not read as one that was never there.
-func TestSetLeaseSurfacesTheServerMessage(t *testing.T) {
-	tests := []struct {
-		name   string
-		status int
-		body   string
-		want   string
-	}{
-		{"forbidden", http.StatusForbidden, `{"error":"Leasing through a secret store requires secretStore:use"}`, "secretStore:use"},
-		{"first renewal failed", http.StatusBadRequest, `{"error":"invalid input: first renewal: writing to secret store vault-prod: permission denied on agents/analytics"}`, "first renewal: writing to secret store vault-prod: permission denied"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := newTestSecretStoreClient(t, alwaysRespond(tt.status, tt.body))
-			_, err := c.SetLease(t.Context(), "sa1", setLeaseRequest{SecretID: "sec1"})
-			if err == nil || !strings.Contains(err.Error(), tt.want) {
-				t.Fatalf("got %v, want an error mentioning %q", err, tt.want)
-			}
-			if errors.Is(err, errNotFound) {
-				t.Error("a refused lease must not read as a missing one")
-			}
-		})
-	}
-}
-
-func TestLeaseNotFound(t *testing.T) {
-	c := newTestSecretStoreClient(t, alwaysRespond(http.StatusNotFound, `{"error":"Lease not found"}`))
-	if _, err := c.GetLease(t.Context(), "sa1"); !errors.Is(err, errNotFound) {
-		t.Fatalf("GetLease: got %v, want errNotFound", err)
-	}
-	if err := c.DeleteLease(t.Context(), "sa1"); !errors.Is(err, errNotFound) {
-		t.Fatalf("DeleteLease: got %v, want errNotFound", err)
-	}
-}
-
-func TestDeleteLease(t *testing.T) {
-	handler, last := record(t, http.StatusNoContent, "")
-	c := newTestSecretStoreClient(t, handler)
-
-	if err := c.DeleteLease(t.Context(), "sa1"); err != nil {
-		t.Fatalf("DeleteLease: %v", err)
-	}
-	if last.method != http.MethodDelete || last.path != "/api/v1/service-accounts/sa1/lease" {
-		t.Errorf("sent %s %s, want DELETE /api/v1/service-accounts/sa1/lease", last.method, last.path)
 	}
 }

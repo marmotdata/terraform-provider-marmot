@@ -91,7 +91,7 @@ var secretKinds = []secretKind{
 			{name: "region", description: "Region the secret lives in. Required unless `secret_id` is an ARN, which carries its own."},
 			{name: "secret_id", description: "Name or ARN of the secret.", required: true},
 			{name: "version_stage", description: "Staging label to read.", serverDefault: "AWSCURRENT"},
-			{name: "version_id", description: "Version to read. Pins reads to that version; a lease cannot write to a pinned version."},
+			{name: "version_id", description: "Version to read. Pins reads to that version."},
 		},
 	},
 	{
@@ -167,7 +167,7 @@ func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			},
 		},
 		"id": schema.StringAttribute{
-			MarkdownDescription: "Secret ID, what a `marmot_pipeline` or `marmot_service_account_lease` references",
+			MarkdownDescription: "Secret ID, what a `marmot_pipeline` references",
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
@@ -181,8 +181,9 @@ func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 	resp.Schema = schema.Schema{
 		MarkdownDescription: secretStoreCloudOnly + r.kind.description +
 			"\n\nOnly the location is registered; the value is read from " + r.kind.label +
-			" when a `marmot_pipeline` runs, and never enters Terraform state. Repointing the " +
-			"secret updates it in place and every pipeline and lease that references it follows. " +
+			" when a `marmot_pipeline` runs, or through the store's identity by a service account " +
+			"holding `secretStore:read` on the store, and never enters Terraform state. Repointing " +
+			"the secret updates it in place and every pipeline that references it follows. " +
 			"Registering secrets requires the `secretStore:use` permission.",
 		Attributes: attrs,
 	}
@@ -304,7 +305,7 @@ func (r *secretResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	}
 
 	// A secret already gone is the outcome Delete wanted. One still
-	// referenced by a pipeline or a lease is refused, and stays.
+	// referenced by a pipeline is refused, and stays.
 	if err := r.client.DeleteSecret(ctx, store.ValueString(), id.ValueString()); err != nil && !errors.Is(err, errNotFound) {
 		resp.Diagnostics.AddError("Unable to Delete Secret", err.Error())
 		return

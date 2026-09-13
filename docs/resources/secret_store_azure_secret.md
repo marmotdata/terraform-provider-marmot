@@ -5,7 +5,7 @@ subcategory: ""
 description: |-
   ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
   A secret in an Azure Key Vault store.
-  Only the location is registered; the value is read from Azure Key Vault when a marmot_pipeline runs, and never enters Terraform state. Repointing the secret updates it in place and every pipeline and lease that references it follows. Registering secrets requires the secretStore:use permission.
+  Only the location is registered; the value is read from Azure Key Vault when a marmot_pipeline runs, or through the store's identity by a service account holding secretStore:read on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the secretStore:use permission.
 ---
 
 # marmot_secret_store_azure_secret (Resource)
@@ -14,7 +14,7 @@ description: |-
 
 A secret in an Azure Key Vault store.
 
-Only the location is registered; the value is read from Azure Key Vault when a `marmot_pipeline` runs, and never enters Terraform state. Repointing the secret updates it in place and every pipeline and lease that references it follows. Registering secrets requires the `secretStore:use` permission.
+Only the location is registered; the value is read from Azure Key Vault when a `marmot_pipeline` runs, or through the store's identity by a service account holding `secretStore:read` on the store, and never enters Terraform state. Repointing the secret updates it in place and every pipeline that references it follows. Registering secrets requires the `secretStore:use` permission.
 
 ## Example Usage
 
@@ -73,7 +73,7 @@ resource "marmot_pipeline" "postgres_orders" {
 
 ### Read-Only
 
-- `id` (String) Secret ID, what a `marmot_pipeline` or `marmot_service_account_lease` references
+- `id` (String) Secret ID, what a `marmot_pipeline` references
 
 ## Import
 

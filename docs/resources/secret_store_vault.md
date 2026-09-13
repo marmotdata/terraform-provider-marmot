@@ -5,7 +5,7 @@ subcategory: ""
 description: |-
   ~> Requires Marmot Cloud or Marmot Enterprise. Open-source Marmot serves no secret-store API, so this resource fails on apply rather than at plan. Marmot Cloud https://cloud.marmotdata.io includes it on every plan, Free included.
   A HashiCorp Vault KV v2 store. Without role the server logs in with the token in its own VAULT_TOKEN; with it, Marmot presents an OIDC token for the subject secretStore:{name} to the JWT auth method.
-  A store holds no secret values. marmot_secret_store_vault_secret registers where a secret lives in it; a marmot_pipeline reads such a secret into its config before each run, and a marmot_service_account_lease writes short-lived keys to one.
+  A store holds no secret values. marmot_secret_store_vault_secret registers where a secret lives in it; a marmot_pipeline reads such a secret into its config before each run, and a service account holding secretStore:read on the store reads it through the store's identity. marmot_secret_store_iam_member, marmot_secret_store_iam_binding and marmot_secret_store_iam_policy grant roles on the store: secretStore.reader reads secret values, secretStore.viewer sees the store and its secrets, secretStore.user registers secrets and attaches them to pipelines.
   A federated store has an OIDC identity of its own: issuer, subject and audience are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
 ---
 
@@ -15,7 +15,7 @@ description: |-
 
 A HashiCorp Vault KV v2 store. Without `role` the server logs in with the token in its own `VAULT_TOKEN`; with it, Marmot presents an OIDC token for the subject `secretStore:{name}` to the JWT auth method.
 
-A store holds no secret values. `marmot_secret_store_vault_secret` registers where a secret lives in it; a `marmot_pipeline` reads such a secret into its config before each run, and a `marmot_service_account_lease` writes short-lived keys to one.
+A store holds no secret values. `marmot_secret_store_vault_secret` registers where a secret lives in it; a `marmot_pipeline` reads such a secret into its config before each run, and a service account holding `secretStore:read` on the store reads it through the store's identity. `marmot_secret_store_iam_member`, `marmot_secret_store_iam_binding` and `marmot_secret_store_iam_policy` grant roles on the store: `secretStore.reader` reads secret values, `secretStore.viewer` sees the store and its secrets, `secretStore.user` registers secrets and attaches them to pipelines.
 
 A federated store has an OIDC identity of its own: `issuer`, `subject` and `audience` are what to trust and grant on the cloud side, so the store reaches only the secrets bound to it.
 
