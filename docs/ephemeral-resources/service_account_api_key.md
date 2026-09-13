@@ -3,19 +3,18 @@
 page_title: "marmot_service_account_api_key Ephemeral Resource - marmot"
 subcategory: ""
 description: |-
-  A service-account API key that lives for one Terraform operation: created when the configuration is opened, revoked when it closes, and never stored in plan or state. Use it to hand short-lived credentials to other providers or to write-only attributes. The server only discloses a key's plaintext at creation, so this is the way to obtain a usable key inside Terraform; the managed marmot_service_account_api_key resource manages durable key slots without ever exposing their plaintext.
+  A service-account API key that lives for one Terraform operation: created on open, revoked on close, never stored in plan or state. Pass it to other providers or write-only attributes. For a durable key, use the managed marmot_service_account_api_key resource.
 ---
 
 # marmot_service_account_api_key (Ephemeral Resource)
 
-A service-account API key that lives for one Terraform operation: created when the configuration is opened, revoked when it closes, and never stored in plan or state. Use it to hand short-lived credentials to other providers or to write-only attributes. The server only discloses a key's plaintext at creation, so this is the way to obtain a usable key inside Terraform; the managed `marmot_service_account_api_key` resource manages durable key slots without ever exposing their plaintext.
+A service-account API key that lives for one Terraform operation: created on open, revoked on close, never stored in plan or state. Pass it to other providers or write-only attributes. For a durable key, use the managed `marmot_service_account_api_key` resource.
 
 ## Example Usage
 
 ```terraform
-# Mints a key that lives for exactly one Terraform operation: created when the
-# run opens, revoked when it closes, and never written to plan or state. Pass it
-# straight to another provider or into a write-only attribute.
+# A key that lives for one run: created on open, revoked on close, never in
+# plan or state. Pass it to another provider or a write-only attribute.
 ephemeral "marmot_service_account_api_key" "ingest_agent" {
   service_account_id = marmot_service_account.ingest_agent.id
 }
@@ -30,14 +29,14 @@ provider "someprovider" {
 
 ### Required
 
-- `service_account_id` (String) ID of the service account to mint the key for.
+- `service_account_id` (String) ID of the service account to create the key for.
 
 ### Optional
 
-- `expires_in_days` (Number) Days until the key expires server-side. Defaults to 1, so a key orphaned by an interrupted run dies on its own.
-- `name` (String) Name recorded for the key. Defaults to `terraform-ephemeral`. Keys count toward the account's 5-key limit while the operation runs.
+- `expires_in_days` (Number) Days until the key expires server-side. Defaults to 1 so an orphaned key dies on its own.
+- `name` (String) Key name. Defaults to `terraform-ephemeral`. Counts toward the account's 5-key limit while the run lasts.
 
 ### Read-Only
 
-- `expires_at` (String) Expiry timestamp of the minted key.
+- `expires_at` (String) Expiry timestamp of the created key.
 - `key` (String, Sensitive) The plaintext API key.

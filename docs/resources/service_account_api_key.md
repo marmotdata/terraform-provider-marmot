@@ -3,19 +3,17 @@
 page_title: "marmot_service_account_api_key Resource - marmot"
 subcategory: ""
 description: |-
-  A durable API key slot on a service account. The server only discloses a key's plaintext at creation and this resource deliberately does not store it, so Terraform state stays free of credentials; obtain a usable key with the ephemeral marmot_service_account_api_key instead, or mint durable keys outside Terraform. Every attribute change replaces the key. Accounts are limited to 5 keys.
+  A durable API key on a service account. The plaintext is only disclosed at creation, so it is captured then and kept in state as the sensitive key attribute. Every attribute change replaces the key. Accounts are limited to 5 keys.
 ---
 
 # marmot_service_account_api_key (Resource)
 
-A durable API key slot on a service account. The server only discloses a key's plaintext at creation and this resource deliberately does not store it, so Terraform state stays free of credentials; obtain a usable key with the ephemeral `marmot_service_account_api_key` instead, or mint durable keys outside Terraform. Every attribute change replaces the key. Accounts are limited to 5 keys.
+A durable API key on a service account. The plaintext is only disclosed at creation, so it is captured then and kept in state as the sensitive `key` attribute. Every attribute change replaces the key. Accounts are limited to 5 keys.
 
 ## Example Usage
 
 ```terraform
-# Creates a long-lived key. The secret itself is never written to state, so if
-# you need the usable key during a run, use the ephemeral resource of the same
-# name instead.
+# A long-lived key. The plaintext is sensitive and kept in state.
 resource "marmot_service_account_api_key" "ingest_agent" {
   service_account_id = marmot_service_account.ingest_agent.id
   name               = "ci-runner"
@@ -39,3 +37,4 @@ resource "marmot_service_account_api_key" "ingest_agent" {
 
 - `expires_at` (String) Expiry timestamp, if the key expires
 - `id` (String) Key ID
+- `key` (String, Sensitive) The plaintext API key, captured at creation.

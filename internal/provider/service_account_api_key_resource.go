@@ -31,6 +31,7 @@ type ServiceAccountAPIKeyResourceModel struct {
 	Name             types.String `tfsdk:"name"`
 	ExpiresInDays    types.Int64  `tfsdk:"expires_in_days"`
 	ExpiresAt        types.String `tfsdk:"expires_at"`
+	Key              types.String `tfsdk:"key"`
 	ID               types.String `tfsdk:"id"`
 }
 
@@ -40,12 +41,10 @@ func (r *ServiceAccountAPIKeyResource) Metadata(ctx context.Context, req resourc
 
 func (r *ServiceAccountAPIKeyResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A durable API key slot on a service account. The server only " +
-			"discloses a key's plaintext at creation and this resource deliberately does not " +
-			"store it, so Terraform state stays free of credentials; obtain a usable key with " +
-			"the ephemeral `marmot_service_account_api_key` instead, or mint durable keys " +
-			"outside Terraform. Every attribute change replaces the key. Accounts are limited " +
-			"to 5 keys.",
+		MarkdownDescription: "A durable API key on a service account. The plaintext is only " +
+			"disclosed at creation, so it is captured then and kept in state as the sensitive " +
+			"`key` attribute. Every attribute change replaces the key. Accounts are limited to " +
+			"5 keys.",
 
 		Attributes: map[string]schema.Attribute{
 			"service_account_id": schema.StringAttribute{
@@ -72,6 +71,14 @@ func (r *ServiceAccountAPIKeyResource) Schema(ctx context.Context, req resource.
 			"expires_at": schema.StringAttribute{
 				MarkdownDescription: "Expiry timestamp, if the key expires",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"key": schema.StringAttribute{
+				MarkdownDescription: "The plaintext API key, captured at creation.",
+				Computed:            true,
+				Sensitive:           true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -119,9 +126,11 @@ func (r *ServiceAccountAPIKeyResource) Create(ctx context.Context, req resource.
 
 	data.ID = types.StringValue(key.ID)
 	data.ExpiresAt = types.StringValue(key.ExpiresAt)
+	data.Key = types.StringValue(key.Key)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
+// The plaintext is not readable after creation; Read keeps the value in state.
 func (r *ServiceAccountAPIKeyResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data ServiceAccountAPIKeyResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
