@@ -8,7 +8,6 @@ terraform {
   }
 }
 
-# api_key comes from MARMOT_API_KEY.
 provider "marmot" {
   host = var.marmot_host
 }

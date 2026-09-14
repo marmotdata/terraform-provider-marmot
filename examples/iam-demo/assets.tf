@@ -1,6 +1,3 @@
-# The catalog: a commerce platform, from storefront topics to dashboards and
-# models.
-
 resource "marmot_asset" "orders_events" {
   name        = "commerce.orders.events"
   type        = "Topic"

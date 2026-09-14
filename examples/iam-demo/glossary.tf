@@ -1,5 +1,3 @@
-# Business terms. A grant on a term covers its descendants.
-
 resource "marmot_glossary_term" "customer" {
   name       = "Customer"
   definition = "A legal person that has completed at least one checkout on an Acme storefront."

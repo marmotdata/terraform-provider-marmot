@@ -1,6 +1,3 @@
-# Storefront topics into the lake and the OLTP store, then the warehouse,
-# then the dashboard and the model.
-
 resource "marmot_lineage" "orders_to_processor" {
   source = marmot_asset.orders_events.mrn
   target = marmot_asset.order_processor.mrn

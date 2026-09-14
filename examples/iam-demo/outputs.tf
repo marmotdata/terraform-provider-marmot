@@ -25,7 +25,6 @@ output "data_products" {
   }
 }
 
-# Etag of each policy as last read.
 output "policy_etags" {
   description = "Etag of each managed policy as last read."
   value = {

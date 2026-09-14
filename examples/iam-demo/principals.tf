@@ -1,5 +1,3 @@
-# The teams, users and service accounts iam.tf grants to.
-
 resource "marmot_team" "platform" {
   name        = "platform"
   description = "Runs the ingestion plane and the catalog itself"
@@ -49,7 +47,6 @@ resource "marmot_team" "finance" {
   }
 }
 
-# The only user with a catalog-wide admin role.
 resource "marmot_user" "platform_lead" {
   name                = "Dana Okafor"
   username            = "dana"
@@ -59,7 +56,6 @@ resource "marmot_user" "platform_lead" {
   role_names = ["admin"]
 }
 
-# Everyone else is read-only at the root and granted per resource.
 resource "marmot_user" "analytics_lead" {
   name                = "Priya Raman"
   username            = "priya"
@@ -87,7 +83,6 @@ resource "marmot_user" "finance_analyst" {
   role_names = ["user"]
 }
 
-# Service accounts hold no organization role; iam.tf grants them per resource.
 resource "marmot_service_account" "ingest_agent" {
   name        = "orders-ingest-agent"
   description = "Writes the orders and payments topics into the catalog"
@@ -103,7 +98,6 @@ resource "marmot_service_account" "finance_etl" {
   description = "Builds the recognised revenue tables"
 }
 
-# A key for CI. The plaintext is kept in state as the sensitive `key` attribute.
 resource "marmot_service_account_api_key" "ingest_agent_ci" {
   service_account_id = marmot_service_account.ingest_agent.id
   name               = "ci-runner"
