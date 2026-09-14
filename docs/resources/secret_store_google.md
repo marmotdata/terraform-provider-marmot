@@ -21,14 +21,17 @@ A federated store presents an OIDC token to its backend. Trust `issuer`, `subjec
 
 ## Example Usage
 
+### Application Default Credentials
+
 ```terraform
-# Reads with the server's own credentials.
 resource "marmot_secret_store_google" "prod" {
   name = "gcp-prod"
 }
+```
 
-# Federated. The pool trusts the Marmot instance as an OIDC issuer and the
-# store exchanges its token at the provider.
+### Workload Identity Federation
+
+```terraform
 resource "google_iam_workload_identity_pool" "marmot" {
   workload_identity_pool_id = "marmot"
 }
@@ -46,24 +49,41 @@ resource "google_iam_workload_identity_pool_provider" "marmot" {
   }
 }
 
-resource "marmot_secret_store_google" "federated" {
-  name                       = "gcp-prod-federated"
+resource "marmot_secret_store_google" "prod" {
+  name                       = "gcp-prod"
   workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
 }
 
-resource "google_secret_manager_secret" "db_password" {
-  secret_id = "orders-db-password"
-
-  replication {
-    auto {}
-  }
-}
-
-# Grant the store's subject on each secret it reads.
 resource "google_secret_manager_secret_iam_member" "marmot" {
   secret_id = google_secret_manager_secret.db_password.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.marmot.name}/subject/${marmot_secret_store_google.federated.subject}"
+  member    = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.marmot.name}/subject/${marmot_secret_store_google.prod.subject}"
+}
+```
+
+### Service account impersonation
+
+```terraform
+resource "google_service_account" "marmot" {
+  account_id = "marmot-secrets"
+}
+
+resource "marmot_secret_store_google" "prod" {
+  name                       = "gcp-prod"
+  workload_identity_provider = google_iam_workload_identity_pool_provider.marmot.name
+  service_account            = google_service_account.marmot.email
+}
+
+resource "google_service_account_iam_member" "marmot" {
+  service_account_id = google_service_account.marmot.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.marmot.name}/subject/${marmot_secret_store_google.prod.subject}"
+}
+
+resource "google_secret_manager_secret_iam_member" "marmot" {
+  secret_id = google_secret_manager_secret.db_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.marmot.email}"
 }
 ```
 
@@ -90,11 +110,8 @@ resource "google_secret_manager_secret_iam_member" "marmot" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secret stores are imported by their ID:
 
 ```shell
-# Secret stores are imported by their ID.
 terraform import marmot_secret_store_google.prod 018e1234-5678-7abc-def0-123456789abc
 ```

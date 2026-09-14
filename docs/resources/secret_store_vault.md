@@ -21,24 +21,27 @@ A federated store presents an OIDC token to its backend. Trust `issuer`, `subjec
 
 ## Example Usage
 
+### Server token
+
 ```terraform
-# Logs in with the server's own VAULT_TOKEN.
 resource "marmot_secret_store_vault" "prod" {
   name    = "vault-prod"
   address = "https://vault.acme.internal"
 }
+```
 
-# Federated. A JWT auth method trusts the Marmot instance and its role
-# binds the store's subject and audience.
-resource "marmot_secret_store_vault" "federated" {
-  name    = "vault-prod-federated"
+### JWT auth
+
+```terraform
+resource "marmot_secret_store_vault" "prod" {
+  name    = "vault-prod"
   address = "https://vault.acme.internal"
   role    = "marmot"
 }
 
 resource "vault_jwt_auth_backend" "marmot" {
   path               = "jwt"
-  oidc_discovery_url = marmot_secret_store_vault.federated.issuer
+  oidc_discovery_url = marmot_secret_store_vault.prod.issuer
 }
 
 resource "vault_policy" "marmot" {
@@ -56,9 +59,31 @@ resource "vault_jwt_auth_backend_role" "marmot" {
   role_name       = "marmot"
   role_type       = "jwt"
   user_claim      = "sub"
-  bound_subject   = marmot_secret_store_vault.federated.subject
-  bound_audiences = [marmot_secret_store_vault.federated.audience]
+  bound_subject   = marmot_secret_store_vault.prod.subject
+  bound_audiences = [marmot_secret_store_vault.prod.audience]
   token_policies  = [vault_policy.marmot.name]
+}
+```
+
+### Namespace and auth path
+
+```terraform
+resource "marmot_secret_store_vault" "prod" {
+  name      = "vault-prod"
+  address   = "https://vault.acme.internal"
+  namespace = "data-platform"
+  auth_path = "marmot"
+  role      = "marmot"
+}
+```
+
+### Private certificate authority
+
+```terraform
+resource "marmot_secret_store_vault" "prod" {
+  name    = "vault-prod"
+  address = "https://vault.acme.internal"
+  ca_cert = file("${path.module}/vault-ca.pem")
 }
 ```
 
@@ -88,11 +113,8 @@ resource "vault_jwt_auth_backend_role" "marmot" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secret stores are imported by their ID:
 
 ```shell
-# Secret stores are imported by their ID.
 terraform import marmot_secret_store_vault.prod 018e1234-5678-7abc-def0-123456789abc
 ```

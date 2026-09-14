@@ -12,14 +12,25 @@ A service account API key that lives for one Terraform operation: created on ope
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Created on open, revoked on close, never in plan or state.
-ephemeral "marmot_service_account_api_key" "ingest_agent" {
-  service_account_id = marmot_service_account.ingest_agent.id
+ephemeral "marmot_service_account_api_key" "etl" {
+  service_account_id = marmot_service_account.etl.id
 }
 
 provider "someprovider" {
-  token = ephemeral.marmot_service_account_api_key.ingest_agent.key
+  token = ephemeral.marmot_service_account_api_key.etl.key
+}
+```
+
+### Custom name and expiry
+
+```terraform
+ephemeral "marmot_service_account_api_key" "etl" {
+  service_account_id = marmot_service_account.etl.id
+  name               = "terraform-apply"
+  expires_in_days    = 7
 }
 ```
 

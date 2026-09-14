@@ -18,32 +18,42 @@ Only the location is registered. The value is read from AWS Secrets Manager when
 
 ## Example Usage
 
+### By ARN
+
 ```terraform
-resource "marmot_secret_store_aws" "prod" {
-  name = "aws-prod"
-}
-
-resource "aws_secretsmanager_secret" "db_password" {
-  name = "prod/orders/db-password"
-}
-
-# By ARN. The region comes from the ARN.
 resource "marmot_secret_store_aws_secret" "db_password" {
   store     = marmot_secret_store_aws.prod.id
   secret_id = aws_secretsmanager_secret.db_password.arn
 }
+```
 
-# By name. The region is required, and a staging label or version id pins
-# what is read.
-resource "aws_secretsmanager_secret" "signing_key" {
-  name = "prod/orders/signing-key"
+### By name and region
+
+```terraform
+resource "marmot_secret_store_aws_secret" "db_password" {
+  store     = marmot_secret_store_aws.prod.id
+  region    = "eu-west-1"
+  secret_id = "prod/orders/db-password"
 }
+```
 
-resource "marmot_secret_store_aws_secret" "signing_key" {
+### Staging label
+
+```terraform
+resource "marmot_secret_store_aws_secret" "signing_key_previous" {
   store         = marmot_secret_store_aws.prod.id
-  region        = "eu-west-1"
-  secret_id     = aws_secretsmanager_secret.signing_key.name
+  secret_id     = aws_secretsmanager_secret.signing_key.arn
   version_stage = "AWSPREVIOUS"
+}
+```
+
+### Pinned version
+
+```terraform
+resource "marmot_secret_store_aws_secret" "signing_key" {
+  store      = marmot_secret_store_aws.prod.id
+  secret_id  = aws_secretsmanager_secret.signing_key.arn
+  version_id = aws_secretsmanager_secret_version.signing_key.version_id
 }
 ```
 
@@ -67,11 +77,8 @@ resource "marmot_secret_store_aws_secret" "signing_key" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secrets are imported as `<store id>/<secret id>`:
 
 ```shell
-# Secrets are imported as "<store id>/<secret id>".
 terraform import marmot_secret_store_aws_secret.db_password 018e1234-5678-7abc-def0-123456789abc/018e1234-5678-7abc-def0-fedcba987654
 ```

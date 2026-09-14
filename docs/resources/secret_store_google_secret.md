@@ -18,11 +18,19 @@ Only the location is registered. The value is read from Google Secret Manager wh
 
 ## Example Usage
 
-```terraform
-resource "marmot_secret_store_google" "prod" {
-  name = "gcp-prod"
-}
+### Basic
 
+```terraform
+resource "marmot_secret_store_google_secret" "db_password" {
+  store     = marmot_secret_store_google.prod.id
+  project   = "acme-prod"
+  secret_id = "orders-db-password"
+}
+```
+
+### Managed with the Secret Manager secret
+
+```terraform
 resource "google_secret_manager_secret" "db_password" {
   secret_id = "orders-db-password"
 
@@ -36,8 +44,11 @@ resource "marmot_secret_store_google_secret" "db_password" {
   project   = google_secret_manager_secret.db_password.project
   secret_id = google_secret_manager_secret.db_password.secret_id
 }
+```
 
-# A regional secret.
+### Regional secret
+
+```terraform
 resource "google_secret_manager_regional_secret" "signing_key" {
   secret_id = "signing-key"
   location  = "europe-west1"
@@ -48,6 +59,17 @@ resource "marmot_secret_store_google_secret" "signing_key" {
   project   = google_secret_manager_regional_secret.signing_key.project
   location  = google_secret_manager_regional_secret.signing_key.location
   secret_id = google_secret_manager_regional_secret.signing_key.secret_id
+}
+```
+
+### Pinned version
+
+```terraform
+resource "marmot_secret_store_google_secret" "db_password" {
+  store     = marmot_secret_store_google.prod.id
+  project   = "acme-prod"
+  secret_id = "orders-db-password"
+  version   = "3"
 }
 ```
 
@@ -71,11 +93,8 @@ resource "marmot_secret_store_google_secret" "signing_key" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secrets are imported as `<store id>/<secret id>`:
 
 ```shell
-# Secrets are imported as "<store id>/<secret id>".
 terraform import marmot_secret_store_google_secret.db_password 018e1234-5678-7abc-def0-123456789abc/018e1234-5678-7abc-def0-fedcba987654
 ```

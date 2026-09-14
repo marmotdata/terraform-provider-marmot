@@ -18,12 +18,43 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Service account
+
 ```terraform
-# A grant on a term covers its descendants.
-resource "marmot_glossary_term_iam_member" "finance_vocabulary" {
-  glossary_term_id = marmot_glossary_term.finance.id
-  role             = "catalog.viewer"
-  member           = "group:${marmot_team.finance_analysts.id}"
+resource "marmot_glossary_term_iam_member" "etl_customer" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  role             = "editor"
+  member           = "serviceAccount:${marmot_service_account.etl.id}"
+}
+```
+
+### Team
+
+```terraform
+resource "marmot_glossary_term_iam_member" "analysts_customer" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  role             = "user"
+  member           = "group:${marmot_team.analysts.id}"
+}
+```
+
+### User
+
+```terraform
+resource "marmot_glossary_term_iam_member" "alice_customer" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  role             = "admin"
+  member           = "user:${marmot_user.alice.id}"
+}
+```
+
+### All authenticated users
+
+```terraform
+resource "marmot_glossary_term_iam_member" "everyone_customer" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  role             = "user"
+  member           = "allAuthenticated"
 }
 ```
 
@@ -43,11 +74,9 @@ resource "marmot_glossary_term_iam_member" "finance_vocabulary" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A grant is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_glossary_term_iam_member.finance_vocabulary \
-  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/catalog.viewer/group:5f6a7b8c-9d0e-4f10-a2b3-c4d5e6f70819"
+terraform import marmot_glossary_term_iam_member.etl_customer \
+  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/editor/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
 ```

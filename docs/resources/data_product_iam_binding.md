@@ -18,13 +18,32 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns one role on the data product. Anyone left out loses it on the next
-# apply; other roles are untouched.
-resource "marmot_data_product_iam_binding" "finance_readers" {
-  data_product_id = marmot_data_product.finance.id
-  role            = "catalog.viewer"
-  members         = ["group:${marmot_team.finance_analysts.id}"]
+resource "marmot_data_product_iam_binding" "orders_editors" {
+  data_product_id = marmot_data_product.orders.id
+  role            = "editor"
+  members = [
+    "serviceAccount:${marmot_service_account.etl.id}",
+    "group:${marmot_team.analysts.id}",
+  ]
+}
+```
+
+### Multiple roles
+
+```terraform
+resource "marmot_data_product_iam_binding" "orders_admins" {
+  data_product_id = marmot_data_product.orders.id
+  role            = "admin"
+  members         = ["group:${marmot_team.platform.id}"]
+}
+
+resource "marmot_data_product_iam_binding" "orders_readers" {
+  data_product_id = marmot_data_product.orders.id
+  role            = "user"
+  members         = ["allAuthenticated"]
 }
 ```
 
@@ -44,11 +63,9 @@ resource "marmot_data_product_iam_binding" "finance_readers" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A binding is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_data_product_iam_binding.finance_readers \
-  "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718/roles/catalog.viewer"
+terraform import marmot_data_product_iam_binding.orders_editors \
+  "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718/roles/editor"
 ```

@@ -18,16 +18,19 @@ Only the location is registered. The value is read from Azure Key Vault when a `
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-resource "marmot_secret_store_azure" "prod" {
-  name = "azure-prod"
+resource "marmot_secret_store_azure_secret" "db_password" {
+  store     = marmot_secret_store_azure.prod.id
+  vault_uri = "https://acme-prod.vault.azure.net"
+  name      = "orders-db-password"
 }
+```
 
-data "azurerm_key_vault" "prod" {
-  name                = "acme-prod"
-  resource_group_name = "prod"
-}
+### Managed with the Key Vault secret
 
+```terraform
 variable "orders_db_password" {
   type      = string
   sensitive = true
@@ -43,6 +46,17 @@ resource "marmot_secret_store_azure_secret" "db_password" {
   store     = marmot_secret_store_azure.prod.id
   vault_uri = data.azurerm_key_vault.prod.vault_uri
   name      = azurerm_key_vault_secret.db_password.name
+}
+```
+
+### Pinned version
+
+```terraform
+resource "marmot_secret_store_azure_secret" "db_password" {
+  store     = marmot_secret_store_azure.prod.id
+  vault_uri = data.azurerm_key_vault.prod.vault_uri
+  name      = azurerm_key_vault_secret.db_password.name
+  version   = azurerm_key_vault_secret.db_password.version
 }
 ```
 
@@ -65,11 +79,8 @@ resource "marmot_secret_store_azure_secret" "db_password" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secrets are imported as `<store id>/<secret id>`:
 
 ```shell
-# Secrets are imported as "<store id>/<secret id>".
 terraform import marmot_secret_store_azure_secret.db_password 018e1234-5678-7abc-def0-123456789abc/018e1234-5678-7abc-def0-fedcba987654
 ```

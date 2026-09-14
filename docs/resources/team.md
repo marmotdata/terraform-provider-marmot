@@ -12,19 +12,37 @@ A team in Marmot. Put its `id` in the `owner_team_ids` of a data product or glos
 
 ## Example Usage
 
+### Basic
+
 ```terraform
 resource "marmot_team" "analytics" {
   name        = "analytics"
   description = "Owns the reporting datasets"
+}
+```
+
+### Tags and metadata
+
+```terraform
+resource "marmot_team" "analytics" {
+  name = "analytics"
 
   tags = ["reporting"]
 
   metadata = {
     slack = "#analytics"
+    lead  = "alice"
   }
 }
+```
 
-# Make the team an owner of a data product.
+### Data product owner
+
+```terraform
+resource "marmot_team" "analytics" {
+  name = "analytics"
+}
+
 resource "marmot_data_product" "reporting" {
   name = "reporting"
 
@@ -53,11 +71,8 @@ resource "marmot_data_product" "reporting" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Teams are imported by their ID:
 
 ```shell
-# Teams are imported by their ID.
 terraform import marmot_team.analytics 018e1234-5678-7abc-def0-123456789abc
 ```

@@ -12,18 +12,35 @@ A machine principal. Give it API keys with `marmot_service_account_api_key`, and
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# A new service account reaches nothing until it is granted something.
-resource "marmot_service_account" "ingest_agent" {
-  name        = "orders-ingest-agent"
-  description = "Ingestion agent for the orders pipeline"
+resource "marmot_service_account" "etl" {
+  name        = "etl"
+  description = "Runs the nightly warehouse load"
+}
+```
+
+### Granted on an asset
+
+```terraform
+resource "marmot_service_account" "etl" {
+  name = "etl"
 }
 
-# Grant it the one asset it needs.
-resource "marmot_asset_iam_member" "agent_reads_orders" {
+resource "marmot_asset_iam_member" "etl_edits_orders" {
   asset_id = marmot_asset.orders.id
-  role     = "catalog.viewer"
-  member   = "serviceAccount:${marmot_service_account.ingest_agent.id}"
+  role     = "editor"
+  member   = "serviceAccount:${marmot_service_account.etl.id}"
+}
+```
+
+### Inactive
+
+```terraform
+resource "marmot_service_account" "etl" {
+  name   = "etl"
+  active = false
 }
 ```
 
@@ -44,3 +61,11 @@ resource "marmot_asset_iam_member" "agent_reads_orders" {
 
 - `created_at` (String) Creation timestamp
 - `id` (String) Service account ID
+
+## Import
+
+Service accounts are imported by their ID:
+
+```shell
+terraform import marmot_service_account.etl 018e1234-5678-7abc-def0-123456789abc
+```

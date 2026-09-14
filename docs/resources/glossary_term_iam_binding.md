@@ -18,12 +18,32 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns one role on the term and its descendants.
-resource "marmot_glossary_term_iam_binding" "finance_vocabulary" {
-  glossary_term_id = marmot_glossary_term.finance.id
-  role             = "catalog.viewer"
-  members          = ["group:${marmot_team.finance_analysts.id}"]
+resource "marmot_glossary_term_iam_binding" "customer_editors" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  role             = "editor"
+  members = [
+    "serviceAccount:${marmot_service_account.etl.id}",
+    "group:${marmot_team.analysts.id}",
+  ]
+}
+```
+
+### Multiple roles
+
+```terraform
+resource "marmot_glossary_term_iam_binding" "customer_admins" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  role             = "admin"
+  members          = ["group:${marmot_team.platform.id}"]
+}
+
+resource "marmot_glossary_term_iam_binding" "customer_readers" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  role             = "user"
+  members          = ["allAuthenticated"]
 }
 ```
 
@@ -43,11 +63,9 @@ resource "marmot_glossary_term_iam_binding" "finance_vocabulary" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A binding is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_glossary_term_iam_binding.finance_vocabulary \
-  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/catalog.viewer"
+terraform import marmot_glossary_term_iam_binding.customer_editors \
+  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9/roles/editor"
 ```

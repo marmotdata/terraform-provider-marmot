@@ -1,13 +1,11 @@
-# Owns the whole policy of the term and its descendants. Anything not
-# listed is revoked.
-data "marmot_iam_policy" "finance_vocabulary" {
+data "marmot_iam_policy" "customer" {
   binding {
-    role    = "catalog.viewer"
-    members = ["group:${marmot_team.finance_analysts.id}"]
+    role    = "editor"
+    members = ["serviceAccount:${marmot_service_account.etl.id}"]
   }
 }
 
-resource "marmot_glossary_term_iam_policy" "finance_vocabulary" {
-  glossary_term_id = marmot_glossary_term.finance.id
-  policy_data      = data.marmot_iam_policy.finance_vocabulary.policy_data
+resource "marmot_glossary_term_iam_policy" "customer" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  policy_data      = data.marmot_iam_policy.customer.policy_data
 }

@@ -18,10 +18,37 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Service account
+
 ```terraform
-# A grant at the organization reaches the whole catalog. allAuthenticated
-# is Marmot's default: any signed-in user can read everything.
-resource "marmot_organization_iam_member" "everyone_reads" {
+resource "marmot_organization_iam_member" "etl_organization" {
+  role   = "editor"
+  member = "serviceAccount:${marmot_service_account.etl.id}"
+}
+```
+
+### Team
+
+```terraform
+resource "marmot_organization_iam_member" "analysts_organization" {
+  role   = "user"
+  member = "group:${marmot_team.analysts.id}"
+}
+```
+
+### User
+
+```terraform
+resource "marmot_organization_iam_member" "alice_organization" {
+  role   = "admin"
+  member = "user:${marmot_user.alice.id}"
+}
+```
+
+### All authenticated users
+
+```terraform
+resource "marmot_organization_iam_member" "everyone_organization" {
   role   = "user"
   member = "allAuthenticated"
 }
@@ -42,11 +69,9 @@ resource "marmot_organization_iam_member" "everyone_reads" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A grant is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_organization_iam_member.everyone_reads \
-  "root/roles/user/allAuthenticated"
+terraform import marmot_organization_iam_member.etl_organization \
+  "root/roles/editor/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
 ```

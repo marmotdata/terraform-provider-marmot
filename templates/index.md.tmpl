@@ -26,20 +26,28 @@ terraform {
 ## Authentication
 
 The provider authenticates with a Marmot API key, set through the `api_key`
-attribute or the `MARMOT_API_KEY` environment variable so the key stays out of
-your configuration and state. A bearer `token` (or `MARMOT_TOKEN`) is also
-supported, and when no credential is provided the provider falls back to the
-Marmot CLI credentials from `marmot login`.
+attribute or the `MARMOT_API_KEY` environment variable. A bearer `token` (or
+`MARMOT_TOKEN`) is also supported, and when no credential is provided the
+provider falls back to the Marmot CLI credentials from `marmot login`.
 
-To keep the secret entirely out of state, you can inject it using a Terraform
-[ephemeral resource](https://developer.hashicorp.com/terraform/language/resources/ephemeral)
-(Terraform >= 1.10).
+### API key
 
-For example, with Google Secret Manager:
+{{ tffile "examples/provider/provider.tf" }}
+
+### Environment variables
+
+With `MARMOT_HOST` and `MARMOT_API_KEY` set, the provider block needs no
+arguments and the key stays out of your configuration and state.
+
+{{ tffile "examples/provider/environment.tf" }}
+
+### API key from an ephemeral resource
+
+An [ephemeral resource](https://developer.hashicorp.com/terraform/language/resources/ephemeral)
+(Terraform >= 1.10) keeps the key out of plan and state. The same pattern works
+with any provider that exposes secrets as an ephemeral resource, such as AWS
+Secrets Manager or HashiCorp Vault.
 
 {{ tffile "examples/provider/ephemeral-google-secret-manager.tf" }}
-
-The same pattern works with any provider that exposes secrets as an ephemeral
-resource, such as AWS Secrets Manager or HashiCorp Vault.
 
 {{ .SchemaMarkdown | trimspace }}

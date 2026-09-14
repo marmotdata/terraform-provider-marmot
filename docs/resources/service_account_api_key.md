@@ -12,12 +12,38 @@ An API key on a service account. The plaintext is only returned at creation and 
 
 ## Example Usage
 
+### Expiring
+
 ```terraform
-# The key is kept in state as the sensitive `key` attribute.
-resource "marmot_service_account_api_key" "ingest_agent" {
-  service_account_id = marmot_service_account.ingest_agent.id
-  name               = "ci-runner"
+resource "marmot_service_account_api_key" "ci" {
+  service_account_id = marmot_service_account.etl.id
+  name               = "ci"
   expires_in_days    = 90
+}
+```
+
+### Never expires
+
+```terraform
+resource "marmot_service_account_api_key" "ci" {
+  service_account_id = marmot_service_account.etl.id
+  name               = "ci"
+}
+```
+
+### Handed to another provider
+
+```terraform
+resource "marmot_service_account_api_key" "ci" {
+  service_account_id = marmot_service_account.etl.id
+  name               = "ci"
+  expires_in_days    = 90
+}
+
+resource "github_actions_secret" "marmot_api_key" {
+  repository      = "orders-pipeline"
+  secret_name     = "MARMOT_API_KEY"
+  plaintext_value = marmot_service_account_api_key.ci.key
 }
 ```
 

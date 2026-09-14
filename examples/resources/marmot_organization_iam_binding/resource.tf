@@ -1,5 +1,7 @@
-# Owns one role on the whole catalog. Anyone left out loses it everywhere.
-resource "marmot_organization_iam_binding" "platform_admins" {
-  role    = "admin"
-  members = ["group:${marmot_team.platform.id}"]
+resource "marmot_organization_iam_binding" "organization_editors" {
+  role = "editor"
+  members = [
+    "serviceAccount:${marmot_service_account.etl.id}",
+    "group:${marmot_team.analysts.id}",
+  ]
 }

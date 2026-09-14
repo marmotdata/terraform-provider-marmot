@@ -18,13 +18,42 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns the whole policy. Anything not listed is revoked on the next apply,
-# so don't also point an _iam_binding or _iam_member at this asset.
 data "marmot_iam_policy" "orders" {
   binding {
-    role    = "catalog.viewer"
+    role    = "editor"
     members = ["serviceAccount:${marmot_service_account.etl.id}"]
+  }
+}
+
+resource "marmot_asset_iam_policy" "orders" {
+  asset_id    = marmot_asset.orders.id
+  policy_data = data.marmot_iam_policy.orders.policy_data
+}
+```
+
+### Multiple roles
+
+```terraform
+data "marmot_iam_policy" "orders" {
+  binding {
+    role    = "admin"
+    members = ["group:${marmot_team.platform.id}"]
+  }
+
+  binding {
+    role = "editor"
+    members = [
+      "serviceAccount:${marmot_service_account.etl.id}",
+      "group:${marmot_team.analysts.id}",
+    ]
+  }
+
+  binding {
+    role    = "user"
+    members = ["allAuthenticated"]
   }
 }
 
@@ -49,11 +78,8 @@ resource "marmot_asset_iam_policy" "orders" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A policy is imported by the path of the resource it applies to:
 
 ```shell
-terraform import marmot_asset_iam_policy.orders \
-  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b"
+terraform import marmot_asset_iam_policy.orders "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b"
 ```

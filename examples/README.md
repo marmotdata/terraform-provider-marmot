@@ -2,8 +2,12 @@
 
 This directory contains examples that are mostly used for documentation, but can also be run/tested manually via the Terraform CLI.
 
-The document generation tool looks for files in the following locations by default. All other *.tf files besides the ones mentioned below are ignored by the documentation tool. This is useful for creating examples that can run and/or are testable even if some parts are not relevant for the documentation.
+Each resource, data source and ephemeral resource has a directory holding one `.tf` file per example. The template for its documentation page in `templates/` lists which files are rendered and the heading each appears under, so adding an example means adding a file here and a `tffile` line in the matching template:
 
-* **provider/provider.tf** example file for the provider index page
-* **data-sources/`full data source name`/data-source.tf** example file for the named data source page
-* **resources/`full resource name`/resource.tf** example file for the named data source page
+* **provider/*.tf** example files for the provider index page
+* **data-sources/`full data source name`/*.tf** example files for the named data source page
+* **ephemeral-resources/`full ephemeral resource name`/*.tf** example files for the named ephemeral resource page
+* **resources/`full resource name`/*.tf** example files for the named resource page
+* **resources/`full resource name`/import.sh** the import command for the named resource page
+
+`full` and `iam-demo` are runnable configurations and are not rendered into the documentation.

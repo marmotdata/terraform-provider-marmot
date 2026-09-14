@@ -12,45 +12,118 @@ Asset resource
 
 ## Example Usage
 
-```terraform
-resource "marmot_asset" "example" {
-  name        = "example-asset"
-  type        = "Database"
-  description = "An example dataset asset"
-  services    = ["PostgreSQL"]
+### Basic
 
-  tags = ["example", "terraform"]
+```terraform
+resource "marmot_asset" "orders" {
+  name        = "orders"
+  type        = "Table"
+  description = "One row per order placed in the storefront"
+  services    = ["PostgreSQL"]
+}
+```
+
+### Tags and metadata
+
+```terraform
+resource "marmot_asset" "orders" {
+  name     = "orders"
+  type     = "Table"
+  services = ["PostgreSQL"]
+
+  tags = ["orders", "domain:commerce"]
 
   metadata = {
-    "owner"      = "data-team"
-    "department" = "engineering"
+    domain       = "commerce"
+    owner        = "platform"
+    contains_pii = "true"
   }
+}
+```
 
-  external_links = [{
-    name = "Documentation"
-    url  = "https://example.com/docs"
-    icon = "doc"
-  }]
+### Schema
+
+```terraform
+resource "marmot_asset" "orders_events" {
+  name     = "commerce.orders.events"
+  type     = "Topic"
+  services = ["Kafka"]
+
+  schema = {
+    type      = "avro"
+    name      = "OrderEvent"
+    namespace = "com.acme.commerce"
+    fields = jsonencode([
+      { name = "order_id", type = "string" },
+      { name = "customer_id", type = "string" },
+      { name = "total_minor_units", type = "long" },
+    ])
+  }
+}
+```
+
+### External links
+
+```terraform
+resource "marmot_asset" "orders" {
+  name     = "orders"
+  type     = "Table"
+  services = ["PostgreSQL"]
+
+  external_links = [
+    {
+      name = "Runbook"
+      url  = "https://docs.acme.internal/runbooks/orders"
+      icon = "book"
+    },
+    {
+      name = "Dashboard"
+      url  = "https://grafana.acme.internal/d/orders"
+      icon = "chart"
+    },
+  ]
+}
+```
+
+### Sources
+
+```terraform
+resource "marmot_asset" "orders" {
+  name     = "orders"
+  type     = "Table"
+  services = ["PostgreSQL"]
 
   sources = [{
-    name     = "source1"
+    name     = "postgresql"
     priority = 1
     properties = {
-      connection = "jdbc:postgresql://localhost:5432/db"
+      host     = "orders-db.acme.internal"
+      database = "orders"
+      schema   = "public"
     }
   }]
+}
+```
+
+### Environments
+
+```terraform
+resource "marmot_asset" "orders" {
+  name     = "orders"
+  type     = "Table"
+  services = ["PostgreSQL"]
 
   environments = {
-    "prod" = {
+    prod = {
       name = "Production"
-      path = "/data/prod"
+      path = "orders-db.acme.internal/orders/public/orders"
       metadata = {
-        "region" = "us-west"
+        region = "eu-west-1"
       }
     }
-    "dev" = {
-      name = "Development"
-      path = "/data/dev"
+    staging = {
+      name = "Staging"
+      path = "orders-db.staging.acme.internal/orders/public/orders"
     }
   }
 }
@@ -130,11 +203,8 @@ Optional:
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Assets are imported by their ID:
 
 ```shell
-# Assets are imported by their ID.
-terraform import marmot_asset.example 018e1234-5678-7abc-def0-123456789abc
+terraform import marmot_asset.orders 018e1234-5678-7abc-def0-123456789abc
 ```

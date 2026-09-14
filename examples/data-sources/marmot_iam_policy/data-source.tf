@@ -1,16 +1,11 @@
-# Builds the policy document the *_iam_policy resources take. Makes no
-# request to Marmot.
-data "marmot_iam_policy" "catalog_readers" {
+data "marmot_iam_policy" "orders" {
   binding {
-    role = "catalog.viewer"
-    members = [
-      "serviceAccount:${marmot_service_account.etl.id}",
-      "group:${marmot_team.analysts.id}",
-    ]
+    role    = "editor"
+    members = ["serviceAccount:${marmot_service_account.etl.id}"]
   }
+}
 
-  binding {
-    role    = "admin"
-    members = ["user:${marmot_user.platform_lead.id}"]
-  }
+resource "marmot_asset_iam_policy" "orders" {
+  asset_id    = marmot_asset.orders.id
+  policy_data = data.marmot_iam_policy.orders.policy_data
 }

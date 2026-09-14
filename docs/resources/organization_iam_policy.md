@@ -18,14 +18,38 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns the catalog-wide policy. Anything not listed is revoked everywhere,
-# so read the plan before applying: this can lock everyone out, you included.
+data "marmot_iam_policy" "organization" {
+  binding {
+    role    = "editor"
+    members = ["serviceAccount:${marmot_service_account.etl.id}"]
+  }
+}
+
+resource "marmot_organization_iam_policy" "organization" {
+  policy_data = data.marmot_iam_policy.organization.policy_data
+}
+```
+
+### Multiple roles
+
+```terraform
 data "marmot_iam_policy" "organization" {
   binding {
     role    = "admin"
     members = ["group:${marmot_team.platform.id}"]
   }
+
+  binding {
+    role = "editor"
+    members = [
+      "serviceAccount:${marmot_service_account.etl.id}",
+      "group:${marmot_team.analysts.id}",
+    ]
+  }
+
   binding {
     role    = "user"
     members = ["allAuthenticated"]
@@ -51,9 +75,7 @@ resource "marmot_organization_iam_policy" "organization" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A policy is imported by the path of the resource it applies to:
 
 ```shell
 terraform import marmot_organization_iam_policy.organization "root"

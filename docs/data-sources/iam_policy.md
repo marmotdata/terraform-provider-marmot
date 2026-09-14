@@ -15,12 +15,33 @@ Builds a policy document for the `*_iam_policy` resources. Makes no request to M
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Builds the policy document the *_iam_policy resources take. Makes no
-# request to Marmot.
-data "marmot_iam_policy" "catalog_readers" {
+data "marmot_iam_policy" "orders" {
   binding {
-    role = "catalog.viewer"
+    role    = "editor"
+    members = ["serviceAccount:${marmot_service_account.etl.id}"]
+  }
+}
+
+resource "marmot_asset_iam_policy" "orders" {
+  asset_id    = marmot_asset.orders.id
+  policy_data = data.marmot_iam_policy.orders.policy_data
+}
+```
+
+### Multiple bindings
+
+```terraform
+data "marmot_iam_policy" "orders" {
+  binding {
+    role    = "admin"
+    members = ["group:${marmot_team.platform.id}"]
+  }
+
+  binding {
+    role = "editor"
     members = [
       "serviceAccount:${marmot_service_account.etl.id}",
       "group:${marmot_team.analysts.id}",
@@ -28,8 +49,8 @@ data "marmot_iam_policy" "catalog_readers" {
   }
 
   binding {
-    role    = "admin"
-    members = ["user:${marmot_user.platform_lead.id}"]
+    role    = "user"
+    members = ["allAuthenticated"]
   }
 }
 ```

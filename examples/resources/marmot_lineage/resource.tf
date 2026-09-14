@@ -1,16 +1,16 @@
-resource "marmot_lineage" "example" {
-  source = marmot_asset.source.mrn
-  target = marmot_asset.target.mrn
+resource "marmot_asset" "orders" {
+  name     = "orders"
+  type     = "Table"
+  services = ["PostgreSQL"]
 }
 
-resource "marmot_asset" "source" {
-  name     = "source-asset"
-  type     = "dataset"
-  services = ["data-service"]
+resource "marmot_asset" "orders_daily" {
+  name     = "orders_daily"
+  type     = "Table"
+  services = ["BigQuery"]
 }
 
-resource "marmot_asset" "target" {
-  name     = "target-asset"
-  type     = "report"
-  services = ["reporting-service"]
+resource "marmot_lineage" "orders_to_daily" {
+  source = marmot_asset.orders.mrn
+  target = marmot_asset.orders_daily.mrn
 }

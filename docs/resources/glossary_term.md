@@ -12,27 +12,50 @@ Glossary term resource for defining business terminology
 
 ## Example Usage
 
-```terraform
-resource "marmot_team" "analytics" {
-  name = "analytics"
-}
+### Basic
 
+```terraform
 resource "marmot_glossary_term" "active_customer" {
   name       = "Active Customer"
   definition = "A customer with at least one order in the last 90 days."
+}
+```
+
+### Owners and metadata
+
+```terraform
+resource "marmot_glossary_term" "active_customer" {
+  name        = "Active Customer"
+  definition  = "A customer with at least one order in the last 90 days."
+  description = "Used by retention reporting and the churn model."
 
   owner_team_ids = [marmot_team.analytics.id]
+  owner_user_ids = [marmot_user.alice.id]
 
   metadata = {
     domain = "sales"
   }
 }
+```
 
-# Terms can be organized hierarchically.
+### Nested terms
+
+```terraform
+resource "marmot_glossary_term" "customer" {
+  name       = "Customer"
+  definition = "Anyone who has placed at least one order."
+}
+
+resource "marmot_glossary_term" "active_customer" {
+  name           = "Active Customer"
+  definition     = "A customer with at least one order in the last 90 days."
+  parent_term_id = marmot_glossary_term.customer.id
+}
+
 resource "marmot_glossary_term" "churned_customer" {
   name           = "Churned Customer"
-  definition     = "An active customer who has not ordered in the last 90 days."
-  parent_term_id = marmot_glossary_term.active_customer.id
+  definition     = "A customer with no order in the last 90 days."
+  parent_term_id = marmot_glossary_term.customer.id
 }
 ```
 
@@ -60,11 +83,8 @@ resource "marmot_glossary_term" "churned_customer" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Glossary terms are imported by their ID:
 
 ```shell
-# Glossary terms are imported by their ID.
 terraform import marmot_glossary_term.active_customer 018e1234-5678-7abc-def0-123456789abc
 ```

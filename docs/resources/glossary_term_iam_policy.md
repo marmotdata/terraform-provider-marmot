@@ -18,19 +18,48 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns the whole policy of the term and its descendants. Anything not
-# listed is revoked.
-data "marmot_iam_policy" "finance_vocabulary" {
+data "marmot_iam_policy" "customer" {
   binding {
-    role    = "catalog.viewer"
-    members = ["group:${marmot_team.finance_analysts.id}"]
+    role    = "editor"
+    members = ["serviceAccount:${marmot_service_account.etl.id}"]
   }
 }
 
-resource "marmot_glossary_term_iam_policy" "finance_vocabulary" {
-  glossary_term_id = marmot_glossary_term.finance.id
-  policy_data      = data.marmot_iam_policy.finance_vocabulary.policy_data
+resource "marmot_glossary_term_iam_policy" "customer" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  policy_data      = data.marmot_iam_policy.customer.policy_data
+}
+```
+
+### Multiple roles
+
+```terraform
+data "marmot_iam_policy" "customer" {
+  binding {
+    role    = "admin"
+    members = ["group:${marmot_team.platform.id}"]
+  }
+
+  binding {
+    role = "editor"
+    members = [
+      "serviceAccount:${marmot_service_account.etl.id}",
+      "group:${marmot_team.analysts.id}",
+    ]
+  }
+
+  binding {
+    role    = "user"
+    members = ["allAuthenticated"]
+  }
+}
+
+resource "marmot_glossary_term_iam_policy" "customer" {
+  glossary_term_id = marmot_glossary_term.customer.id
+  policy_data      = data.marmot_iam_policy.customer.policy_data
 }
 ```
 
@@ -49,11 +78,8 @@ resource "marmot_glossary_term_iam_policy" "finance_vocabulary" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A policy is imported by the path of the resource it applies to:
 
 ```shell
-terraform import marmot_glossary_term_iam_policy.finance_vocabulary \
-  "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9"
+terraform import marmot_glossary_term_iam_policy.customer "glossary_term/9a0b1c2d-3e4f-4051-8263-748596a7b8c9"
 ```

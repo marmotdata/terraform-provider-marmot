@@ -18,11 +18,29 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns one role on the whole catalog. Anyone left out loses it everywhere.
-resource "marmot_organization_iam_binding" "platform_admins" {
+resource "marmot_organization_iam_binding" "organization_editors" {
+  role = "editor"
+  members = [
+    "serviceAccount:${marmot_service_account.etl.id}",
+    "group:${marmot_team.analysts.id}",
+  ]
+}
+```
+
+### Multiple roles
+
+```terraform
+resource "marmot_organization_iam_binding" "organization_admins" {
   role    = "admin"
   members = ["group:${marmot_team.platform.id}"]
+}
+
+resource "marmot_organization_iam_binding" "organization_readers" {
+  role    = "user"
+  members = ["allAuthenticated"]
 }
 ```
 
@@ -41,11 +59,9 @@ resource "marmot_organization_iam_binding" "platform_admins" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A binding is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_organization_iam_binding.platform_admins \
-  "root/roles/admin"
+terraform import marmot_organization_iam_binding.organization_editors \
+  "root/roles/editor"
 ```

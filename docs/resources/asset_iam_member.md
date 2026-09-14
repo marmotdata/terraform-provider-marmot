@@ -18,12 +18,43 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Service account
+
 ```terraform
-# Adds one member to one role and leaves the rest of the policy alone.
-resource "marmot_asset_iam_member" "etl_reads_orders" {
+resource "marmot_asset_iam_member" "etl_orders" {
   asset_id = marmot_asset.orders.id
-  role     = "catalog.viewer"
+  role     = "editor"
   member   = "serviceAccount:${marmot_service_account.etl.id}"
+}
+```
+
+### Team
+
+```terraform
+resource "marmot_asset_iam_member" "analysts_orders" {
+  asset_id = marmot_asset.orders.id
+  role     = "user"
+  member   = "group:${marmot_team.analysts.id}"
+}
+```
+
+### User
+
+```terraform
+resource "marmot_asset_iam_member" "alice_orders" {
+  asset_id = marmot_asset.orders.id
+  role     = "admin"
+  member   = "user:${marmot_user.alice.id}"
+}
+```
+
+### All authenticated users
+
+```terraform
+resource "marmot_asset_iam_member" "everyone_orders" {
+  asset_id = marmot_asset.orders.id
+  role     = "user"
+  member   = "allAuthenticated"
 }
 ```
 
@@ -43,11 +74,9 @@ resource "marmot_asset_iam_member" "etl_reads_orders" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A grant is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_asset_iam_member.etl_reads_orders \
-  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/catalog.viewer/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
+terraform import marmot_asset_iam_member.etl_orders \
+  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/editor/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
 ```

@@ -18,12 +18,28 @@ Only the location is registered. The value is read from HashiCorp Vault when a `
 
 ## Example Usage
 
-```terraform
-resource "marmot_secret_store_vault" "prod" {
-  name    = "vault-prod"
-  address = "https://vault.acme.internal"
-}
+### Basic
 
+```terraform
+resource "marmot_secret_store_vault_secret" "db_password" {
+  store = marmot_secret_store_vault.prod.id
+  name  = "orders/db-password"
+}
+```
+
+### Key inside a secret
+
+```terraform
+resource "marmot_secret_store_vault_secret" "db_password" {
+  store = marmot_secret_store_vault.prod.id
+  name  = "orders/db"
+  key   = "password"
+}
+```
+
+### Managed with the KV secret
+
+```terraform
 variable "orders_db_password" {
   type      = string
   sensitive = true
@@ -38,12 +54,22 @@ resource "vault_kv_secret_v2" "orders_db" {
   })
 }
 
-# One key of the secret. The key may be left out when the secret holds one.
 resource "marmot_secret_store_vault_secret" "db_password" {
   store = marmot_secret_store_vault.prod.id
   mount = vault_kv_secret_v2.orders_db.mount
   name  = vault_kv_secret_v2.orders_db.name
   key   = "password"
+}
+```
+
+### Custom mount and pinned version
+
+```terraform
+resource "marmot_secret_store_vault_secret" "signing_key" {
+  store   = marmot_secret_store_vault.prod.id
+  mount   = "kv-orders"
+  name    = "signing-key"
+  version = 2
 }
 ```
 
@@ -67,11 +93,8 @@ resource "marmot_secret_store_vault_secret" "db_password" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secrets are imported as `<store id>/<secret id>`:
 
 ```shell
-# Secrets are imported as "<store id>/<secret id>".
 terraform import marmot_secret_store_vault_secret.db_password 018e1234-5678-7abc-def0-123456789abc/018e1234-5678-7abc-def0-fedcba987654
 ```

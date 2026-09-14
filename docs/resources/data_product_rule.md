@@ -12,23 +12,23 @@ Pulls assets into a data product dynamically, either with a search query or by m
 
 ## Example Usage
 
-```terraform
-resource "marmot_data_product" "orders" {
-  name = "orders"
-}
+### Query
 
-# Match assets with a search query.
-resource "marmot_data_product_rule" "by_query" {
+```terraform
+resource "marmot_data_product_rule" "tagged_orders" {
   data_product_id = marmot_data_product.orders.id
 
-  name             = "order-datasets"
-  description      = "Datasets tagged orders"
+  name             = "tagged-orders"
+  description      = "Every asset tagged orders"
   type             = "query"
   query_expression = "tag:orders"
 }
+```
 
-# Match assets on a metadata field.
-resource "marmot_data_product_rule" "by_metadata" {
+### Metadata match
+
+```terraform
+resource "marmot_data_product_rule" "commerce_domain" {
   data_product_id = marmot_data_product.orders.id
 
   name           = "commerce-domain"
@@ -36,7 +36,34 @@ resource "marmot_data_product_rule" "by_metadata" {
   metadata_field = "domain"
   pattern_type   = "exact"
   pattern_value  = "commerce"
+}
+```
+
+### Wildcard pattern with priority
+
+```terraform
+resource "marmot_data_product_rule" "orders_tables" {
+  data_product_id = marmot_data_product.orders.id
+
+  name           = "orders-tables"
+  type           = "metadata_match"
+  metadata_field = "table"
+  pattern_type   = "wildcard"
+  pattern_value  = "orders_*"
   priority       = 10
+}
+```
+
+### Disabled
+
+```terraform
+resource "marmot_data_product_rule" "legacy_orders" {
+  data_product_id = marmot_data_product.orders.id
+
+  name             = "legacy-orders"
+  type             = "query"
+  query_expression = "tag:legacy-orders"
+  enabled          = false
 }
 ```
 
@@ -67,11 +94,8 @@ resource "marmot_data_product_rule" "by_metadata" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Rules are imported as `<data_product_id>/<rule_id>`:
 
 ```shell
-# Rules are imported with the composite ID "<data_product_id>/<rule_id>".
-terraform import marmot_data_product_rule.query 018e1234-5678-7abc-def0-123456789abc/018eabcd-1234-7def-8901-23456789abcd
+terraform import marmot_data_product_rule.tagged_orders 018e1234-5678-7abc-def0-123456789abc/018eabcd-1234-7def-8901-23456789abcd
 ```

@@ -21,22 +21,25 @@ A federated store presents an OIDC token to its backend. Trust `issuer`, `subjec
 
 ## Example Usage
 
+### Server credentials
+
 ```terraform
-# Reads with the server's own credentials.
 resource "marmot_secret_store_azure" "prod" {
   name = "azure-prod"
 }
+```
 
-# Federated. An app registration whose federated credential trusts the
-# store's token.
+### Federated app registration
+
+```terraform
 data "azurerm_client_config" "current" {}
 
 resource "azuread_application" "marmot" {
   display_name = "marmot-azure-prod"
 }
 
-resource "marmot_secret_store_azure" "federated" {
-  name      = "azure-prod-federated"
+resource "marmot_secret_store_azure" "prod" {
+  name      = "azure-prod"
   tenant_id = data.azurerm_client_config.current.tenant_id
   client_id = azuread_application.marmot.client_id
 }
@@ -44,18 +47,13 @@ resource "marmot_secret_store_azure" "federated" {
 resource "azuread_application_federated_identity_credential" "marmot" {
   application_id = azuread_application.marmot.id
   display_name   = "marmot-azure-prod"
-  issuer         = marmot_secret_store_azure.federated.issuer
-  subject        = marmot_secret_store_azure.federated.subject
-  audiences      = [marmot_secret_store_azure.federated.audience]
+  issuer         = marmot_secret_store_azure.prod.issuer
+  subject        = marmot_secret_store_azure.prod.subject
+  audiences      = [marmot_secret_store_azure.prod.audience]
 }
 
 resource "azuread_service_principal" "marmot" {
   client_id = azuread_application.marmot.client_id
-}
-
-data "azurerm_key_vault" "prod" {
-  name                = "acme-prod"
-  resource_group_name = "prod"
 }
 
 resource "azurerm_role_assignment" "marmot_reads_secrets" {
@@ -88,11 +86,8 @@ resource "azurerm_role_assignment" "marmot_reads_secrets" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secret stores are imported by their ID:
 
 ```shell
-# Secret stores are imported by their ID.
 terraform import marmot_secret_store_azure.prod 018e1234-5678-7abc-def0-123456789abc
 ```

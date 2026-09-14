@@ -18,22 +18,43 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Service account
+
 ```terraform
-resource "marmot_secret_store_vault" "prod" {
-  name    = "vault-prod"
-  address = "https://vault.acme.internal"
-}
-
-resource "marmot_service_account" "analytics_agent" {
-  name = "analytics-agent"
-}
-
-# Adds one member to one role and leaves the rest of the policy alone.
-# secretStore.reader lets the account read secret values through this store.
-resource "marmot_secret_store_iam_member" "agent_reads_vault_prod" {
+resource "marmot_secret_store_iam_member" "etl_vault_prod" {
   secret_store_id = marmot_secret_store_vault.prod.id
   role            = "secretStore.reader"
-  member          = "serviceAccount:${marmot_service_account.analytics_agent.id}"
+  member          = "serviceAccount:${marmot_service_account.etl.id}"
+}
+```
+
+### Team
+
+```terraform
+resource "marmot_secret_store_iam_member" "analysts_vault_prod" {
+  secret_store_id = marmot_secret_store_vault.prod.id
+  role            = "secretStore.user"
+  member          = "group:${marmot_team.analysts.id}"
+}
+```
+
+### User
+
+```terraform
+resource "marmot_secret_store_iam_member" "alice_vault_prod" {
+  secret_store_id = marmot_secret_store_vault.prod.id
+  role            = "secretStore.viewer"
+  member          = "user:${marmot_user.alice.id}"
+}
+```
+
+### All authenticated users
+
+```terraform
+resource "marmot_secret_store_iam_member" "everyone_vault_prod" {
+  secret_store_id = marmot_secret_store_vault.prod.id
+  role            = "secretStore.viewer"
+  member          = "allAuthenticated"
 }
 ```
 
@@ -53,11 +74,9 @@ resource "marmot_secret_store_iam_member" "agent_reads_vault_prod" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A grant is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_secret_store_iam_member.agent_reads_vault_prod \
+terraform import marmot_secret_store_iam_member.etl_vault_prod \
   "secret_store/018e1234-5678-7abc-def0-123456789abc/roles/secretStore.reader/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
 ```

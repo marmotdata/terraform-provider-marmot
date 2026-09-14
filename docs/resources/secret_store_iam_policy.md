@@ -18,31 +18,42 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-resource "marmot_secret_store_vault" "prod" {
-  name    = "vault-prod"
-  address = "https://vault.acme.internal"
-}
-
-resource "marmot_service_account" "analytics_agent" {
-  name = "analytics-agent"
-}
-
-resource "marmot_team" "data_platform" {
-  name = "data-platform"
-}
-
-# Owns the whole policy. Anything not listed is revoked on the next apply,
-# so don't also point an _iam_binding or _iam_member at this store.
 data "marmot_iam_policy" "vault_prod" {
   binding {
     role    = "secretStore.reader"
-    members = ["serviceAccount:${marmot_service_account.analytics_agent.id}"]
+    members = ["serviceAccount:${marmot_service_account.etl.id}"]
+  }
+}
+
+resource "marmot_secret_store_iam_policy" "vault_prod" {
+  secret_store_id = marmot_secret_store_vault.prod.id
+  policy_data     = data.marmot_iam_policy.vault_prod.policy_data
+}
+```
+
+### Multiple roles
+
+```terraform
+data "marmot_iam_policy" "vault_prod" {
+  binding {
+    role    = "secretStore.user"
+    members = ["group:${marmot_team.platform.id}"]
   }
 
   binding {
-    role    = "secretStore.user"
-    members = ["group:${marmot_team.data_platform.id}"]
+    role = "secretStore.reader"
+    members = [
+      "serviceAccount:${marmot_service_account.etl.id}",
+      "group:${marmot_team.analysts.id}",
+    ]
+  }
+
+  binding {
+    role    = "secretStore.viewer"
+    members = ["allAuthenticated"]
   }
 }
 
@@ -67,11 +78,8 @@ resource "marmot_secret_store_iam_policy" "vault_prod" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A policy is imported by the path of the resource it applies to:
 
 ```shell
-terraform import marmot_secret_store_iam_policy.vault_prod \
-  "secret_store/018e1234-5678-7abc-def0-123456789abc"
+terraform import marmot_secret_store_iam_policy.vault_prod "secret_store/018e1234-5678-7abc-def0-123456789abc"
 ```

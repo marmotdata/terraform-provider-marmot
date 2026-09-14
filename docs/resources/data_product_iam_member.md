@@ -18,13 +18,43 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Service account
+
 ```terraform
-# A grant on a data product covers every asset it resolves, including ones
-# its rules match later.
-resource "marmot_data_product_iam_member" "finance_reader" {
-  data_product_id = marmot_data_product.finance.id
-  role            = "catalog.viewer"
-  member          = "group:${marmot_team.finance_analysts.id}"
+resource "marmot_data_product_iam_member" "etl_orders" {
+  data_product_id = marmot_data_product.orders.id
+  role            = "editor"
+  member          = "serviceAccount:${marmot_service_account.etl.id}"
+}
+```
+
+### Team
+
+```terraform
+resource "marmot_data_product_iam_member" "analysts_orders" {
+  data_product_id = marmot_data_product.orders.id
+  role            = "user"
+  member          = "group:${marmot_team.analysts.id}"
+}
+```
+
+### User
+
+```terraform
+resource "marmot_data_product_iam_member" "alice_orders" {
+  data_product_id = marmot_data_product.orders.id
+  role            = "admin"
+  member          = "user:${marmot_user.alice.id}"
+}
+```
+
+### All authenticated users
+
+```terraform
+resource "marmot_data_product_iam_member" "everyone_orders" {
+  data_product_id = marmot_data_product.orders.id
+  role            = "user"
+  member          = "allAuthenticated"
 }
 ```
 
@@ -44,11 +74,9 @@ resource "marmot_data_product_iam_member" "finance_reader" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A grant is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_data_product_iam_member.finance_reader \
-  "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718/roles/catalog.viewer/group:5f6a7b8c-9d0e-4f10-a2b3-c4d5e6f70819"
+terraform import marmot_data_product_iam_member.etl_orders \
+  "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718/roles/editor/serviceAccount:8c2f0d11-3a4b-4c5d-8e9f-0a1b2c3d4e5f"
 ```

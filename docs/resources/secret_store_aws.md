@@ -21,14 +21,17 @@ A federated store presents an OIDC token to its backend. Trust `issuer`, `subjec
 
 ## Example Usage
 
+### Server credentials
+
 ```terraform
-# Reads with the server's own credentials.
 resource "marmot_secret_store_aws" "prod" {
   name = "aws-prod"
 }
+```
 
-# Federated. The Marmot instance is registered as an OIDC provider and the
-# role trusts the store's subject.
+### Assumed role
+
+```terraform
 resource "aws_iam_openid_connect_provider" "marmot" {
   url            = "https://acme.marmotdata.cloud"
   client_id_list = ["sts.amazonaws.com"]
@@ -46,7 +49,7 @@ data "aws_iam_policy_document" "marmot_trust" {
     condition {
       test     = "StringEquals"
       variable = "acme.marmotdata.cloud:sub"
-      values   = ["secretStore:aws-prod-federated"]
+      values   = ["secretStore:aws-prod"]
     }
 
     condition {
@@ -62,25 +65,31 @@ resource "aws_iam_role" "marmot" {
   assume_role_policy = data.aws_iam_policy_document.marmot_trust.json
 }
 
-resource "marmot_secret_store_aws" "federated" {
-  name     = "aws-prod-federated"
+resource "marmot_secret_store_aws" "prod" {
+  name     = "aws-prod"
   role_arn = aws_iam_role.marmot.arn
-}
-
-resource "aws_secretsmanager_secret" "db_password" {
-  name = "prod/orders/db-password"
 }
 
 data "aws_iam_policy_document" "marmot_read" {
   statement {
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.db_password.arn]
+    resources = ["arn:aws:secretsmanager:eu-west-1:123456789012:secret:prod/*"]
   }
 }
 
 resource "aws_iam_role_policy" "marmot_read" {
   role   = aws_iam_role.marmot.name
   policy = data.aws_iam_policy_document.marmot_read.json
+}
+```
+
+### Custom session name
+
+```terraform
+resource "marmot_secret_store_aws" "prod" {
+  name         = "aws-prod"
+  role_arn     = aws_iam_role.marmot.arn
+  session_name = "marmot-prod"
 }
 ```
 
@@ -107,11 +116,8 @@ resource "aws_iam_role_policy" "marmot_read" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Secret stores are imported by their ID:
 
 ```shell
-# Secret stores are imported by their ID.
 terraform import marmot_secret_store_aws.prod 018e1234-5678-7abc-def0-123456789abc
 ```

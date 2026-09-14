@@ -15,9 +15,9 @@ Set the password through the write-only `password_wo` attribute so it never land
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# password_wo is a write-only argument, so the password never reaches state.
-# Bump password_wo_version to rotate the password on a later apply.
 ephemeral "random_password" "alice" {
   length = 24
 }
@@ -27,11 +27,48 @@ resource "marmot_user" "alice" {
   username            = "alice"
   password_wo         = ephemeral.random_password.alice.result
   password_wo_version = "1"
+}
+```
+
+### Roles and profile picture
+
+```terraform
+resource "marmot_user" "alice" {
+  name                = "Alice Nguyen"
+  username            = "alice"
+  password_wo         = ephemeral.random_password.alice.result
+  password_wo_version = "1"
+  profile_picture     = "https://avatars.acme.internal/alice.png"
 
   role_names = ["admin"]
 }
+```
 
-# Make the user an owner of a data product.
+### Password from a variable
+
+```terraform
+variable "alice_password" {
+  type      = string
+  sensitive = true
+  ephemeral = true
+}
+
+variable "alice_password_version" {
+  type    = string
+  default = "1"
+}
+
+resource "marmot_user" "alice" {
+  name                = "Alice Nguyen"
+  username            = "alice"
+  password_wo         = var.alice_password
+  password_wo_version = var.alice_password_version
+}
+```
+
+### Data product owner
+
+```terraform
 resource "marmot_data_product" "reporting" {
   name = "reporting"
 
@@ -65,12 +102,8 @@ resource "marmot_data_product" "reporting" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Users are imported by their ID. `password_wo` is not imported, so set it and `password_wo_version` afterwards to manage the password:
 
 ```shell
-# Users are imported by their ID. password_wo can't be imported; set it and
-# password_wo_version afterwards to manage the password.
 terraform import marmot_user.alice 018e1234-5678-7abc-def0-123456789abc
 ```

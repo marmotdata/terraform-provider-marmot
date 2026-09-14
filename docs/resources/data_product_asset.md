@@ -12,21 +12,27 @@ Adds a single asset to a data product by hand. For rule-based membership, use `m
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-resource "marmot_data_product" "orders" {
-  name = "orders"
-}
-
-resource "marmot_asset" "orders_table" {
-  name     = "orders"
-  type     = "dataset"
-  services = ["PostgreSQL"]
-}
-
-# Add the asset to the data product.
 resource "marmot_data_product_asset" "orders_table" {
   data_product_id = marmot_data_product.orders.id
-  asset_id        = marmot_asset.orders_table.id
+  asset_id        = marmot_asset.orders.id
+}
+```
+
+### Multiple assets
+
+```terraform
+resource "marmot_data_product_asset" "orders" {
+  for_each = {
+    orders   = marmot_asset.orders.id
+    payments = marmot_asset.payments.id
+    refunds  = marmot_asset.refunds.id
+  }
+
+  data_product_id = marmot_data_product.orders.id
+  asset_id        = each.value
 }
 ```
 
@@ -40,11 +46,8 @@ resource "marmot_data_product_asset" "orders_table" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Memberships are imported as `<data_product_id>/<asset_id>`:
 
 ```shell
-# Memberships are imported with the composite ID "<data_product_id>/<asset_id>".
-terraform import marmot_data_product_asset.example 018e1234-5678-7abc-def0-123456789abc/018eabcd-1234-7def-8901-23456789abcd
+terraform import marmot_data_product_asset.orders_table 018e1234-5678-7abc-def0-123456789abc/018eabcd-1234-7def-8901-23456789abcd
 ```

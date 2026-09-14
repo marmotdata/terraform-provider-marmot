@@ -18,29 +18,32 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-resource "marmot_secret_store_vault" "prod" {
-  name    = "vault-prod"
-  address = "https://vault.acme.internal"
-}
-
-resource "marmot_service_account" "analytics_agent" {
-  name = "analytics-agent"
-}
-
-resource "marmot_service_account" "ingest_agent" {
-  name = "ingest-agent"
-}
-
-# Owns one role on the store. Anyone left out loses it on the next apply;
-# other roles are untouched.
-resource "marmot_secret_store_iam_binding" "vault_prod_readers" {
+resource "marmot_secret_store_iam_binding" "vault_prod_editors" {
   secret_store_id = marmot_secret_store_vault.prod.id
   role            = "secretStore.reader"
   members = [
-    "serviceAccount:${marmot_service_account.analytics_agent.id}",
-    "serviceAccount:${marmot_service_account.ingest_agent.id}",
+    "serviceAccount:${marmot_service_account.etl.id}",
+    "group:${marmot_team.analysts.id}",
   ]
+}
+```
+
+### Multiple roles
+
+```terraform
+resource "marmot_secret_store_iam_binding" "vault_prod_admins" {
+  secret_store_id = marmot_secret_store_vault.prod.id
+  role            = "secretStore.user"
+  members         = ["group:${marmot_team.platform.id}"]
+}
+
+resource "marmot_secret_store_iam_binding" "vault_prod_readers" {
+  secret_store_id = marmot_secret_store_vault.prod.id
+  role            = "secretStore.viewer"
+  members         = ["allAuthenticated"]
 }
 ```
 
@@ -60,11 +63,9 @@ resource "marmot_secret_store_iam_binding" "vault_prod_readers" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A binding is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_secret_store_iam_binding.vault_prod_readers \
+terraform import marmot_secret_store_iam_binding.vault_prod_editors \
   "secret_store/018e1234-5678-7abc-def0-123456789abc/roles/secretStore.reader"
 ```

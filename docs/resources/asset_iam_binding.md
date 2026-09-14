@@ -18,16 +18,32 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns one role on the asset. Anyone left out loses it on the next apply;
-# other roles are untouched.
-resource "marmot_asset_iam_binding" "orders_readers" {
+resource "marmot_asset_iam_binding" "orders_editors" {
   asset_id = marmot_asset.orders.id
-  role     = "catalog.viewer"
+  role     = "editor"
   members = [
     "serviceAccount:${marmot_service_account.etl.id}",
     "group:${marmot_team.analysts.id}",
   ]
+}
+```
+
+### Multiple roles
+
+```terraform
+resource "marmot_asset_iam_binding" "orders_admins" {
+  asset_id = marmot_asset.orders.id
+  role     = "admin"
+  members  = ["group:${marmot_team.platform.id}"]
+}
+
+resource "marmot_asset_iam_binding" "orders_readers" {
+  asset_id = marmot_asset.orders.id
+  role     = "user"
+  members  = ["allAuthenticated"]
 }
 ```
 
@@ -47,11 +63,9 @@ resource "marmot_asset_iam_binding" "orders_readers" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A binding is imported as the path in its `id`:
 
 ```shell
-terraform import marmot_asset_iam_binding.orders_readers \
-  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/catalog.viewer"
+terraform import marmot_asset_iam_binding.orders_editors \
+  "asset/1f0c6e9a-1f2b-4a1e-9b1a-2c3d4e5f6a7b/roles/editor"
 ```

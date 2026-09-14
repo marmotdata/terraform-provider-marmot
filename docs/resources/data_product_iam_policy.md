@@ -18,18 +18,48 @@ Grants are additive and there are no denies, so a member also holding the permis
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-# Owns the whole policy of the data product and everything it resolves.
-data "marmot_iam_policy" "finance" {
+data "marmot_iam_policy" "orders" {
   binding {
-    role    = "catalog.viewer"
-    members = ["group:${marmot_team.finance_analysts.id}"]
+    role    = "editor"
+    members = ["serviceAccount:${marmot_service_account.etl.id}"]
   }
 }
 
-resource "marmot_data_product_iam_policy" "finance" {
-  data_product_id = marmot_data_product.finance.id
-  policy_data     = data.marmot_iam_policy.finance.policy_data
+resource "marmot_data_product_iam_policy" "orders" {
+  data_product_id = marmot_data_product.orders.id
+  policy_data     = data.marmot_iam_policy.orders.policy_data
+}
+```
+
+### Multiple roles
+
+```terraform
+data "marmot_iam_policy" "orders" {
+  binding {
+    role    = "admin"
+    members = ["group:${marmot_team.platform.id}"]
+  }
+
+  binding {
+    role = "editor"
+    members = [
+      "serviceAccount:${marmot_service_account.etl.id}",
+      "group:${marmot_team.analysts.id}",
+    ]
+  }
+
+  binding {
+    role    = "user"
+    members = ["allAuthenticated"]
+  }
+}
+
+resource "marmot_data_product_iam_policy" "orders" {
+  data_product_id = marmot_data_product.orders.id
+  policy_data     = data.marmot_iam_policy.orders.policy_data
 }
 ```
 
@@ -48,11 +78,8 @@ resource "marmot_data_product_iam_policy" "finance" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+A policy is imported by the path of the resource it applies to:
 
 ```shell
-terraform import marmot_data_product_iam_policy.finance \
-  "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718"
+terraform import marmot_data_product_iam_policy.orders "data_product/3b7e2f10-9c8d-4e5f-a1b2-c3d4e5f60718"
 ```

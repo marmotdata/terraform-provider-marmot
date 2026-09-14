@@ -12,22 +12,43 @@ Lineage resource representing a connection between two assets
 
 ## Example Usage
 
+### Basic
+
 ```terraform
-resource "marmot_lineage" "example" {
-  source = marmot_asset.source.mrn
-  target = marmot_asset.target.mrn
+resource "marmot_asset" "orders" {
+  name     = "orders"
+  type     = "Table"
+  services = ["PostgreSQL"]
 }
 
-resource "marmot_asset" "source" {
-  name     = "source-asset"
-  type     = "dataset"
-  services = ["data-service"]
+resource "marmot_asset" "orders_daily" {
+  name     = "orders_daily"
+  type     = "Table"
+  services = ["BigQuery"]
 }
 
-resource "marmot_asset" "target" {
-  name     = "target-asset"
-  type     = "report"
-  services = ["reporting-service"]
+resource "marmot_lineage" "orders_to_daily" {
+  source = marmot_asset.orders.mrn
+  target = marmot_asset.orders_daily.mrn
+}
+```
+
+### Multiple hops
+
+```terraform
+resource "marmot_lineage" "events_to_orders" {
+  source = marmot_asset.orders_events.mrn
+  target = marmot_asset.orders.mrn
+}
+
+resource "marmot_lineage" "orders_to_daily" {
+  source = marmot_asset.orders.mrn
+  target = marmot_asset.orders_daily.mrn
+}
+
+resource "marmot_lineage" "daily_to_dashboard" {
+  source = marmot_asset.orders_daily.mrn
+  target = marmot_asset.revenue_dashboard.mrn
 }
 ```
 
@@ -45,11 +66,8 @@ resource "marmot_asset" "target" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Lineage edges are imported by their ID:
 
 ```shell
-# Lineage edges are imported by their ID.
-terraform import marmot_lineage.example 018e1234-5678-7abc-def0-123456789abc
+terraform import marmot_lineage.orders_to_daily 018e1234-5678-7abc-def0-123456789abc
 ```

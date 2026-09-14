@@ -1,8 +1,7 @@
-# Created on open, revoked on close, never in plan or state.
-ephemeral "marmot_service_account_api_key" "ingest_agent" {
-  service_account_id = marmot_service_account.ingest_agent.id
+ephemeral "marmot_service_account_api_key" "etl" {
+  service_account_id = marmot_service_account.etl.id
 }
 
 provider "someprovider" {
-  token = ephemeral.marmot_service_account_api_key.ingest_agent.key
+  token = ephemeral.marmot_service_account_api_key.etl.key
 }

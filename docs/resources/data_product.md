@@ -12,42 +12,56 @@ Groups related assets into a data product. Add assets to it directly with `marmo
 
 ## Example Usage
 
-```terraform
-resource "marmot_team" "analytics" {
-  name        = "analytics"
-  description = "Owns the reporting datasets"
-}
+### Basic
 
+```terraform
 resource "marmot_data_product" "orders" {
   name        = "orders"
   description = "Order events and the tables derived from them"
+}
+```
 
-  tags = ["orders"]
+### Owners
+
+```terraform
+resource "marmot_data_product" "orders" {
+  name = "orders"
 
   owner_team_ids = [marmot_team.analytics.id]
+  owner_user_ids = [marmot_user.alice.id]
+}
+```
+
+### Tags and metadata
+
+```terraform
+resource "marmot_data_product" "orders" {
+  name = "orders"
+
+  tags = ["orders", "commerce"]
 
   metadata = {
     domain = "commerce"
+    tier   = "gold"
   }
 }
+```
 
-resource "marmot_asset" "orders_table" {
-  name     = "orders"
-  type     = "dataset"
-  services = ["PostgreSQL"]
+### Assets and rules
+
+```terraform
+resource "marmot_data_product" "orders" {
+  name = "orders"
 }
 
-# Add an asset directly.
 resource "marmot_data_product_asset" "orders_table" {
   data_product_id = marmot_data_product.orders.id
-  asset_id        = marmot_asset.orders_table.id
+  asset_id        = marmot_asset.orders.id
 }
 
-# Or pull assets in by query.
-resource "marmot_data_product_rule" "order_datasets" {
-  data_product_id = marmot_data_product.orders.id
-
-  name             = "order-datasets"
+resource "marmot_data_product_rule" "tagged_orders" {
+  data_product_id  = marmot_data_product.orders.id
+  name             = "tagged-orders"
   type             = "query"
   query_expression = "tag:orders"
 }
@@ -76,11 +90,8 @@ resource "marmot_data_product_rule" "order_datasets" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+Data products are imported by their ID:
 
 ```shell
-# Data products are imported by their ID.
-terraform import marmot_data_product.example 018e1234-5678-7abc-def0-123456789abc
+terraform import marmot_data_product.orders 018e1234-5678-7abc-def0-123456789abc
 ```
