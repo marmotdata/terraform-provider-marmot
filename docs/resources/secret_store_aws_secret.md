@@ -16,9 +16,7 @@ A secret in an AWS Secrets Manager store, by name or ARN.
 
 Only the location is registered. The value is read from AWS Secrets Manager when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires `secretStore:use` on the store.
 
-## Example Usage
-
-### By ARN
+## Reference a secret by ARN
 
 ```terraform
 resource "marmot_secret_store_aws_secret" "db_password" {
@@ -27,7 +25,7 @@ resource "marmot_secret_store_aws_secret" "db_password" {
 }
 ```
 
-### By name and region
+## Reference a secret by name and region
 
 ```terraform
 resource "marmot_secret_store_aws_secret" "db_password" {
@@ -37,7 +35,7 @@ resource "marmot_secret_store_aws_secret" "db_password" {
 }
 ```
 
-### Staging label
+## Read a staging label
 
 ```terraform
 resource "marmot_secret_store_aws_secret" "signing_key_previous" {
@@ -47,7 +45,7 @@ resource "marmot_secret_store_aws_secret" "signing_key_previous" {
 }
 ```
 
-### Pinned version
+## Pin a version
 
 ```terraform
 resource "marmot_secret_store_aws_secret" "signing_key" {

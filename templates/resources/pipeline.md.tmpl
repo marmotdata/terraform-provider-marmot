@@ -10,21 +10,19 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Schedule a BigQuery pipeline
 
 {{ tffile "examples/resources/marmot_pipeline/resource.tf" }}
 
-### Paused
+## Keep a pipeline paused
 
 {{ tffile "examples/resources/marmot_pipeline/paused.tf" }}
 
-### Secrets from a store
+## Inject a password from a secret store
 
 {{ tffile "examples/resources/marmot_pipeline/secrets.tf" }}
 
-### Workload identity
+## Run keyless with workload identity
 
 {{ tffile "examples/resources/marmot_pipeline/workload_identity.tf" }}
 

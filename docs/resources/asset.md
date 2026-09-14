@@ -10,9 +10,7 @@ description: |-
 
 Asset resource
 
-## Example Usage
-
-### Basic
+## Catalog a table
 
 ```terraform
 resource "marmot_asset" "orders" {
@@ -23,7 +21,7 @@ resource "marmot_asset" "orders" {
 }
 ```
 
-### Tags and metadata
+## Add tags and metadata
 
 ```terraform
 resource "marmot_asset" "orders" {
@@ -41,7 +39,7 @@ resource "marmot_asset" "orders" {
 }
 ```
 
-### Schema
+## Attach a schema
 
 ```terraform
 resource "marmot_asset" "orders_events" {
@@ -62,7 +60,7 @@ resource "marmot_asset" "orders_events" {
 }
 ```
 
-### External links
+## Link to external tools
 
 ```terraform
 resource "marmot_asset" "orders" {
@@ -85,7 +83,7 @@ resource "marmot_asset" "orders" {
 }
 ```
 
-### Sources
+## Declare the asset's sources
 
 ```terraform
 resource "marmot_asset" "orders" {
@@ -105,7 +103,7 @@ resource "marmot_asset" "orders" {
 }
 ```
 
-### Environments
+## Map the asset across environments
 
 ```terraform
 resource "marmot_asset" "orders" {

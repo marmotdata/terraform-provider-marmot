@@ -16,9 +16,7 @@ A secret in an Azure Key Vault store.
 
 Only the location is registered. The value is read from Azure Key Vault when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires `secretStore:use` on the store.
 
-## Example Usage
-
-### Basic
+## Reference a Key Vault secret
 
 ```terraform
 resource "marmot_secret_store_azure_secret" "db_password" {
@@ -28,7 +26,7 @@ resource "marmot_secret_store_azure_secret" "db_password" {
 }
 ```
 
-### Managed with the Key Vault secret
+## Manage alongside the Key Vault secret
 
 ```terraform
 variable "orders_db_password" {
@@ -49,7 +47,7 @@ resource "marmot_secret_store_azure_secret" "db_password" {
 }
 ```
 
-### Pinned version
+## Pin a version
 
 ```terraform
 resource "marmot_secret_store_azure_secret" "db_password" {

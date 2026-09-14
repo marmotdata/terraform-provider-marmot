@@ -10,9 +10,7 @@ description: |-
 
 Glossary term resource for defining business terminology
 
-## Example Usage
-
-### Basic
+## Define a term
 
 ```terraform
 resource "marmot_glossary_term" "active_customer" {
@@ -21,7 +19,7 @@ resource "marmot_glossary_term" "active_customer" {
 }
 ```
 
-### Owners and metadata
+## Assign owners and metadata
 
 ```terraform
 resource "marmot_glossary_term" "active_customer" {
@@ -38,7 +36,7 @@ resource "marmot_glossary_term" "active_customer" {
 }
 ```
 
-### Nested terms
+## Nest terms under a parent
 
 ```terraform
 resource "marmot_glossary_term" "customer" {

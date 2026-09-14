@@ -16,9 +16,7 @@ Authoritative. Sets the complete access policy on a glossary term and its descen
 
 Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 
-## Example Usage
-
-### Basic
+## Set the full policy
 
 ```terraform
 data "marmot_iam_policy" "customer" {
@@ -34,7 +32,7 @@ resource "marmot_glossary_term_iam_policy" "customer" {
 }
 ```
 
-### Multiple roles
+## Set a policy with multiple roles
 
 ```terraform
 data "marmot_iam_policy" "customer" {

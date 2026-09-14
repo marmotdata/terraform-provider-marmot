@@ -10,21 +10,19 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Create a user
 
 {{ tffile "examples/resources/marmot_user/resource.tf" }}
 
-### Roles and profile picture
+## Assign roles and a profile picture
 
 {{ tffile "examples/resources/marmot_user/roles.tf" }}
 
-### Password from a variable
+## Set the password from a variable
 
 {{ tffile "examples/resources/marmot_user/password_variable.tf" }}
 
-### Data product owner
+## Own a data product
 
 {{ tffile "examples/resources/marmot_user/owner.tf" }}
 

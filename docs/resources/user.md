@@ -13,9 +13,7 @@ A user account in Marmot. Put its `id` in the `owner_user_ids` of a data product
 
 Set the password through the write-only `password_wo` attribute so it never lands in Terraform state. This needs Terraform 1.11 or newer.
 
-## Example Usage
-
-### Basic
+## Create a user
 
 ```terraform
 ephemeral "random_password" "alice" {
@@ -30,7 +28,7 @@ resource "marmot_user" "alice" {
 }
 ```
 
-### Roles and profile picture
+## Assign roles and a profile picture
 
 ```terraform
 resource "marmot_user" "alice" {
@@ -44,7 +42,7 @@ resource "marmot_user" "alice" {
 }
 ```
 
-### Password from a variable
+## Set the password from a variable
 
 ```terraform
 variable "alice_password" {
@@ -66,7 +64,7 @@ resource "marmot_user" "alice" {
 }
 ```
 
-### Data product owner
+## Own a data product
 
 ```terraform
 resource "marmot_data_product" "reporting" {

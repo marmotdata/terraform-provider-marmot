@@ -13,9 +13,7 @@ description: |-
 
 Builds a policy document for the `*_iam_policy` resources. Makes no request to Marmot.
 
-## Example Usage
-
-### Basic
+## Build a policy with one binding
 
 ```terraform
 data "marmot_iam_policy" "orders" {
@@ -31,7 +29,7 @@ resource "marmot_asset_iam_policy" "orders" {
 }
 ```
 
-### Multiple bindings
+## Build a policy with multiple bindings
 
 ```terraform
 data "marmot_iam_policy" "orders" {

@@ -10,29 +10,27 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Catalog a table
 
 {{ tffile "examples/resources/marmot_asset/resource.tf" }}
 
-### Tags and metadata
+## Add tags and metadata
 
 {{ tffile "examples/resources/marmot_asset/tags_and_metadata.tf" }}
 
-### Schema
+## Attach a schema
 
 {{ tffile "examples/resources/marmot_asset/schema.tf" }}
 
-### External links
+## Link to external tools
 
 {{ tffile "examples/resources/marmot_asset/external_links.tf" }}
 
-### Sources
+## Declare the asset's sources
 
 {{ tffile "examples/resources/marmot_asset/sources.tf" }}
 
-### Environments
+## Map the asset across environments
 
 {{ tffile "examples/resources/marmot_asset/environments.tf" }}
 

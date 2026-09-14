@@ -16,9 +16,7 @@ A pipeline: a plugin pointed at a source that discovers and catalogs assets on a
 
 A pipeline can also carry no credential at all. On Marmot Cloud or Marmot Enterprise, a plugin config that names a Workload Identity Federation provider (Google), a role to assume with web identity (AWS), or an app registration with a federated credential (Azure) makes the pipeline present its own identity: Marmot mints a short-lived token for each run and the plugin exchanges it at the cloud. Trust `issuer` and grant `subject` on the cloud side.
 
-## Example Usage
-
-### Basic
+## Schedule a BigQuery pipeline
 
 ```terraform
 resource "marmot_pipeline" "analytics" {
@@ -33,7 +31,7 @@ resource "marmot_pipeline" "analytics" {
 }
 ```
 
-### Paused
+## Keep a pipeline paused
 
 ```terraform
 resource "marmot_pipeline" "analytics" {
@@ -49,7 +47,7 @@ resource "marmot_pipeline" "analytics" {
 }
 ```
 
-### Secrets from a store
+## Inject a password from a secret store
 
 ```terraform
 resource "marmot_secret_store_google" "prod" {
@@ -80,7 +78,7 @@ resource "marmot_pipeline" "orders" {
 }
 ```
 
-### Workload identity
+## Run keyless with workload identity
 
 ```terraform
 resource "google_iam_workload_identity_pool" "marmot" {

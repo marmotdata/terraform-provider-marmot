@@ -16,9 +16,7 @@ Authoritative for one role on a secret store and the secrets registered in it. O
 
 Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 
-## Example Usage
-
-### Basic
+## Bind all members of one role
 
 ```terraform
 resource "marmot_secret_store_iam_binding" "vault_prod_editors" {
@@ -31,7 +29,7 @@ resource "marmot_secret_store_iam_binding" "vault_prod_editors" {
 }
 ```
 
-### Multiple roles
+## Bind members across multiple roles
 
 ```terraform
 resource "marmot_secret_store_iam_binding" "vault_prod_admins" {

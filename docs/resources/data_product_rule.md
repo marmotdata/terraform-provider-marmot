@@ -10,9 +10,7 @@ description: |-
 
 Pulls assets into a data product dynamically, either with a search query or by matching a metadata field against a pattern. A data product can have up to 10 rules.
 
-## Example Usage
-
-### Query
+## Match assets with a search query
 
 ```terraform
 resource "marmot_data_product_rule" "tagged_orders" {
@@ -25,7 +23,7 @@ resource "marmot_data_product_rule" "tagged_orders" {
 }
 ```
 
-### Metadata match
+## Match an exact metadata value
 
 ```terraform
 resource "marmot_data_product_rule" "commerce_domain" {
@@ -39,7 +37,7 @@ resource "marmot_data_product_rule" "commerce_domain" {
 }
 ```
 
-### Wildcard pattern with priority
+## Match a wildcard pattern with priority
 
 ```terraform
 resource "marmot_data_product_rule" "orders_tables" {
@@ -54,7 +52,7 @@ resource "marmot_data_product_rule" "orders_tables" {
 }
 ```
 
-### Disabled
+## Keep a rule but disable it
 
 ```terraform
 resource "marmot_data_product_rule" "legacy_orders" {

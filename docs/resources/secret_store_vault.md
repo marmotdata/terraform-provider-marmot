@@ -19,9 +19,7 @@ A store holds no secret values. `marmot_secret_store_vault_secret` registers whe
 
 A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` and `audience` on the cloud side.
 
-## Example Usage
-
-### Server token
+## Read with the server's token
 
 ```terraform
 resource "marmot_secret_store_vault" "prod" {
@@ -30,7 +28,7 @@ resource "marmot_secret_store_vault" "prod" {
 }
 ```
 
-### JWT auth
+## Authenticate with JWT auth
 
 ```terraform
 resource "marmot_secret_store_vault" "prod" {
@@ -65,7 +63,7 @@ resource "vault_jwt_auth_backend_role" "marmot" {
 }
 ```
 
-### Namespace and auth path
+## Set a namespace and auth path
 
 ```terraform
 resource "marmot_secret_store_vault" "prod" {
@@ -77,7 +75,7 @@ resource "marmot_secret_store_vault" "prod" {
 }
 ```
 
-### Private certificate authority
+## Trust a private certificate authority
 
 ```terraform
 resource "marmot_secret_store_vault" "prod" {

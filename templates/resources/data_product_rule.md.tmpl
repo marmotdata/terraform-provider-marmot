@@ -10,21 +10,19 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Query
+## Match assets with a search query
 
 {{ tffile "examples/resources/marmot_data_product_rule/resource.tf" }}
 
-### Metadata match
+## Match an exact metadata value
 
 {{ tffile "examples/resources/marmot_data_product_rule/metadata_match.tf" }}
 
-### Wildcard pattern with priority
+## Match a wildcard pattern with priority
 
 {{ tffile "examples/resources/marmot_data_product_rule/wildcard.tf" }}
 
-### Disabled
+## Keep a rule but disable it
 
 {{ tffile "examples/resources/marmot_data_product_rule/disabled.tf" }}
 

@@ -10,13 +10,11 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Bind all members of one role
 
 {{ tffile "examples/resources/marmot_asset_iam_binding/resource.tf" }}
 
-### Multiple roles
+## Bind members across multiple roles
 
 {{ tffile "examples/resources/marmot_asset_iam_binding/multiple_roles.tf" }}
 

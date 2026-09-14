@@ -10,9 +10,7 @@ description: |-
 
 Groups related assets into a data product. Add assets to it directly with `marmot_data_product_asset`, or match them dynamically with `marmot_data_product_rule`.
 
-## Example Usage
-
-### Basic
+## Create a data product
 
 ```terraform
 resource "marmot_data_product" "orders" {
@@ -21,7 +19,7 @@ resource "marmot_data_product" "orders" {
 }
 ```
 
-### Owners
+## Assign owners
 
 ```terraform
 resource "marmot_data_product" "orders" {
@@ -32,7 +30,7 @@ resource "marmot_data_product" "orders" {
 }
 ```
 
-### Tags and metadata
+## Add tags and metadata
 
 ```terraform
 resource "marmot_data_product" "orders" {
@@ -47,7 +45,7 @@ resource "marmot_data_product" "orders" {
 }
 ```
 
-### Assets and rules
+## Add assets and membership rules
 
 ```terraform
 resource "marmot_data_product" "orders" {

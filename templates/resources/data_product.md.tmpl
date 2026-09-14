@@ -10,21 +10,19 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Create a data product
 
 {{ tffile "examples/resources/marmot_data_product/resource.tf" }}
 
-### Owners
+## Assign owners
 
 {{ tffile "examples/resources/marmot_data_product/owners.tf" }}
 
-### Tags and metadata
+## Add tags and metadata
 
 {{ tffile "examples/resources/marmot_data_product/tags_and_metadata.tf" }}
 
-### Assets and rules
+## Add assets and membership rules
 
 {{ tffile "examples/resources/marmot_data_product/assets.tf" }}
 

@@ -10,13 +10,11 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Set the full policy
 
 {{ tffile "examples/resources/marmot_organization_iam_policy/resource.tf" }}
 
-### Multiple roles
+## Set a policy with multiple roles
 
 {{ tffile "examples/resources/marmot_organization_iam_policy/multiple_roles.tf" }}
 

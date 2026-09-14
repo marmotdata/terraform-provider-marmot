@@ -10,9 +10,7 @@ description: |-
 
 Adds a single asset to a data product by hand. For rule-based membership, use `marmot_data_product_rule`.
 
-## Example Usage
-
-### Basic
+## Add an asset to a data product
 
 ```terraform
 resource "marmot_data_product_asset" "orders_table" {
@@ -21,7 +19,7 @@ resource "marmot_data_product_asset" "orders_table" {
 }
 ```
 
-### Multiple assets
+## Add multiple assets
 
 ```terraform
 resource "marmot_data_product_asset" "orders" {

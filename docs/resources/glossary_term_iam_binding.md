@@ -16,9 +16,7 @@ Authoritative for one role on a glossary term and its descendants. Other roles a
 
 Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 
-## Example Usage
-
-### Basic
+## Bind all members of one role
 
 ```terraform
 resource "marmot_glossary_term_iam_binding" "customer_editors" {
@@ -31,7 +29,7 @@ resource "marmot_glossary_term_iam_binding" "customer_editors" {
 }
 ```
 
-### Multiple roles
+## Bind members across multiple roles
 
 ```terraform
 resource "marmot_glossary_term_iam_binding" "customer_admins" {

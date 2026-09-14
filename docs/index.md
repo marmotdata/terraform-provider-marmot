@@ -33,7 +33,7 @@ attribute or the `MARMOT_API_KEY` environment variable. A bearer `token` (or
 `MARMOT_TOKEN`) is also supported, and when no credential is provided the
 provider falls back to the Marmot CLI credentials from `marmot login`.
 
-### API key
+## Authenticate with an API key
 
 ```terraform
 provider "marmot" {
@@ -42,7 +42,7 @@ provider "marmot" {
 }
 ```
 
-### Environment variables
+## Configure through environment variables
 
 With `MARMOT_HOST` and `MARMOT_API_KEY` set, the provider block needs no
 arguments and the key stays out of your configuration and state.
@@ -51,7 +51,7 @@ arguments and the key stays out of your configuration and state.
 provider "marmot" {}
 ```
 
-### API key from an ephemeral resource
+## Load the API key from an ephemeral resource
 
 An [ephemeral resource](https://developer.hashicorp.com/terraform/language/resources/ephemeral)
 (Terraform >= 1.10) keeps the key out of plan and state. The same pattern works

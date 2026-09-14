@@ -10,13 +10,11 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Build a policy with one binding
 
 {{ tffile "examples/data-sources/marmot_iam_policy/data-source.tf" }}
 
-### Multiple bindings
+## Build a policy with multiple bindings
 
 {{ tffile "examples/data-sources/marmot_iam_policy/multiple_bindings.tf" }}
 

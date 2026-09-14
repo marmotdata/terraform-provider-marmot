@@ -19,9 +19,7 @@ A store holds no secret values. `marmot_secret_store_aws_secret` registers where
 
 A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` and `audience` on the cloud side.
 
-## Example Usage
-
-### Server credentials
+## Read with the server's credentials
 
 ```terraform
 resource "marmot_secret_store_aws" "prod" {
@@ -29,7 +27,7 @@ resource "marmot_secret_store_aws" "prod" {
 }
 ```
 
-### Assumed role
+## Assume an IAM role
 
 ```terraform
 resource "aws_iam_openid_connect_provider" "marmot" {
@@ -83,7 +81,7 @@ resource "aws_iam_role_policy" "marmot_read" {
 }
 ```
 
-### Custom session name
+## Set a custom session name
 
 ```terraform
 resource "marmot_secret_store_aws" "prod" {

@@ -10,21 +10,19 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Service account
+## Grant a role to a service account
 
 {{ tffile "examples/resources/marmot_asset_iam_member/resource.tf" }}
 
-### Team
+## Grant a role to a team
 
 {{ tffile "examples/resources/marmot_asset_iam_member/team.tf" }}
 
-### User
+## Grant a role to a user
 
 {{ tffile "examples/resources/marmot_asset_iam_member/user.tf" }}
 
-### All authenticated users
+## Grant a role to all authenticated users
 
 {{ tffile "examples/resources/marmot_asset_iam_member/all_authenticated.tf" }}
 

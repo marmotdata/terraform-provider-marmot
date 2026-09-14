@@ -10,9 +10,7 @@ description: |-
 
 A machine principal. Give it API keys with `marmot_service_account_api_key`, and grant it access either through organization-level roles (`role_ids`) or per resource with the `*_iam_member` and `*_iam_binding` resources, referencing it as `serviceAccount:{id}`. An account with no roles and no grants can authenticate but reaches nothing.
 
-## Example Usage
-
-### Basic
+## Create a service account
 
 ```terraform
 resource "marmot_service_account" "etl" {
@@ -21,7 +19,7 @@ resource "marmot_service_account" "etl" {
 }
 ```
 
-### Granted on an asset
+## Grant it a role on an asset
 
 ```terraform
 resource "marmot_service_account" "etl" {
@@ -35,7 +33,7 @@ resource "marmot_asset_iam_member" "etl_edits_orders" {
 }
 ```
 
-### Inactive
+## Deactivate an account
 
 ```terraform
 resource "marmot_service_account" "etl" {

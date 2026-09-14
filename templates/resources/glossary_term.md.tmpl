@@ -10,17 +10,15 @@ description: |-
 
 {{ .Description | trimspace }}
 
-## Example Usage
-
-### Basic
+## Define a term
 
 {{ tffile "examples/resources/marmot_glossary_term/resource.tf" }}
 
-### Owners and metadata
+## Assign owners and metadata
 
 {{ tffile "examples/resources/marmot_glossary_term/owners_and_metadata.tf" }}
 
-### Nested terms
+## Nest terms under a parent
 
 {{ tffile "examples/resources/marmot_glossary_term/nested_terms.tf" }}
 

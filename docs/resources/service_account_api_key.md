@@ -10,9 +10,7 @@ description: |-
 
 An API key on a service account. The plaintext is only returned at creation and is kept in state as the sensitive `key` attribute. Any change replaces the key. An account holds at most 5 keys.
 
-## Example Usage
-
-### Expiring
+## Create an expiring key
 
 ```terraform
 resource "marmot_service_account_api_key" "ci" {
@@ -22,7 +20,7 @@ resource "marmot_service_account_api_key" "ci" {
 }
 ```
 
-### Never expires
+## Create a key that never expires
 
 ```terraform
 resource "marmot_service_account_api_key" "ci" {
@@ -31,7 +29,7 @@ resource "marmot_service_account_api_key" "ci" {
 }
 ```
 
-### Handed to another provider
+## Hand the key to another provider
 
 ```terraform
 resource "marmot_service_account_api_key" "ci" {

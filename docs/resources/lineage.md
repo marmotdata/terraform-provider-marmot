@@ -10,9 +10,7 @@ description: |-
 
 Lineage resource representing a connection between two assets
 
-## Example Usage
-
-### Basic
+## Link a source to a target
 
 ```terraform
 resource "marmot_asset" "orders" {
@@ -33,7 +31,7 @@ resource "marmot_lineage" "orders_to_daily" {
 }
 ```
 
-### Multiple hops
+## Chain multiple hops
 
 ```terraform
 resource "marmot_lineage" "events_to_orders" {

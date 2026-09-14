@@ -16,9 +16,7 @@ A secret in a HashiCorp Vault KV v2 store.
 
 Only the location is registered. The value is read from HashiCorp Vault when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires `secretStore:use` on the store.
 
-## Example Usage
-
-### Basic
+## Reference a KV secret
 
 ```terraform
 resource "marmot_secret_store_vault_secret" "db_password" {
@@ -27,7 +25,7 @@ resource "marmot_secret_store_vault_secret" "db_password" {
 }
 ```
 
-### Key inside a secret
+## Read one key inside a secret
 
 ```terraform
 resource "marmot_secret_store_vault_secret" "db_password" {
@@ -37,7 +35,7 @@ resource "marmot_secret_store_vault_secret" "db_password" {
 }
 ```
 
-### Managed with the KV secret
+## Manage alongside the KV secret
 
 ```terraform
 variable "orders_db_password" {
@@ -62,7 +60,7 @@ resource "marmot_secret_store_vault_secret" "db_password" {
 }
 ```
 
-### Custom mount and pinned version
+## Use a custom mount and pin a version
 
 ```terraform
 resource "marmot_secret_store_vault_secret" "signing_key" {

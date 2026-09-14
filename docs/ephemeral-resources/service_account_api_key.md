@@ -10,9 +10,7 @@ description: |-
 
 A service account API key that lives for one Terraform operation: created on open, revoked on close, never in plan or state. For a durable key use the `marmot_service_account_api_key` resource.
 
-## Example Usage
-
-### Basic
+## Mint a key for one operation
 
 ```terraform
 ephemeral "marmot_service_account_api_key" "etl" {
@@ -24,7 +22,7 @@ provider "someprovider" {
 }
 ```
 
-### Custom name and expiry
+## Set a custom name and expiry
 
 ```terraform
 ephemeral "marmot_service_account_api_key" "etl" {

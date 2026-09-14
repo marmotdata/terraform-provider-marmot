@@ -19,9 +19,7 @@ A store holds no secret values. `marmot_secret_store_azure_secret` registers whe
 
 A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` and `audience` on the cloud side.
 
-## Example Usage
-
-### Server credentials
+## Read with the server's credentials
 
 ```terraform
 resource "marmot_secret_store_azure" "prod" {
@@ -29,7 +27,7 @@ resource "marmot_secret_store_azure" "prod" {
 }
 ```
 
-### Federated app registration
+## Federate through an app registration
 
 ```terraform
 data "azurerm_client_config" "current" {}

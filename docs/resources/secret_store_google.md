@@ -19,9 +19,7 @@ A store holds no secret values. `marmot_secret_store_google_secret` registers wh
 
 A federated store presents an OIDC token to its backend. Trust `issuer`, `subject` and `audience` on the cloud side.
 
-## Example Usage
-
-### Application Default Credentials
+## Read with Application Default Credentials
 
 ```terraform
 resource "marmot_secret_store_google" "prod" {
@@ -29,7 +27,7 @@ resource "marmot_secret_store_google" "prod" {
 }
 ```
 
-### Workload Identity Federation
+## Federate with Workload Identity
 
 ```terraform
 resource "google_iam_workload_identity_pool" "marmot" {
@@ -61,7 +59,7 @@ resource "google_secret_manager_secret_iam_member" "marmot" {
 }
 ```
 
-### Service account impersonation
+## Impersonate a service account
 
 ```terraform
 resource "google_service_account" "marmot" {

@@ -10,9 +10,7 @@ description: |-
 
 A team in Marmot. Put its `id` in the `owner_team_ids` of a data product or glossary term to have it own that entity.
 
-## Example Usage
-
-### Basic
+## Create a team
 
 ```terraform
 resource "marmot_team" "analytics" {
@@ -21,7 +19,7 @@ resource "marmot_team" "analytics" {
 }
 ```
 
-### Tags and metadata
+## Add tags and metadata
 
 ```terraform
 resource "marmot_team" "analytics" {
@@ -36,7 +34,7 @@ resource "marmot_team" "analytics" {
 }
 ```
 
-### Data product owner
+## Own a data product
 
 ```terraform
 resource "marmot_team" "analytics" {

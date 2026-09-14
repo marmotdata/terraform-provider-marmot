@@ -16,9 +16,7 @@ Non-authoritative. Grants one member one role on a data product and every asset 
 
 Grants are additive and there are no denies, so a member also holding the permission over the whole catalog keeps it here. Restricting a principal means giving it a role that does not carry the permission at the organization level, then granting it on specific resources.
 
-## Example Usage
-
-### Service account
+## Grant a role to a service account
 
 ```terraform
 resource "marmot_data_product_iam_member" "etl_orders" {
@@ -28,7 +26,7 @@ resource "marmot_data_product_iam_member" "etl_orders" {
 }
 ```
 
-### Team
+## Grant a role to a team
 
 ```terraform
 resource "marmot_data_product_iam_member" "analysts_orders" {
@@ -38,7 +36,7 @@ resource "marmot_data_product_iam_member" "analysts_orders" {
 }
 ```
 
-### User
+## Grant a role to a user
 
 ```terraform
 resource "marmot_data_product_iam_member" "alice_orders" {
@@ -48,7 +46,7 @@ resource "marmot_data_product_iam_member" "alice_orders" {
 }
 ```
 
-### All authenticated users
+## Grant a role to all authenticated users
 
 ```terraform
 resource "marmot_data_product_iam_member" "everyone_orders" {

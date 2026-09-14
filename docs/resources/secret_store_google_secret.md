@@ -16,9 +16,7 @@ A secret in a Google Secret Manager store.
 
 Only the location is registered. The value is read from Google Secret Manager when a `marmot_pipeline` runs, or by a service account holding `secretStore.reader` on the store, and never enters Terraform state. Repointing the secret updates it in place; pipelines that reference it follow. Requires `secretStore:use` on the store.
 
-## Example Usage
-
-### Basic
+## Reference a Secret Manager secret
 
 ```terraform
 resource "marmot_secret_store_google_secret" "db_password" {
@@ -28,7 +26,7 @@ resource "marmot_secret_store_google_secret" "db_password" {
 }
 ```
 
-### Managed with the Secret Manager secret
+## Manage alongside the Secret Manager secret
 
 ```terraform
 resource "google_secret_manager_secret" "db_password" {
@@ -46,7 +44,7 @@ resource "marmot_secret_store_google_secret" "db_password" {
 }
 ```
 
-### Regional secret
+## Reference a regional secret
 
 ```terraform
 resource "google_secret_manager_regional_secret" "signing_key" {
@@ -62,7 +60,7 @@ resource "marmot_secret_store_google_secret" "signing_key" {
 }
 ```
 
-### Pinned version
+## Pin a version
 
 ```terraform
 resource "marmot_secret_store_google_secret" "db_password" {
