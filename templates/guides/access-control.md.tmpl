@@ -154,4 +154,4 @@ A plan against an IAM resource is a drift report. An empty plan means nothing wa
 
 Policy writes carry an etag, so two `terraform apply` runs against the same resource cannot silently overwrite each other; the second is rejected rather than merged.
 
-For the question in the other direction — what does this principal actually reach — the instance has an effective-access panel on every user, team and service account, a **Check access** control on every resource, and an API behind both. A `terraform plan` tells you the configuration is intact; those tell you what it adds up to.
+The question in the other direction, what this principal actually reaches, is answered by the effective-access panel on every user, team and service account, the **Check access** control on every resource, and the API behind both. A `terraform plan` tells you the configuration is intact; those tell you what it adds up to.

@@ -77,7 +77,7 @@ A durable key is in state either way, so the state backend needs encryption at r
 
 ## Ephemeral keys
 
-A key needed only for the duration of one operation — configuring a second provider against your instance, a one-off migration — should be an ephemeral resource. It is created when the operation starts, revoked when it ends, and never enters plan or state.
+A key needed only for the duration of one operation, such as configuring a second provider against your instance or a one-off migration, should be an ephemeral resource. It is created when the operation starts, revoked when it ends, and never enters plan or state.
 
 ```terraform
 ephemeral "marmot_service_account_api_key" "migration" {
@@ -169,4 +169,4 @@ The account holds both keys in between, so nothing is interrupted. Bump `secret_
 
 A service account also has an identity towards your cloud, in the same way a pipeline does: subject `serviceAccount:<name>`, issued by your instance. It can mint a short-lived token and exchange it at Google Cloud, AWS or Azure, so an agent reads a bucket as itself.
 
-That is outbound only. Anything calling *into* Marmot — Terraform in CI, an agent on the MCP endpoint — still authenticates with the account's API key.
+That is outbound only. Anything calling *into* Marmot, such as Terraform in CI or an agent on the MCP endpoint, still authenticates with the account's API key.

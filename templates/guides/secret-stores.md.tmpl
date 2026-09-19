@@ -13,11 +13,11 @@ Some sources cannot federate. A PostgreSQL database behind a password has no clo
 
 A secret store is that somewhere: a pointer to your vault. **Marmot never holds a secret value.** A store says which vault and how to authenticate to it, a secret resource says where in that vault a value lives, and a pipeline names the secret it needs. Marmot reads the value just before each run and it never reaches Terraform state.
 
-```
-marmot_secret_store_google  →  which vault, and how Marmot authenticates to it
-marmot_secret_store_google_secret  →  where in that vault the value lives
-marmot_pipeline.secrets  →  which config key to inject it at
-```
+| Resource | Says |
+| --- | --- |
+| `marmot_secret_store_google` | Which vault, and how Marmot authenticates to it. |
+| `marmot_secret_store_google_secret` | Where in that vault the value lives. |
+| `marmot_pipeline.secrets` | Which config key to inject it at. |
 
 ## A store per environment
 
@@ -111,7 +111,7 @@ The JWT auth role on the Vault side binds the issuer, the subject `secretStore:v
 
 ## Inject a secret into a pipeline
 
-`secrets` maps a key inside `config` to a secret resource. Leave that key out of `config` entirely — Marmot writes it in before each run.
+`secrets` maps a key inside `config` to a secret resource. Leave that key out of `config` entirely. Marmot writes it in before each run.
 
 ```terraform
 resource "marmot_pipeline" "orders" {

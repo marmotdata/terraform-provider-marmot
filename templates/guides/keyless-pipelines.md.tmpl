@@ -118,7 +118,7 @@ resource "marmot_pipeline" "glue_catalog" {
 
 The trust policy holds the subject as a literal, because a trust policy cannot depend on the role it trusts without a cycle. Holding the pipeline name in a `local` and using it on both sides keeps them from drifting apart.
 
-Attach a read-only policy to the role — `AWSGlueConsoleReadOnlyAccess` or your own with just `glue:Get*` and `glue:List*`.
+Attach a read-only policy to the role: `AWSGlueConsoleReadOnlyAccess`, or your own with just `glue:Get*` and `glue:List*`.
 
 ## Azure
 
@@ -177,7 +177,7 @@ Each plugin puts the federation fields in its own place in `config`. The [plugin
 
 ## Sources with no cloud identity
 
-A PostgreSQL database behind a password cannot federate. That credential belongs in your secret manager, read by Marmot just before each run — see [secret stores](secret-stores.md).
+A PostgreSQL database behind a password cannot federate. That credential belongs in your secret manager, read by Marmot just before each run. See [secret stores](secret-stores.md).
 
 ## Verifying it
 

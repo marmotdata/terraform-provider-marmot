@@ -125,7 +125,7 @@ resource "marmot_lineage" "orders_to_fct" {
 }
 ```
 
-`source` and `target` are MRNs, not IDs — every asset exposes its own as `mrn`.
+`source` and `target` are MRNs, not IDs. Every asset exposes its own as `mrn`.
 
 Declare the edges your plugins cannot see. Lineage a plugin discovers for itself does not belong in Terraform, where it would only go stale.
 
