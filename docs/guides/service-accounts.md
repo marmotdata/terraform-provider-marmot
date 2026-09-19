@@ -1,0 +1,172 @@
+---
+page_title: "Service accounts and CI"
+subcategory: "Guides"
+description: |-
+  Create the identity this configuration runs as, scope it to what the repository manages, and get its key to CI without leaving it in state.
+---
+
+# Service accounts and CI
+
+On your own machine the provider uses your `marmot login` session and needs no credential in the configuration. CI has no session, so it needs a service account: a principal with no person behind it, holding its own grants and authenticating with an API key.
+
+## Create the identity
+
+Create it from your own session, in the configuration that manages the rest of the platform.
+
+```terraform
+resource "marmot_service_account" "terraform" {
+  name        = "terraform"
+  description = "Applies the catalog configuration from the acme/catalog repository. Owned by the platform team."
+}
+
+resource "marmot_service_account_api_key" "terraform" {
+  service_account_id = marmot_service_account.terraform.id
+  name               = "ci"
+  expires_in_days    = 90
+}
+```
+
+Put the owner and the repository in the description. A year from now, that sentence is what tells someone whether the account can be deleted.
+
+An account holds up to five keys, which is what lets an old key and a new one overlap during a rotation. Set an expiry: a key that never expires outlives the reason it was created.
+
+## Grant it what the repository manages, and nothing more
+
+An account with no grants reaches nothing. Add grants until the apply works, rather than starting from `admin` and hoping to trim later.
+
+```terraform
+resource "marmot_organization_iam_member" "terraform_ingestion" {
+  role   = "ingestion.admin"
+  member = "serviceAccount:${marmot_service_account.terraform.id}"
+}
+
+resource "marmot_secret_store_iam_member" "terraform_uses_prod" {
+  secret_store_id = marmot_secret_store_google.prod.id
+  role            = "secretStore.user"
+  member          = "serviceAccount:${marmot_service_account.terraform.id}"
+}
+```
+
+Roughly: pipelines need `ingestion.admin` and `secretStore.user` on the stores they attach. Catalog content needs `editor`. Managing access policy needs `iam.admin` on the resources it binds. A repository that only declares pipelines has no reason to hold any of the others.
+
+## Get the key to CI without leaking it
+
+The key resource returns the plaintext once and keeps it in state as a sensitive attribute. Write it where CI reads from, in the same apply, through a write-only argument so it never lands in that provider's state either.
+
+```terraform
+resource "google_secret_manager_secret_version" "terraform_marmot_key" {
+  secret                 = google_secret_manager_secret.terraform_marmot_key.id
+  secret_data_wo         = marmot_service_account_api_key.terraform.key
+  secret_data_wo_version = 1
+}
+```
+
+The AWS equivalent is a Secrets Manager secret version with its write-only string. For GitHub Actions:
+
+```terraform
+resource "github_actions_secret" "marmot_api_key" {
+  repository      = "catalog"
+  secret_name     = "MARMOT_API_KEY"
+  plaintext_value = marmot_service_account_api_key.terraform.key
+}
+```
+
+**Never expose a key through an output.** An output is in state in the clear and is printed by `terraform output`, so a key that reaches CI through one has effectively been published to everyone who can read the state file.
+
+A durable key is in state either way, so the state backend needs encryption at rest and access control of its own. If that is not acceptable, use an ephemeral key.
+
+## Ephemeral keys
+
+A key needed only for the duration of one operation — configuring a second provider against your instance, a one-off migration — should be an ephemeral resource. It is created when the operation starts, revoked when it ends, and never enters plan or state.
+
+```terraform
+ephemeral "marmot_service_account_api_key" "migration" {
+  service_account_id = marmot_service_account.migration.id
+}
+
+provider "marmot" {
+  alias   = "as_migration"
+  host    = "https://acme.marmotdata.cloud"
+  api_key = ephemeral.marmot_service_account_api_key.migration.key
+}
+```
+
+This needs Terraform 1.10 or later.
+
+## Configure the provider in CI
+
+With `MARMOT_HOST` and `MARMOT_API_KEY` in the environment, the provider block is empty and the key never appears in the configuration:
+
+```terraform
+provider "marmot" {}
+```
+
+```yaml
+- name: Terraform apply
+  env:
+    MARMOT_HOST: https://acme.marmotdata.cloud
+    MARMOT_API_KEY: ${{ secrets.MARMOT_API_KEY }}
+  run: terraform apply -auto-approve
+```
+
+If CI already reads from your secret manager, read the key through an ephemeral resource instead, so it never touches the runner's disk:
+
+```terraform
+ephemeral "google_secret_manager_secret_version" "marmot_api_key" {
+  secret  = "terraform-marmot-api-key"
+  version = "latest"
+}
+
+provider "marmot" {
+  host    = "https://acme.marmotdata.cloud"
+  api_key = ephemeral.google_secret_manager_secret_version.marmot_api_key.secret_data
+}
+```
+
+## Accounts for things that are not Terraform
+
+The same resources cover every non-human caller, and the grants differ.
+
+```terraform
+# An ingestion identity: writes assets, reads nothing else.
+resource "marmot_service_account" "airflow" {
+  name        = "airflow-prod"
+  description = "Emits assets and lineage from the nightly DAGs. Owned by data-platform."
+}
+
+resource "marmot_organization_iam_member" "airflow_publisher" {
+  role   = "ingestion.publisher"
+  member = "serviceAccount:${marmot_service_account.airflow.id}"
+}
+
+# An agent: reads three things and nothing else.
+resource "marmot_service_account" "copilot" {
+  name        = "catalog-copilot"
+  description = "Answers questions in #data-help. Owned by the platform team."
+}
+
+resource "marmot_data_product_iam_member" "copilot_revenue" {
+  data_product_id = marmot_data_product.revenue.id
+  role            = "dataProduct.viewer"
+  member          = "serviceAccount:${marmot_service_account.copilot.id}"
+}
+```
+
+One account per consumer. Two agents sharing a key cannot be told apart in an audit trail, and revoking one revokes both.
+
+## Rotation
+
+An expiring key means rotation is a scheduled task rather than an incident.
+
+1. Add a second `marmot_service_account_api_key` with a new name and apply.
+2. Point CI at the new key.
+3. Confirm a run succeeds.
+4. Remove the old key resource and apply.
+
+The account holds both keys in between, so nothing is interrupted. Bump `secret_data_wo_version` when the new value goes to a secret manager, or the write-only argument will not be sent.
+
+## Outbound identity
+
+A service account also has an identity towards your cloud, in the same way a pipeline does: subject `serviceAccount:<name>`, issued by your instance. It can mint a short-lived token and exchange it at Google Cloud, AWS or Azure, so an agent reads a bucket as itself.
+
+That is outbound only. Anything calling *into* Marmot — Terraform in CI, an agent on the MCP endpoint — still authenticates with the account's API key.
