@@ -1,11 +1,11 @@
 # Terraform Provider: Marmot
 
-The [Marmot Terraform provider](https://registry.terraform.io/providers/marmotdata/marmot/0.3.0/docs)
+The [Marmot Terraform provider](https://registry.terraform.io/providers/marmotdata/marmot/latest/docs)
 lets you manage your [Marmot](https://marmotdata.io) instance as code. It populates
 Marmot from Terraform, letting you declare your Marmot resources alongside the
 infrastructure they describe.
 
-* [Terraform Registry](https://registry.terraform.io/providers/marmotdata/marmot/0.3.0/docs)
+* [Terraform Registry](https://registry.terraform.io/providers/marmotdata/marmot/latest/docs)
 * [Marmot documentation](https://marmotdata.io/docs)
 
 ## Usage
