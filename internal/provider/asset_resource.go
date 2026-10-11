@@ -250,9 +250,6 @@ func (r *AssetResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"updated_at": schema.StringAttribute{
 				MarkdownDescription: "Last update timestamp",
 				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"last_sync_at": schema.StringAttribute{
 				MarkdownDescription: "Last sync timestamp",
