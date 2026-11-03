@@ -69,7 +69,7 @@ resource "marmot_asset_iam_binding" "orders_writers" {
 # Authoritative for everything: the complete policy on this asset.
 data "marmot_iam_policy" "pii_exports" {
   binding {
-    role    = "asset.dataViewer"
+    role    = "asset.dataQuerier"
     members = ["group:${marmot_team.data_governance.id}"]
   }
 }
@@ -84,9 +84,9 @@ resource "marmot_asset_iam_policy" "pii_exports" {
 
 The full list is in the [access control documentation](https://marmotdata.io/docs/Cloud/access-control). Four distinctions carry most of the weight:
 
-- `asset.viewer` sees that a table exists and what its columns mean. `asset.dataViewer` also reads sample rows. Grant the first broadly and the second narrowly.
+- `asset.viewer` sees that a table exists and what its columns mean. `asset.dataQuerier` can also run read-only queries against it. Grant the first broadly and the second narrowly.
 - `catalog.viewer` reads assets, data products and the glossary. It is the right floor for most instances.
-- `catalog.none` grants nothing. Set it as the default role when an instance must be closed by default.
+- `catalog.none` grants nothing. Set it as the base role when an instance must be closed by default.
 - `secretStore.user` can point a pipeline at a secret. `secretStore.reader` can see the value. Almost nobody who writes pipelines needs the second.
 
 Editing roles bind at the organization only, because write permissions are checked instance-wide. Read and access-policy roles bind anywhere in the hierarchy.
