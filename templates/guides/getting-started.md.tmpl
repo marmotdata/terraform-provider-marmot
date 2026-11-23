@@ -158,6 +158,7 @@ On Marmot Cloud that pipeline can run without a credential at all. See [keyless 
 | [Keyless pipelines](keyless-pipelines.md) | Pipelines that authenticate to Google Cloud, AWS or Azure as themselves. |
 | [Secret stores](secret-stores.md) | Sources that need a password, read from your vault at run time. |
 | [Service accounts and CI](service-accounts.md) | Running this configuration from CI without leaking a key. |
+| [Tasks](tasks.md) | Prompts an agent completes in the background, on a trigger, with the access of one principal. |
 
 ## A layout that scales
 
